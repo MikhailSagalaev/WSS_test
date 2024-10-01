@@ -1,0 +1,15 @@
+// package.json
+{
+    "name": "english-proficiency-test",
+    "version": "1.0.0",
+    "description": "Интерактивный тест на проверку уровня владения английским языком.",
+    "main": "index.js",
+    "scripts": {
+      "start": "vercel dev"
+    },
+    "dependencies": {
+      "node-fetch": "^2.6.7"
+    },
+    "author": "Mixa",
+    "license": "MIT"
+  }

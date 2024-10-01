@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Proficiency Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #test-container {
+            display: flex;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 1200px;
+            text-align: center;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #question-container {
+            position: relative;
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        #question-container p {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        #question-container ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #question-container ul li {
+            margin-bottom: 10px;
+        }
+
+        #question-container ul li input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="test-container">
+        <h1>English Proficiency Test</h1>
+        <div id="question-container"></div>
+        <button id="submit-btn">SUBMIT</button>
+        <button id="finish-btn" style="display: none;">Finish Test</button>
+    </div>
+
+    <script>
+        const config = {
+            personalAccessToken: 'patvy7HzcxZvtFkOx.d2012d7e67c15e2eee3b0cd870ef408af872e5648d0a827fd192de7198f63723',
+            baseId: 'app6qymgYI8wZxoyg',
+            questionsTableName: 'Questions',
+            testsTableName: 'Tests',
+            usersTableName: 'Users',
+            storyTableName: 'Story'
+        };
+
+        let currentLevel = 1;
+        let currentStage = 'reading';
+        let questionIndex = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+        let totalQuestions = 0;
+        let questions = { reading: [], listening: [] };
+
+        const questionContainer = document.getElementById('question-container');
+        const submitBtn = document.getElementById('submit-btn');
+        const finishBtn = document.getElementById('finish-btn');
+
+        const user = JSON.parse(localStorage.getItem('tilda_members_profile10011255')) || {};
+
+        function saveProgress(stage) {
+            localStorage.setItem(`progress_${stage}`, JSON.stringify({
+                currentLevel,
+                currentStage,
+                questionIndex,
+                correctCount,
+                incorrectCount,
+                totalQuestions
+            }));
+        }
+
+        function loadProgress(stage) {
+            const progress = JSON.parse(localStorage.getItem(`progress_${stage}`));
+            if (progress) {
+                currentLevel = progress.currentLevel;
+                currentStage = progress.currentStage;
+                questionIndex = progress.questionIndex;
+                correctCount = progress.correctCount;
+                incorrectCount = progress.incorrectCount;
+                totalQuestions = progress.totalQuestions;
+            }
+        }
+
+        function getRandomQuestion(questions) {
+            return questions[Math.floor(Math.random() * questions.length)];
+        }
+
+        function loadQuestion() {
+            const currentQuestions = questions[currentStage].filter(q => q.level === currentLevel);
+            if (!currentQuestions.length) {
+                console.error('No questions available for the current level and stage.');
+                return;
+            }
+
+            const question = getRandomQuestion(currentQuestions);
+            questionContainer.innerHTML =
+                `<p>${question.question}</p>
+                ${question.audio ? `<audio controls><source src="${question.audio}" type="audio/mpeg"></audio>` : ''}
+                <ul>
+                    ${question.answers.map((answer, index) => `<li><input type="radio" name="answer" value="${index}"> ${answer}</li>`).join('')}
+                </ul>`;
+
+            if (totalQuestions === 6) {
+                submitBtn.style.display = 'none';
+                finishBtn.style.display = 'block';
+            } else {
+                submitBtn.style.display = 'block';
+                finishBtn.style.display = 'none';
+            }
+        }
+
+        function startListeningStage() {
+            currentStage = 'listening';
+            currentLevel = 1;
+            questionIndex = 0;
+            correctCount = 0;
+            incorrectCount = 0;
+            totalQuestions = 0;
+            saveProgress('listening');
+            loadQuestion();
+        }
+
+        async function sendProgress(stage) {
+            const url = `https://api.airtable.com/v0/${config.baseId}/${config.testsTableName}?filterByFormula={UserLogin}='${user.login}'`;
+            const options = {
+                headers: {
+                    Authorization: `Bearer ${config.personalAccessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            try {
+                let response = await fetch(url, options);
+                let data = await response.json();
+
+                if (response.ok && data.records.length > 0) {
+                    const recordId = data.records[0].id;
+                    const updateUrl = `https://api.airtable.com/v0/${config.baseId}/${config.testsTableName}/${recordId}`;
+                    const updateOptions = {
+                        method: 'PATCH',
+                        headers: {
+                            Authorization: `Bearer ${config.personalAccessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            fields: {
+                                CurrentLevel: currentLevel,
+                                CurrentStage: stage,
+                                QuestionIndex: questionIndex,
+                                CorrectCount: correctCount,
+                                TotalQuestions: totalQuestions
+                            }
+                        })
+                    };
+                    console.log('Sending update:', updateOptions.body);
+                    response = await fetch(updateUrl, updateOptions);
+                    data = await response.json();
+                    if (response.ok) {
+                        console.log('Progress updated:', data);
+                    } else {
+                        console.error('Error updating progress:', data);
+                    }
+                } else {
+                    const createUrl = `https://api.airtable.com/v0/${config.baseId}/${config.testsTableName}`;
+                    const createOptions = {
+                        method: 'POST',
+                        headers: {
+                            Authorization: `Bearer ${config.personalAccessToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            fields: {
+                                UserLogin: user.login,
+                                CurrentLevel: currentLevel,
+                                CurrentStage: stage,
+                                QuestionIndex: questionIndex,
+                                CorrectCount: correctCount,
+                                TotalQuestions: totalQuestions
+                            }
+                        })
+                    };
+                    console.log('Sending create:', createOptions.body);
+                    response = await fetch(createUrl, createOptions);
+                    data = await response.json();
+                    if (response.ok) {
+                        console.log('Progress saved:', data);
+                    } else {
+                        console.error('Error saving progress:', data);
+                    }
+                }
+            } catch (err) {
+                console.error('Error sending progress:', err);
+            }
+        }
+
+        function finishTest() {
+            alert(`Ваш результат: Уровень ${currentLevel}`);
+
+            if (currentStage === 'reading') {
+                startListeningStage();
+            }
+        }
+
+        submitBtn.addEventListener('click', () => {
+            const selectedAnswer = document.querySelector('input[name="answer"]:checked');
+            if (!selectedAnswer) return;
+
+            const currentQuestions = questions[currentStage].filter(q => q.level === currentLevel);
+            const question = currentQuestions[questionIndex];
+
+            if (parseInt(selectedAnswer.value) === question.correct) {
+                correctCount++;
+            } else {
+                incorrectCount++;
+            }
+
+            totalQuestions++;
+
+            if (totalQuestions % 3 === 0) {
+                if (correctCount === 3) {
+                    currentLevel++;
+                } else if (correctCount === 1) {
+                    currentLevel--;
+                }
+                correctCount = 0;
+                incorrectCount = 0;
+            }
+
+            if (totalQuestions >= 6) {
+                finishTest();
+                return;
+            }
+
+            loadQuestion();
+            saveProgress(currentStage);
+            sendProgress(currentStage);
+        });
+
+        finishBtn.addEventListener('click', () => {
+            finishTest();
+        });
+
+        async function fetchQuestions() {
+            const url = `https://api.airtable.com/v0/${config.baseId}/${config.questionsTableName}`;
+            const options = {
+                headers: {
+                    Authorization: `Bearer ${config.personalAccessToken}`
+                }
+            };
+
+            try {
+                let response = await fetch(url, options);
+                let data = await response.json();
+                data.records.forEach(record => {
+                    const question = {
+                        level: parseInt(record.fields['Level']),
+                        question: record.fields['Question'],
+                        answers: record.fields['Answers'].split(','),
+                        correct: parseInt(record.fields['Correct']),
+                        audio: record.fields['Audio']
+                    };
+
+                    if (record.fields['Stage'] === 'reading') {
+                        questions.reading.push(question);
+                    } else if (record.fields['Stage'] === 'listening') {
+                        questions.listening.push(question);
+                    }
+                });
+
+                loadProgress(currentStage);
+                loadQuestion();
+            } catch (err) {
+                console.error('Error fetching questions:', err);
+            }
+        }
+
+        async function loadInitialProgress() {
+            const url = `https://api.airtable.com/v0/${config.baseId}/${config.testsTableName}?filterByFormula={UserLogin}='${user.login}'`;
+            const options = {
+                headers: {
+                    Authorization: `Bearer ${config.personalAccessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            try {
+                let response = await fetch(url, options);
+                let data = await response.json();
+
+                if (response.ok && data.records.length > 0) {
+                    const progress = data.records[0].fields;
+                    currentLevel = progress.CurrentLevel;
+                    currentStage = progress.CurrentStage;
+                    questionIndex = progress.QuestionIndex;
+                    correctCount = progress.CorrectCount;
+                    incorrectCount = progress.IncorrectCount;
+                    totalQuestions = progress.TotalQuestions;
+
+                    saveProgress(currentStage);
+                }
+            } catch (err) {
+                console.error('Error loading initial progress:', err);
+            }
+        }
+
+        loadInitialProgress();
+        fetchQuestions();
+    </script>
+</body>
+</html>
