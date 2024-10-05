@@ -9,8 +9,10 @@ module.exports = async (req, res) => {
     const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
     const { stage, currentLevel, questionIndex, correctCount, totalQuestions, userLogin } = req.body;
 
-    if (!stage || !userLogin) {
-        return res.status(400).json({ error: 'Недостаточно данных для сохранения прогресса' });
+    if (!stage) {
+        return res.status(400).json({ error: 'Недостаточно данных для сохранения прогресса (stage)' });
+    } else if (!userLogin) {
+        return res.status(400).json({ error: 'Недостаточно данных для сохранения прогресса (userLogin)' });
     }
 
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`;
