@@ -9,10 +9,9 @@ module.exports = async (req, res) => {
         return res.status(405).json({ error: 'Метод не разрешён' });
     }
 
-    const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE, AIRTABLE_USERS_TABLE } = process.env;
+    const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
 
     const progressUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`;
-    const usersUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}`;
 
     const { userLogin, stage, level, correctCount, incorrectCount, totalQuestions, correctHigherLevel, incorrectLowerLevel, timestamp } = req.body;
 
@@ -119,74 +118,8 @@ module.exports = async (req, res) => {
             console.log("Новая запись прогресса создана в Airtable:", newRecord);
         }
 
-        // Шаг 2: Обновление поля TestAttempts в таблице Users
-        const userFilterFormula = `({login} = "${userLogin}")`;
-        const userFetchUrl = `${usersUrl}?filterByFormula=${encodeURIComponent(userFilterFormula)}`;
-        console.log(`Запрос пользователя: ${userFetchUrl}`);
-
-        const userResponse = await fetch(userFetchUrl, {
-            headers: {
-                Authorization: `Bearer ${AIRTABLE_PAT}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!userResponse.ok) {
-            const errorData = await userResponse.json();
-            console.error("Ошибка при получении пользователя из Airtable:", errorData);
-            return res.status(userResponse.status).json({ error: errorData.error });
-        }
-
-        const userDataResponse = await userResponse.json();
-        console.log(`Найдено пользователей: ${userDataResponse.records.length}`);
-
-        if (userDataResponse.records.length === 0) {
-            console.error(`Пользователь с login ${userLogin} не найден в таблице Users`);
-            return res.status(404).json({ error: `Пользователь с login ${userLogin} не найден` });
-        }
-
-        const userRecord = userDataResponse.records[0];
-        const userRecordId = userRecord.id;
-        const currentTestAttempts = userRecord.fields.TestAttempts || 0;
-
-        console.log(`Текущие TestAttempts для пользователя ${userLogin}: ${currentTestAttempts}`);
-
-        // Проверка, что TestAttempts больше 0
-        if (currentTestAttempts <= 0) {
-            console.warn(`У пользователя ${userLogin} не осталось TestAttempts`);
-            return res.status(400).json({ error: 'У пользователя не осталось TestAttempts' });
-        }
-
-        const updatedTestAttempts = currentTestAttempts - 1;
-
-        console.log(`Обновление TestAttempts для пользователя ${userLogin} до ${updatedTestAttempts}`);
-
-        const updateUserData = {
-            fields: {
-                TestAttempts: updatedTestAttempts
-            }
-        };
-
-        const updateUserResponse = await fetch(`${usersUrl}/${userRecordId}`, {
-            method: 'PATCH',
-            headers: {
-                Authorization: `Bearer ${AIRTABLE_PAT}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(updateUserData)
-        });
-
-        if (!updateUserResponse.ok) {
-            const errorData = await updateUserResponse.json();
-            console.error("Ошибка при обновлении TestAttempts в Airtable:", errorData);
-            return res.status(updateUserResponse.status).json({ error: errorData.error });
-        }
-
-        const updatedUserRecord = await updateUserResponse.json();
-        console.log("TestAttempts успешно обновлены в Airtable:", updatedUserRecord);
-
         // Ответ успешного выполнения
-        res.status(200).json({ message: 'Прогресс успешно сохранён и TestAttempts обновлены.' });
+        res.status(200).json({ message: 'Прогресс успешно сохранён.' });
 
     } catch (error) {
         console.error("Внутренняя ошибка сервера:", error);
