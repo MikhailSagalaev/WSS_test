@@ -139,13 +139,80 @@ class TestApp {
         }
 
         const question = this.getRandomQuestion(currentQuestions);
-        this.questionContainer.innerHTML =
-            `<p>${question.question}</p>
+        this.currentQuestion = question; // Сохраняем текущий вопрос для последующей проверки
+
+        if (question.questionType === 'multiple-choice') {
+            this.renderMultipleChoice(question);
+        } else if (question.questionType === 'matching') {
+            this.renderMatchingQuestion(question);
+        }
+
+        // Отображение кнопок
+        this.updateButtons();
+    }
+    renderMultipleChoice(question) {
+        const html = `
+            <p>${question.question}</p>
             ${question.audio ? `<audio controls><source src="${question.audio}" type="audio/mpeg"></audio>` : ''}
             <ul>
-                ${question.answers.map((answer, index) => `<li><label><input type="radio" name="answer" value="${index}"> ${answer}</label></li>`).join('')}
-            </ul>`;
+                ${question.answers.map((answer, index) => `
+                    <li>
+                        <label>
+                            <input type="radio" name="answer" value="${index}"> ${answer}
+                        </label>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+        this.questionContainer.innerHTML = html;
+    }
 
+    renderMatchingQuestion(question) {
+        const pairs = question.matchPairs; // Предполагается, что `matchPairs` - это массив объектов с полями `option` и `image`
+        const shuffledOptions = pairs.map(pair => pair.option).sort(() => Math.random() - 0.5);
+        const shuffledImages = pairs.map(pair => pair.image).sort(() => Math.random() - 0.5);
+
+        // Сохраняем правильные пары для проверки
+        this.correctMatching = {};
+        pairs.forEach(pair => {
+            this.correctMatching[pair.option] = pair.image;
+        });
+
+        const html = `
+            <p>${question.question}</p>
+            <div class="matching-container">
+                <div class="options">
+                    <h3>Options</h3>
+                    <ul>
+                        ${shuffledOptions.map(option => `
+                            <li>
+                                <select class="match-select" data-option="${option}">
+                                    <option value="">-- Select Image --</option>
+                                    ${shuffledImages.map(image => `
+                                        <option value="${image}">${image}</option>
+                                    `).join('')}
+                                </select>
+                                ${option}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+                <div class="images">
+                    <h3>Images</h3>
+                    <ul>
+                        ${shuffledImages.map(image => `
+                            <li>
+                                <img src="${image}" alt="Image" width="100">
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+        `;
+        this.questionContainer.innerHTML = html;
+    }
+
+    updateButtons() {
         if (this.totalQuestions === 6) {
             this.submitBtn.style.display = 'none';
             this.finishBtn.style.display = 'block';
@@ -158,7 +225,6 @@ class TestApp {
     startListeningStage() {
         this.currentStage = 'listening';
         this.currentLevel = 1;
-        this.questionIndex = 0;
         this.correctCount = 0;
         this.incorrectCount = 0;
         this.totalQuestions = 0;
@@ -178,7 +244,6 @@ class TestApp {
                 body: JSON.stringify({
                     stage: stage,
                     currentLevel: this.currentLevel,
-                    questionIndex: this.questionIndex,
                     correctCount: this.correctCount,
                     totalQuestions: this.totalQuestions,
                     userLogin: this.user.login
@@ -221,33 +286,36 @@ class TestApp {
         } else {
             // Тест завершен на обоих этапах
             alert('Тест завершен. Спасибо за прохождение!');
+            // Дополнительная логика, например, сброс прогресса
+            this.resetProgress();
         }
     }
 
     handleSubmit() {
+        const question = this.currentQuestion;
+
+        if (question.questionType === 'multiple-choice') {
+            this.handleMultipleChoiceSubmit(question);
+        } else if (question.questionType === 'matching') {
+            this.handleMatchingSubmit(question);
+        }
+    }
+
+    handleMultipleChoiceSubmit(question) {
         const selectedAnswer = document.querySelector('input[name="answer"]:checked');
         if (!selectedAnswer) {
             alert('Пожалуйста, выберите ответ.');
             return;
         }
 
-        const currentQuestions = this.questions[this.currentStage].filter(q => q.level === this.currentLevel);
-        const question = this.getRandomQuestion(currentQuestions);
-
-        if (!question) {
-            alert('Вопрос не найден.');
-            return;
-        }
-
-        if (parseInt(selectedAnswer.value) === question.correct) {
+        const selectedValue = parseInt(selectedAnswer.value);
+        if (selectedValue === question.correct) {
             this.correctCount++;
-            // Если есть уровень выше, увеличиваем счетчик правильных ответов на уровне выше
             if (this.currentLevel < this.getMaxLevel()) {
                 this.correctHigherLevel++;
             }
         } else {
             this.incorrectCount++;
-            // Если есть уровень ниже, увеличиваем счетчик неправильных ответов на уровне ниже
             if (this.currentLevel > 1) {
                 this.incorrectLowerLevel++;
             }
@@ -266,6 +334,57 @@ class TestApp {
         this.sendProgress(this.currentStage);
     }
 
+    handleMatchingSubmit(question) {
+        const selects = document.querySelectorAll('.match-select');
+        const userMatches = {};
+
+        selects.forEach(select => {
+            const option = select.getAttribute('data-option');
+            const selectedImage = select.value;
+            if (selectedImage) {
+                userMatches[option] = selectedImage;
+            }
+        });
+
+        // Проверяем все совпадения
+        let allCorrect = true;
+        for (const [option, image] of Object.entries(this.correctMatching)) {
+            if (userMatches[option] !== image) {
+                allCorrect = false;
+                break;
+            }
+        }
+
+        if (allCorrect) {
+            this.correctCount += 6; // Предположим, что 6 пар
+            if (this.currentLevel < this.getMaxLevel()) {
+                this.correctHigherLevel += 6;
+            }
+        } else {
+            this.incorrectCount += 6;
+            if (this.currentLevel > 1) {
+                this.incorrectLowerLevel += 6;
+            }
+        }
+
+        this.totalQuestions += 6; // Один вопрос типа matching считается за 6
+
+        // Проверяем, достигли ли мы 6 вопросов
+        if (this.totalQuestions >= 6) {
+            this.finishTest();
+            return;
+        }
+
+        this.loadQuestion();
+        this.saveProgress(this.currentStage);
+        this.sendProgress(this.currentStage);
+    }
+
+    resetProgress() {
+        localStorage.removeItem(`progress_${this.currentStage}`);
+        // Сброс других переменных или перенаправление пользователя
+    }
+
     async fetchQuestions() {
         try {
             const response = await fetch('/api/questions');
@@ -274,15 +393,18 @@ class TestApp {
                 data.records.forEach(record => {
                     const question = {
                         level: parseInt(record.fields['Level']),
+                        stage: record.fields['Stage'],
+                        questionType: record.fields['Question Type'],
                         question: record.fields['Question'],
-                        answers: record.fields['Answers'].split(',').map(ans => ans.trim()),
-                        correct: parseInt(record.fields['Correct']),
-                        audio: record.fields['Audio'] // URL аудио, если есть
+                        answers: record.fields['Answers'] ? record.fields['Answers'].split(',').map(ans => ans.trim()) : [],
+                        correct: record.fields['Correct'] !== undefined ? parseInt(record.fields['Correct']) : null,
+                        audio: record.fields['Audio'], // URL аудио, если есть
+                        matchPairs: record.fields['MatchPairs'] ? JSON.parse(record.fields['MatchPairs']) : []
                     };
 
-                    if (record.fields['Stage'] === 'reading') {
+                    if (question.stage === 'reading') {
                         this.questions.reading.push(question);
-                    } else if (record.fields['Stage'] === 'listening') {
+                    } else if (question.stage === 'listening') {
                         this.questions.listening.push(question);
                     }
                 });
@@ -300,19 +422,22 @@ class TestApp {
     }
 
     getMinWssForLevel(level) {
-        const levels = ['pre-A1 Low', 'pre-A1 Mid', 'pre-A1 High', 'A1 Low', 'A1 Mid', 'A1 High',
-            'A2 Low', 'A2 Mid', 'A2 High', 'B1 Low', 'B1 Mid', 'B1 High', 'B2 Low', 'B2 Mid',
-            'B2 High', 'C1 Low', 'C1 Mid', 'C1 High', 'C2'];
+        const levelsOrder = [
+            'pre-A1 Low', 'pre-A1 Mid', 'pre-A1 High',
+            'A1 Low', 'A1 Mid', 'A1 High',
+            'A2 Low', 'A2 Mid', 'A2 High',
+            'B1 Low', 'B1 Mid', 'B1 High',
+            'B2 Low', 'B2 Mid', 'B2 High',
+            'C1 Low', 'C1 Mid', 'C1 High',
+            'C2'
+        ];
 
         // Находим минимальный WSS для заданного уровня
-        for (let i = 0; i < this.wssScale.length; i++) {
-            if (this.wssScale[i].level === level) {
-                return this.wssScale[i].wss;
-            }
-        }
+        const minWss = this.wssScale
+            .filter(item => item.level === level)
+            .reduce((min, item) => item.wss < min ? item.wss : min, Infinity);
 
-        // Если уровень не найден, возвращаем 0
-        return 0;
+        return minWss !== Infinity ? minWss : 0;
     }
 
     getLevelByWss(wss) {
@@ -326,14 +451,16 @@ class TestApp {
 
     getMaxLevel() {
         // Определяем максимальный уровень на основе шкалы WSS
-        let maxLevel = 'pre-A1 Low';
-        for (let i = 0; i < this.wssScale.length; i++) {
-            if (['C2', 'C1 High', 'C1 Mid', 'C1 Low'].includes(this.wssScale[i].level)) {
-                maxLevel = this.wssScale[i].level;
-                break;
-            }
-        }
-        return maxLevel;
+        const levelsOrder = [
+            'pre-A1 Low', 'pre-A1 Mid', 'pre-A1 High',
+            'A1 Low', 'A1 Mid', 'A1 High',
+            'A2 Low', 'A2 Mid', 'A2 High',
+            'B1 Low', 'B1 Mid', 'B1 High',
+            'B2 Low', 'B2 Mid', 'B2 High',
+            'C1 Low', 'C1 Mid', 'C1 High',
+            'C2'
+        ];
+        return levelsOrder[levelsOrder.length - 1]; // 'C2'
     }
 }
 

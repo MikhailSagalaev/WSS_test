@@ -16,7 +16,7 @@ body {
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 500px;
+    width: 600px;
     text-align: center;
     flex-direction: column;
     align-items: stretch;
@@ -64,4 +64,26 @@ button {
 
 button:hover {
     background-color: #45a049;
+}
+
+.matching-container {
+    display: flex;
+    justify-content: space-between;
+}
+
+.matching-container .options, .matching-container .images {
+    width: 45%;
+}
+
+.matching-container ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.matching-container li {
+    margin-bottom: 10px;
+}
+
+.matching-container select {
+    margin-right: 10px;
 }
