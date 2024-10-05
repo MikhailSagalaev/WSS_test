@@ -82,7 +82,13 @@ class TestApp {
         this.submitBtn = document.getElementById('submit-btn');
         this.finishBtn = document.getElementById('finish-btn');
 
-        this.user = JSON.parse(localStorage.getItem('tilda_members_profile10011255')) || { login: 'anonymous' };
+        const storedUser = JSON.parse(localStorage.getItem('tilda_members_profile10011255')) || { login: 'anonymous' };
+        console.log("Инициализированный пользователь:", storedUser);
+
+        // Сохранение только поля login
+        this.user = {
+            login: storedUser.login
+        };
 
         // Привязка обработчиков событий
         this.submitBtn.addEventListener('click', () => this.handleSubmit());
@@ -505,7 +511,7 @@ class TestApp {
     sendProgress(stage) {
         console.log(`Отправка прогресса для этапа: ${stage}`);
         const progressData = {
-            user: this.user.login,
+            userLogin: this.user.login,
             stage: stage,
             level: this.currentLevel,
             correctCount: this.correctCount,
