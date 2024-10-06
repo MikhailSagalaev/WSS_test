@@ -406,45 +406,123 @@ class TestApp {
         });
     }
 
-    handleSubmit() {
-        // Логика проверки ответа
-        const userAnswer = this.getUserAnswer();
-        const isCorrect = this.checkAnswer(userAnswer);
-
-        if (isCorrect) {
-            this.correctCount++;
-            this.groupCorrectAnswers++;
-            this.correctHigherLevel += 1; // или другое вычисление
+    getUserAnswer() {
+        const questionType = this.currentQuestion.questionType;
+        
+        if (questionType === 'multiple-choice') {
+            const selectedOption = this.questionContainer.querySelector('input[name="answer"]:checked');
+            if (selectedOption) {
+                // Assuming the value corresponds to the index of the selected answer
+                const answerIndex = parseInt(selectedOption.value, 10);
+                return this.currentQuestion.answers[answerIndex];
+            } else {
+                alert("Пожалуйста, выберите вариант ответа.");
+                return null;
+            }
+        } else if (questionType === 'matching') {
+            const matches = this.questionContainer.querySelectorAll('.images li');
+            const userMatches = {};
+            let allMatched = true;
+    
+            matches.forEach(match => {
+                const dropZone = match.querySelector('.drop-zone p');
+                const image = match.getAttribute('data-image');
+                if (dropZone) {
+                    const userAnswer = dropZone.textContent.trim();
+                    if (userAnswer) {
+                        userMatches[image] = userAnswer;
+                    } else {
+                        allMatched = false;
+                    }
+                } else {
+                    allMatched = false;
+                }
+            });
+    
+            if (!allMatched) {
+                alert("Пожалуйста, сопоставьте все элементы.");
+                return null;
+            }
+    
+            return userMatches;
         } else {
-            this.incorrectCount++;
-            this.incorrectLowerLevel += 1; // или другое вычисление
-        }
-
-        this.totalQuestions++;
-        this.groupTotalAnswers++;
-
-        console.log(`Ответ ${isCorrect ? 'правильный' : 'неправильный'}.`);
-
-        // Проверка, завершена ли группа из трех вопросов
-        if (this.groupTotalAnswers >= 3) {
-            this.groupsAnswered++;
-            // Логика изменения уровня
-            this.updateLevelBasedOnGroupResults();
-            // Сброс счётчиков группы
-            this.groupCorrectAnswers = 0;
-            this.groupTotalAnswers = 0;
-        }
-
-        // Сохранение прогресса
-        this.saveProgressToLocalStorage();
-
-        // Проверка, завершено ли количество вопросов для этапа
-        if (this.groupsAnswered >= 2) { // 2 группы по 3 вопроса = 6 вопросов
-            this.finishStage();
-        } else {
-            this.loadQuestion();
+            console.error("Неизвестный тип вопроса:", questionType);
+            return null;
         }
     }
+
+    checkAnswer(userAnswer) {
+        if (!userAnswer) {
+            // No answer provided
+            return false;
+        }
+    
+        const question = this.currentQuestion;
+    
+        if (question.questionType === 'multiple-choice') {
+            // Assuming 'correct' holds the index of the correct answer
+            return userAnswer === question.correct;
+        } else if (question.questionType === 'matching') {
+            // Assuming 'correct' is an object with image-text pairs
+            const correctMatches = question.correct; // { image1: text1, image2: text2, ... }
+            let isCorrect = true;
+    
+            for (const image in correctMatches) {
+                if (userAnswer[image] !== correctMatches[image]) {
+                    isCorrect = false;
+                    break;
+                }
+            }
+    
+            return isCorrect;
+        } else {
+            console.error("Неизвестный тип вопроса:", question.questionType);
+            return false;
+        }
+    }
+
+   handleSubmit() {
+    const userAnswer = this.getUserAnswer();
+    
+    if (userAnswer === null) {
+        return;
+    }
+
+    const isCorrect = this.checkAnswer(userAnswer);
+
+    if (isCorrect) {
+        this.correctCount++;
+        this.groupCorrectAnswers++;
+        this.correctHigherLevel += 1; // or another calculation
+    } else {
+        this.incorrectCount++;
+        this.incorrectLowerLevel += 1; // or another calculation
+    }
+
+    this.totalQuestions++;
+    this.groupTotalAnswers++;
+
+    console.log(`Ответ ${isCorrect ? 'правильный' : 'неправильный'}.`);
+
+    if (this.groupTotalAnswers >= 3) { // 3 questions per group
+        this.groupsAnswered++;
+        // Logic to update the level based on group results
+        this.updateLevelBasedOnGroupResults();
+        // Reset group counters
+        this.groupCorrectAnswers = 0;
+        this.groupTotalAnswers = 0;
+    }
+
+    // Save progress
+    this.saveProgressToLocalStorage();
+
+    // Check if the stage is completed
+    if (this.groupsAnswered >= 2) { // 2 groups = 6 questions
+        this.finishStage();
+    } else {
+        this.loadQuestion();
+    }
+}
 
     determineNextLevel() {
         if (this.groupCorrectAnswers === 1) {
