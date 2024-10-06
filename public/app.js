@@ -238,6 +238,7 @@ class TestApp {
             .then(data => {
                 // Обработка полученных данных
                 console.log("Вопросы загружены:", data.records.length);
+                console.log('Загруженные вопросы:', this.questions);
                 data.records.forEach(record => {
                     const fields = record.fields;
                     this.questions[fields.Stage].push({
@@ -264,7 +265,11 @@ class TestApp {
         const questionsForStage = this.questions[currentStage];
         console.log(`Всего вопросов на этапе ${currentStage}: ${questionsForStage.length}`);
 
-        const questionsForLevel = questionsForStage.filter(q => q.level === this.currentLevel);
+        const questionsForLevel = questionsForStage.filter(q => {
+            // Предполагаем, что q.Level может быть строкой или числом
+            const questionLevel = typeof q.Level === 'string' ? parseInt(q.Level, 10) : q.Level;
+            return questionLevel === this.currentLevel;
+        });
         console.log(`Найдено вопросов на уровне ${this.currentLevel} для этапа ${currentStage}: ${questionsForLevel.length}`);
 
         if (questionsForLevel.length === 0) {
