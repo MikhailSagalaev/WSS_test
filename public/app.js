@@ -266,8 +266,8 @@ class TestApp {
         console.log(`Всего вопросов на этапе ${currentStage}: ${questionsForStage.length}`);
 
         const questionsForLevel = questionsForStage.filter(q => {
-            // Предполагаем, что q.Level может быть строкой или числом
-            const questionLevel = typeof q.Level === 'string' ? parseInt(q.Level, 10) : q.Level;
+            // Предполагаем, что q.level может быть строкой или числом
+            const questionLevel = typeof q.level === 'string' ? parseInt(q.level, 10) : q.level;
             return questionLevel === this.currentLevel;
         });
         console.log(`Найдено вопросов на уровне ${this.currentLevel} для этапа ${currentStage}: ${questionsForLevel.length}`);
