@@ -453,28 +453,26 @@ class TestApp {
 
     checkAnswer(userAnswer) {
         if (!userAnswer) {
-            // No answer provided
             return false;
         }
     
         const question = this.currentQuestion;
     
-        if (question.questionType === 'multiple-choice') {
-            // Assuming 'correct' holds the index of the correct answer
-            return userAnswer === question.correct;
-        } else if (question.questionType === 'matching') {
-            // Assuming 'correct' is an object with image-text pairs
-            const correctMatches = question.correct; // { image1: text1, image2: text2, ... }
-            let isCorrect = true;
+        console.log("Тип вопроса:", question.questionType);
+        console.log("Пользовательский ответ:", userAnswer);
+        console.log("Правильный ответ:", question.correct);
     
+        if (question.questionType === 'multiple-choice') {
+            // Преобразуем оба значения к строке для корректного сравнения
+            return String(userAnswer) === String(question.correct);
+        } else if (question.questionType === 'matching') {
+            const correctMatches = question.correct;
             for (const image in correctMatches) {
                 if (userAnswer[image] !== correctMatches[image]) {
-                    isCorrect = false;
-                    break;
+                    return false;
                 }
             }
-    
-            return isCorrect;
+            return true;
         } else {
             console.error("Неизвестный тип вопроса:", question.questionType);
             return false;
