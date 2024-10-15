@@ -32,8 +32,16 @@ module.exports = async (req, res) => {
 
         if (!response.ok) {
             console.error("Ошибка ответа Airtable:", response.status, response.statusText);
-            const errorBody = await response.text();
-            console.error("Тело ошибки:", errorBody);
+            const errorBody = await response.json();
+            console.error("Тело ошибки:", JSON.stringify(errorBody));
+            
+            if (errorBody.error && errorBody.error.type === "INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND") {
+                return res.status(403).json({ 
+                    error: 'Ошибка доступа к Airtable', 
+                    details: 'Проверьте правильность токена, ID базы данных и имени таблицы' 
+                });
+            }
+            
             throw new Error('Ошибка при запросе к Airtable');
         }
 
