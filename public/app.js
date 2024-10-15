@@ -47,7 +47,12 @@ class TestApp {
             },
             body: JSON.stringify({ userLogin: this.user.login })
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.available) {
                 this.loadProgress();
@@ -60,7 +65,6 @@ class TestApp {
             this.showUnavailableMessage();
         });
     }
-    
     showUnavailableMessage() {
         this.questionContainer.innerHTML = `
             <div class="unavailable-message">
