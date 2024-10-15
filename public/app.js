@@ -36,6 +36,39 @@ class TestApp {
         this.submitBtn.addEventListener('click', () => this.handleSubmit());
         this.finishBtn.addEventListener('click', () => this.resetProgress());
         this.loadProgressFromLocalStorage();
+        this.checkTestAvailability();
+    }
+
+    checkTestAvailability() {
+        fetch('/api/checkTestAvailability', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userLogin: this.user.login })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.available) {
+                this.loadProgress();
+            } else {
+                this.showUnavailableMessage();
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка при проверке доступности теста:", error);
+            this.showUnavailableMessage();
+        });
+    }
+    
+    showUnavailableMessage() {
+        this.questionContainer.innerHTML = `
+            <div class="unavailable-message">
+                <p>Тестирование не доступно. Обратитесь к администратору.</p>
+                <a href="https://t.me/@mixadev" target="_blank">Связаться с администратором</a>
+            </div>
+        `;
+        this.submitBtn.style.display = 'none';
     }
 
     // Метод для сохранения прогресса в localStorage
@@ -369,8 +402,9 @@ class TestApp {
     initializeDragAndDrop() {
         const draggableElements = this.questionContainer.querySelectorAll('.options li');
         const dropZones = this.questionContainer.querySelectorAll('.images .drop-zone');
-
+    
         draggableElements.forEach(elem => {
+            elem.setAttribute('draggable', 'true');
             elem.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('text/plain', JSON.stringify({
                     text: elem.getAttribute('data-text'),
@@ -380,28 +414,34 @@ class TestApp {
                     elem.classList.add('dragged');
                 }, 0);
             });
-
+    
             elem.addEventListener('dragend', () => {
                 elem.classList.remove('dragged');
             });
         });
-
+    
         dropZones.forEach(zone => {
             zone.addEventListener('dragover', (e) => {
                 e.preventDefault();
-                zone.parentElement.classList.add('drag-over');
+                zone.classList.add('drag-over');
             });
-
+    
             zone.addEventListener('dragleave', () => {
-                zone.parentElement.classList.remove('drag-over');
+                zone.classList.remove('drag-over');
             });
-
+    
             zone.addEventListener('drop', (e) => {
                 e.preventDefault();
-                zone.parentElement.classList.remove('drag-over');
+                zone.classList.remove('drag-over');
                 const data = JSON.parse(e.dataTransfer.getData('text/plain'));
                 zone.innerHTML = `<p>${data.text}</p>`;
                 zone.setAttribute('data-image', data.image);
+                
+                // Удаляем элемент из списка опций
+                const optionElement = this.questionContainer.querySelector(`.options li[data-text="${data.text}"]`);
+                if (optionElement) {
+                    optionElement.remove();
+                }
             });
         });
     }
@@ -479,48 +519,82 @@ class TestApp {
         }
     }
 
-   handleSubmit() {
-    const userAnswer = this.getUserAnswer();
+    handleSubmit() {
+        const userAnswer = this.getUserAnswer();
+        
+        if (userAnswer === null) {
+            return;
+        }
     
-    if (userAnswer === null) {
-        return;
+        const isCorrect = this.checkAnswer(userAnswer);
+    
+        if (isCorrect) {
+            this.correctCount++;
+            this.groupCorrectAnswers++;
+            this.correctHigherLevel += 1;
+        } else {
+            this.incorrectCount++;
+            this.incorrectLowerLevel += 1;
+        }
+    
+        this.totalQuestions++;
+        this.groupTotalAnswers++;
+    
+        console.log(`Ответ ${isCorrect ? 'правильный' : 'неправильный'}.`);
+    
+        // Сохраняем прогресс в localStorage
+        this.saveProgressToLocalStorage();
+    
+        // Отправляем прогресс в Airtable
+        this.sendProgress(this.stages[this.currentStageIndex]);
+    
+        if (this.groupTotalAnswers >= 3) {
+            this.groupsAnswered++;
+            this.updateLevelBasedOnGroupResults();
+            this.groupCorrectAnswers = 0;
+            this.groupTotalAnswers = 0;
+        }
+    
+        if (this.groupsAnswered >= 2) {
+            this.finishStage();
+        } else {
+            this.loadQuestion();
+        }
     }
-
-    const isCorrect = this.checkAnswer(userAnswer);
-
-    if (isCorrect) {
-        this.correctCount++;
-        this.groupCorrectAnswers++;
-        this.correctHigherLevel += 1; // or another calculation
-    } else {
-        this.incorrectCount++;
-        this.incorrectLowerLevel += 1; // or another calculation
+    
+    // Добавим новый метод для отправки прогресса
+    sendProgress(stage) {
+        const progressData = {
+            userLogin: this.user.login,
+            stage: stage,
+            level: this.currentLevel,
+            correctCount: this.correctCount,
+            incorrectCount: this.incorrectCount,
+            totalQuestions: this.totalQuestions,
+            correctHigherLevel: this.correctHigherLevel,
+            incorrectLowerLevel: this.incorrectLowerLevel,
+            timestamp: new Date().toISOString()
+        };
+    
+        fetch('/api/progress', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(progressData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error("Ошибка при сохранении прогресса:", data.error);
+            } else {
+                console.log("Прогресс успешно сохранен");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка при отправке прогресса:", error);
+        });
     }
-
-    this.totalQuestions++;
-    this.groupTotalAnswers++;
-
-    console.log(`Ответ ${isCorrect ? 'правильный' : 'неправильный'}.`);
-
-    if (this.groupTotalAnswers >= 3) { // 3 questions per group
-        this.groupsAnswered++;
-        // Logic to update the level based on group results
-        this.updateLevelBasedOnGroupResults();
-        // Reset group counters
-        this.groupCorrectAnswers = 0;
-        this.groupTotalAnswers = 0;
-    }
-
-    // Save progress
-    this.saveProgressToLocalStorage();
-
-    // Check if the stage is completed
-    if (this.groupsAnswered >= 2) { // 2 groups = 6 questions
-        this.finishStage();
-    } else {
-        this.loadQuestion();
-    }
-}
 
     determineNextLevel() {
         if (this.groupCorrectAnswers === 1) {
