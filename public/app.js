@@ -22,7 +22,7 @@ class TestApp {
         this.questions = { reading: [], listening: [] };
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0; // Количество правильных ответов в текущей группе
+        this.groupCorrectAnswers = 0; // Количество правильных ответ��в в текущей группе
         this.groupTotalAnswers = 0; // Количество ответов в текущей группе
         this.groupsAnswered = 0; // Количество завершённых групп
 
@@ -53,10 +53,13 @@ class TestApp {
             if (data.error) {
                 console.error("Ошибка при загрузке прогресса:", data.error);
             } else if (data.progress) {
-                // Обноляем локальное хранилище
+                console.log("Прогресс получен из Airtable:", data.progress);
+                // Обновляем локальное хранилище
                 localStorage.setItem('testProgress', JSON.stringify(data.progress));
                 // Загружаем прогресс
                 this.loadProgressFromLocalStorage();
+                // Загружаем вопрос после обновления прогресса
+                this.loadQuestion();
             }
         })
         .catch(error => {
@@ -123,22 +126,24 @@ class TestApp {
     loadProgressFromLocalStorage() {
         const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
         if (savedProgress) {
-            this.currentStageIndex = savedProgress.currentStageIndex;
-            this.currentLevel = savedProgress.currentLevel;
-            this.correctCount = savedProgress.correctCount;
-            this.incorrectCount = savedProgress.incorrectCount;
-            this.totalQuestions = savedProgress.totalQuestions;
-            this.correctHigherLevel = savedProgress.correctHigherLevel;
-            this.incorrectLowerLevel = savedProgress.incorrectLowerLevel;
-            this.groupCorrectAnswers = savedProgress.groupCorrectAnswers;
-            this.groupTotalAnswers = savedProgress.groupTotalAnswers;
-            this.groupsAnswered = savedProgress.groupsAnswered;
+            this.currentStageIndex = savedProgress.currentStageIndex ?? 0;
+            this.currentLevel = savedProgress.currentLevel ?? 1;
+            this.correctCount = savedProgress.correctCount ?? 0;
+            this.incorrectCount = savedProgress.incorrectCount ?? 0;
+            this.totalQuestions = savedProgress.totalQuestions ?? 0;
+            this.correctHigherLevel = savedProgress.correctHigherLevel ?? 0;
+            this.incorrectLowerLevel = savedProgress.incorrectLowerLevel ?? 0;
+            this.groupCorrectAnswers = savedProgress.groupCorrectAnswers ?? 0;
+            this.groupTotalAnswers = savedProgress.groupTotalAnswers ?? 0;
+            this.groupsAnswered = savedProgress.groupsAnswered ?? 0;
+            this.questionsOnCurrentLevel = savedProgress.questionsOnCurrentLevel ?? 0;
             this.stagesResults = savedProgress.stagesResults || [];
-            this.currentQuestion = savedProgress.currentQuestion;
 
             console.log("Прогресс загружен из localStorage:", savedProgress);
         } else {
             console.log("Нет сохранённого прогресса в localStorage. Начинаем новый тест.");
+            this.currentStageIndex = 0;
+            this.currentLevel = 1;
         }
     }
 
@@ -281,12 +286,11 @@ class TestApp {
     }
 
     init() {
-        console.log("Инициализация приложения");
+        console.log("Инициалиация приложения");
         this.loadProgress();
     }
 
     loadProgress() {
-        // Логика загрузки вопросов и прогресса
         console.log("Загрузка прогресса");
         this.loadQuestions().then(() => {
             this.loadQuestion();
@@ -299,7 +303,6 @@ class TestApp {
             .then(data => {
                 // Обработка полученных данных
                 console.log("Вопросы загружены:", data.records.length);
-                console.log('Загруженные вопросы:', this.questions);
                 data.records.forEach(record => {
                     const fields = record.fields;
                     this.questions[fields.Stage].push({
@@ -313,6 +316,7 @@ class TestApp {
                         matchPairs: fields.MatchPairs ? JSON.parse(fields.MatchPairs) : []
                     });
                 });
+                console.log('Загруженные вопросы:', this.questions);
             })
             .catch(err => {
                 console.error("Ошибка при загрузке вопросов:", err);
@@ -362,7 +366,7 @@ class TestApp {
     }
 
     renderQuestion(question) {
-        console.log("Рендеринг вопроса:", question);
+        console.log("Ренеринг вопроса:", question);
         this.questionContainer.innerHTML = '';
 
         if (question.questionType === 'multiple-choice') {
@@ -621,7 +625,7 @@ class TestApp {
         this.groupsAnswered = 0;
         this.groupCorrectAnswers = 0;
         this.groupTotalAnswers = 0;
-        // Сохраняем текущий уровень между этапами
+        // Сохраняем екущий уровень между этапами
         // this.currentLevel = 'A1'; // Закомментируйте или удалите эту строку
     }
     
@@ -680,7 +684,7 @@ class TestApp {
         }
 
         const progressData = {
-            userLogin: this.user.login, // Передаём только email пользователя
+            userLogin: this.user.login, // Передаём только email пользовател
             stage: stage,
             level: this.currentLevel,
             correctCount: this.correctCount,
@@ -769,7 +773,7 @@ class TestApp {
         this.sendFinalResults(stageResult);
     }
 
-// Метод для обновления уровня на основе результатов группы
+// Мето для обновления уровня на основе результатов группы
 updateLevelBasedOnGroupResults() {
     if (this.groupCorrectAnswers === 1) {
         this.currentLevel = Math.max(1, this.currentLevel - 1);
