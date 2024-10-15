@@ -556,7 +556,7 @@ class TestApp {
             this.groupTotalAnswers = 0;
         }
     
-        if (this.totalQuestions >= 6) {
+        if (this.totalQuestions >= 9) {
             this.finishStage();
         } else {
             this.loadQuestion();
