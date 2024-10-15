@@ -6,6 +6,7 @@
       { "src": "/api/progress", "dest": "/api/progress.js" },
       { "src": "/api/complete", "dest": "/api/complete.js" },
       { "src": "/api/decreaseTestAttempts", "dest": "/api/decreaseTestAttempts.js" },
+      { "src": "/api/getProgress", "dest": "/api/getProgress.js" },
       { "src": "/(.*)", "dest": "/public/$1" }
     ]
   }

@@ -37,6 +37,31 @@ class TestApp {
         this.finishBtn.addEventListener('click', () => this.resetProgress());
         this.loadProgressFromLocalStorage();
         this.checkTestAvailability();
+        this.loadProgressFromAirtable();
+    }
+
+    loadProgressFromAirtable() {
+        fetch('/api/getProgress', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userLogin: this.user.login })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error("Ошибка при загрузке прогресса:", data.error);
+            } else if (data.progress) {
+                // Обновляем локальное хранилище
+                localStorage.setItem('testProgress', JSON.stringify(data.progress));
+                // Загружаем прогресс
+                this.loadProgressFromLocalStorage();
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка при загрузке прогресса из Airtable:", error);
+        });
     }
 
     checkTestAvailability() {
@@ -88,8 +113,7 @@ class TestApp {
             groupCorrectAnswers: this.groupCorrectAnswers,
             groupTotalAnswers: this.groupTotalAnswers,
             groupsAnswered: this.groupsAnswered,
-            stagesResults: this.stagesResults,
-            currentQuestion: this.currentQuestion
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
         console.log("Прогресс сохранён в localStorage:", progress);
@@ -313,6 +337,12 @@ class TestApp {
             console.error(`Нет вопросов на уровне ${this.currentLevel} для этапа ${currentStage}`);
             this.finishStage();
             return;
+        }
+
+        if (this.currentQuestion.level === this.currentLevel) {
+            this.questionsOnCurrentLevel++;
+        } else {
+            this.questionsOnCurrentLevel = 1;
         }
 
         // Перемешиваем вопросы для текущего уровня
@@ -556,7 +586,8 @@ class TestApp {
             this.groupTotalAnswers = 0;
         }
     
-        if (this.totalQuestions >= 9) {
+        // Проверяем, ответили ли на 6 вопросов в рамках текущего уровня
+        if (this.totalQuestions >= 6 && this.questionsOnCurrentLevel >= 6) {
             this.finishStage();
         } else {
             this.loadQuestion();
@@ -564,6 +595,8 @@ class TestApp {
     }
     
     finishStage() {
+        console.log(`Завершение этапа: ${this.stages[this.currentStageIndex]}`);
+        this.questionsOnCurrentLevel = 0;
         if (this.currentStageIndex < this.stages.length - 1) {
             // Если это не последний этап, переходим к следующему
             this.currentStageIndex++;
