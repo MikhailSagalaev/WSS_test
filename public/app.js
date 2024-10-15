@@ -546,10 +546,7 @@ class TestApp {
     
         console.log(`Ответ ${isCorrect ? 'правильный' : 'неправильный'}.`);
     
-        // Сохраняем прогресс в localStorage
         this.saveProgressToLocalStorage();
-    
-        // Отправляем прогресс в Airtable
         this.sendProgress(this.stages[this.currentStageIndex]);
     
         if (this.groupTotalAnswers >= 3) {
@@ -559,11 +556,32 @@ class TestApp {
             this.groupTotalAnswers = 0;
         }
     
-        if (this.groupsAnswered >= 2) {
+        if (this.totalQuestions >= 6) {
             this.finishStage();
         } else {
             this.loadQuestion();
         }
+    }
+    
+    finishStage() {
+        if (this.currentStageIndex < this.stages.length - 1) {
+            // Если это не последний этап, переходим к следующему
+            this.currentStageIndex++;
+            this.resetStageVariables();
+            this.loadQuestion();
+        } else {
+            // Если это последний этап, завершаем тест
+            this.finishTest();
+        }
+    }
+    
+    resetStageVariables() {
+        this.totalQuestions = 0;
+        this.groupsAnswered = 0;
+        this.groupCorrectAnswers = 0;
+        this.groupTotalAnswers = 0;
+        // Сохраняем текущий уровень между этапами
+        // this.currentLevel = 'A1'; // Закомментируйте или удалите эту строку
     }
     
     // Добавим новый метод для отправки прогресса
@@ -773,20 +791,40 @@ sendFinalResults() {
     });
 }
 
-    finishTest() {
-        console.log("Завершение всего теста");
-        this.questionContainer.innerHTML = `<p>Тест завершен! Спасибо за участие.</p>`;
-        this.submitBtn.style.display = 'none';
-        this.finishBtn.style.display = 'block';
-
-        // Отправляем финальные результаты на сервер
-        this.sendFinalResults();
-
-        // Очищаем прогресс из localStorage после завершения теста
-        localStorage.removeItem('testProgress');
-        console.log("Прогресс удалён из localStorage после завершения теста.");
+finishTest() {
+    if (this.currentStageIndex < this.stages.length - 1) {
+        // Если это не последний этап, переходим к следующему
+        this.currentStageIndex++;
+        this.resetStageVariables();
+        this.loadQuestion();
+        return;
     }
 
+    // Если это последний этап, завершаем тест
+    this.sendFinalResults();
+    this.showResults();
+    this.decreaseTestAttempts();
+}
+decreaseTestAttempts() {
+    fetch('/api/decreaseTestAttempts', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userLogin: this.user.login })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error("Ошибка при уменьшении количества попыток:", data.error);
+        } else {
+            console.log("Количество попыток успешно уменьшено");
+        }
+    })
+    .catch(error => {
+        console.error("Ошибка при отправке запроса на уменьшение попыток:", error);
+    });
+}
     resetProgress() {
         console.log("Сброс прогресса");
         this.currentStageIndex = 0;
