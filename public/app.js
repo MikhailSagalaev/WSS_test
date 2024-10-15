@@ -22,7 +22,7 @@ class TestApp {
         this.questions = { reading: [], listening: [] };
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0; // Количество правильных ответов в текущей группе
+        this.groupCorrectAnswers = 0; // Количество правильных ответ��в в текущей группе
         this.groupTotalAnswers = 0; // Количество ответов в текущей группе
         this.groupsAnswered = 0; // Количество завершённых групп
 
@@ -53,7 +53,7 @@ class TestApp {
             if (data.error) {
                 console.error("Ошибка при загрузке прогресса:", data.error);
             } else if (data.progress) {
-                // Обновляем локальное хранилище
+                // Обно��ляем локальное хранилище
                 localStorage.setItem('testProgress', JSON.stringify(data.progress));
                 // Загружаем прогресс
                 this.loadProgressFromLocalStorage();
@@ -119,7 +119,7 @@ class TestApp {
         console.log("Прогресс сохранён в localStorage:", progress);
     }
 
-    // Метод для загрузки прогресса из localStorage
+    // Метод для загр��зки прогресса из localStorage
     loadProgressFromLocalStorage() {
         const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
         if (savedProgress) {
@@ -339,18 +339,22 @@ class TestApp {
             return;
         }
 
-        if (this.currentQuestion.level === this.currentLevel) {
-            this.questionsOnCurrentLevel++;
-        } else {
-            this.questionsOnCurrentLevel = 1;
-        }
-
         // Перемешиваем вопросы для текущего уровня
         const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
         this.currentQuestion = shuffledQuestions.pop();
         console.log("Текущий вопрос:", this.currentQuestion);
 
-        this.renderQuestion(this.currentQuestion);
+        if (this.currentQuestion) {
+            if (this.currentQuestion.level === this.currentLevel) {
+                this.questionsOnCurrentLevel++;
+            } else {
+                this.questionsOnCurrentLevel = 1;
+            }
+            this.renderQuestion(this.currentQuestion);
+        } else {
+            console.error("Не удалось загрузить вопрос");
+            this.finishStage();
+        }
     }
 
     renderQuestion(question) {
