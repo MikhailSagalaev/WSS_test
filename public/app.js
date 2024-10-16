@@ -413,8 +413,17 @@ class TestApp {
 
     renderMatchingQuestion(question) {
         console.log("Рендеринг matching вопроса");
-        const pairs = JSON.parse(question.matchPairs);
-        if (!pairs || !Array.isArray(pairs)) {
+        console.log("Raw matchPairs:", question.matchPairs);
+        
+        let pairs;
+        try {
+            pairs = typeof question.matchPairs === 'string' ? JSON.parse(question.matchPairs) : question.matchPairs;
+        } catch (error) {
+            console.error("Ошибка при парсинге matchPairs:", error);
+            pairs = [];
+        }
+
+        if (!Array.isArray(pairs) || pairs.length === 0) {
             this.questionContainer.innerHTML = `<p>Некорректные данные для сопоставления.</p>`;
             return;
         }
@@ -799,7 +808,7 @@ class TestApp {
         // Сбрасываем текущий вопрос
         this.currentQuestion = null;
 
-        // Переход к следующему эт��пу или завершение теста
+        // Переход к следующему этпу или завершение теста
         if (this.currentStageIndex < this.stages.length - 1) {
             this.currentStageIndex++;
             this.loadQuestion();
