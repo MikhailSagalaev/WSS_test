@@ -22,7 +22,7 @@ class TestApp {
         this.questions = { reading: [], listening: [] };
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0; // Количество правильных ответв в текущей группе
+        this.groupCorrectAnswers = 0; // Количество правильных ответв в текущей групе
         this.groupTotalAnswers = 0; // Количество ответов в текущей группе
         this.groupsAnswered = 0; // Количество завершённых групп
 
@@ -41,7 +41,7 @@ class TestApp {
     }
 
     loadProgressFromAirtable() {
-        fetch('/api/getProgress', {
+        return fetch('/api/getProgress', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -58,10 +58,6 @@ class TestApp {
                 localStorage.setItem('testProgress', JSON.stringify(data.progress));
                 // Загружаем прогресс
                 this.loadProgressFromLocalStorage();
-                // Загружаем вопрос после обновления прогресса
-                if (this.questions.reading.length > 0 && this.questions.listening.length > 0) {
-                    this.loadQuestion();
-                }
             }
         })
         .catch(error => {
@@ -289,16 +285,24 @@ class TestApp {
 
     init() {
         console.log("Инициализация приложения");
-        this.loadQuestions().then(() => {
+        if (this.questions.reading.length === 0 && this.questions.listening.length === 0) {
+            this.loadQuestions().then(() => {
+                this.loadProgress();
+            });
+        } else {
             this.loadProgress();
-        });
+        }
     }
 
     loadProgress() {
         console.log("Загрузка прогресса");
         this.loadProgressFromLocalStorage();
         this.checkTestAvailability();
-        this.loadProgressFromAirtable();
+        this.loadProgressFromAirtable().then(() => {
+            if (!this.currentQuestion) {
+                this.loadQuestion();
+            }
+        });
     }
 
     loadQuestions() {
@@ -328,6 +332,11 @@ class TestApp {
     }
 
     loadQuestion() {
+        if (this.currentQuestion) {
+            console.log("Текущий вопрос уже загружен, пропускаем загрузку нового вопроса");
+            return;
+        }
+
         if (this.currentStageIndex === undefined || this.currentLevel === undefined) {
             console.error("currentStageIndex или currentLevel не определены");
             return;
@@ -355,7 +364,7 @@ class TestApp {
             return;
         }
 
-        // Перемешиваем вопросы для текущего уровня
+        // Перемешиваем вопросы дя текущего уровня
         const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
         this.currentQuestion = shuffledQuestions.pop();
         console.log("Текущий вопрос:", this.currentQuestion);
@@ -575,9 +584,9 @@ class TestApp {
         if (userAnswer === null) {
             return;
         }
-    
+
         const isCorrect = this.checkAnswer(userAnswer);
-    
+
         if (isCorrect) {
             this.correctCount++;
             this.groupCorrectAnswers++;
@@ -586,26 +595,26 @@ class TestApp {
             this.incorrectCount++;
             this.incorrectLowerLevel += 1;
         }
-    
+
         this.totalQuestions++;
         this.groupTotalAnswers++;
-    
+
         console.log(`Ответ ${isCorrect ? 'правильный' : 'неправильный'}.`);
-    
+
         this.saveProgressToLocalStorage();
         this.sendProgress(this.stages[this.currentStageIndex]);
-    
+
         if (this.groupTotalAnswers >= 3) {
             this.groupsAnswered++;
             this.updateLevelBasedOnGroupResults();
             this.groupCorrectAnswers = 0;
             this.groupTotalAnswers = 0;
         }
-    
-        // Проверяем, ответили ли на 6 вопросов в рамках текущего уровня
-        if (this.totalQuestions >= 6 && this.questionsOnCurrentLevel >= 6) {
+
+        if (this.questionsOnCurrentLevel >= 6) {
             this.finishStage();
         } else {
+            this.currentQuestion = null; // Сбрасываем текущий вопрос
             this.loadQuestion();
         }
     }
@@ -652,6 +661,9 @@ class TestApp {
         this.groupsAnswered = 0;
         this.questionsOnCurrentLevel = 0;
         this.currentLevel = targetLevel; // Начинаем следующий этап с текущего уровня
+
+        // Сбрасываем текущий вопрос
+        this.currentQuestion = null;
 
         // Переход к следующему этапу или завершение теста
         if (this.currentStageIndex < this.stages.length - 1) {
@@ -770,7 +782,7 @@ class TestApp {
             .reduce((min, item) => item.wss < min ? item.wss : min, Infinity);
         const finalWssScore = minWssForLevel + shift;
 
-        // Находим уровень п�� итоговому баллу
+        // Находим уровень п итоговому баллу
         const finalLevelObj = this.wssScale
             .find(item => item.wss <= finalWssScore && item.level === targetLevel);
 
@@ -802,6 +814,9 @@ class TestApp {
         this.groupsAnswered = 0;
         this.questionsOnCurrentLevel = 0;
         this.currentLevel = targetLevel; // Начинаем следующий этап с текущего уровня
+
+        // Сбрасываем текущий вопрос
+        this.currentQuestion = null;
 
         // Переход к следующему этапу или завершение теста
         if (this.currentStageIndex < this.stages.length - 1) {
