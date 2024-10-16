@@ -83,11 +83,11 @@ button:hover {
     justify-content: space-between;
 }
 
-.words-column, .definitions-column {
+.words-column, .images-column {
     width: 48%;
 }
 
-.words-list, .definitions-list {
+.words-list, .images-list {
     list-style-type: none;
     padding: 0;
 }
@@ -106,39 +106,24 @@ button:hover {
     background-color: #e0e0e0;
 }
 
-.definition-item {
+.image-item {
     margin-bottom: 20px;
 }
 
-.definition-content {
-    display: flex;
-    align-items: flex-start;
+.image-content {
     margin-bottom: 5px;
 }
 
-.definition-number {
-    background-color: #007bff;
-    color: white;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-right: 10px;
-    flex-shrink: 0;
-}
-
-.definition-text {
-    margin: 0;
-    font-size: 14px;
+.image-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
 }
 
 .drop-zone {
     border: 2px dashed #ccc;
     border-radius: 5px;
     height: 40px;
-    margin-left: 34px;
     transition: background-color 0.3s;
 }
 

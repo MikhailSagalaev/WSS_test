@@ -413,7 +413,7 @@ class TestApp {
 
     renderMatchingQuestion(question) {
         console.log("Рендеринг matching вопроса");
-        const pairs = question.matchPairs;
+        const pairs = JSON.parse(question.matchPairs);
         if (!pairs || !Array.isArray(pairs)) {
             this.questionContainer.innerHTML = `<p>Некорректные данные для сопоставления.</p>`;
             return;
@@ -430,15 +430,14 @@ class TestApp {
                             `).join('')}
                         </ul>
                     </div>
-                    <div class="definitions-column">
-                        <ul class="definitions-list">
+                    <div class="images-column">
+                        <ul class="images-list">
                             ${pairs.map((pair, index) => `
-                                <li class="definition-item">
-                                    <div class="definition-content">
-                                        <span class="definition-number">${index + 1}</span>
-                                        <p class="definition-text">${pair.definition}</p>
+                                <li class="image-item">
+                                    <div class="image-content">
+                                        <img src="${pair.image}" alt="Image ${index + 1}">
                                     </div>
-                                    <div class="drop-zone" data-definition="${pair.definition}"></div>
+                                    <div class="drop-zone" data-image="${pair.image}"></div>
                                 </li>
                             `).join('')}
                         </ul>
@@ -511,10 +510,10 @@ class TestApp {
             let allMatched = true;
 
             dropZones.forEach(zone => {
-                const definition = zone.getAttribute('data-definition');
+                const image = zone.getAttribute('data-image');
                 const wordElement = zone.querySelector('.word-item');
                 if (wordElement) {
-                    userMatches[definition] = wordElement.textContent.trim();
+                    userMatches[image] = wordElement.textContent.trim();
                 } else {
                     allMatched = false;
                 }
@@ -800,7 +799,7 @@ class TestApp {
         // Сбрасываем текущий вопрос
         this.currentQuestion = null;
 
-        // Переход к следующему этапу или завершение теста
+        // Переход к следующему эт��пу или завершение теста
         if (this.currentStageIndex < this.stages.length - 1) {
             this.currentStageIndex++;
             this.loadQuestion();
@@ -894,7 +893,7 @@ decreaseTestAttempts() {
         }
     })
     .catch(error => {
-        console.error("Ошибка при отправке запроса на уменьшение попыток:", error);
+        console.error("Ошибка при отправке запроса на уменьение попыток:", error);
     });
 }
     resetProgress() {
