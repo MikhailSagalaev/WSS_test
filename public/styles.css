@@ -80,7 +80,7 @@ button:hover {
     padding: 0;
 }
 
-.matching-container .options li, .matching-container .images li {
+.matching-container .options li {
     margin-bottom: 10px;
     padding: 10px;
     border: 1px solid #ccc;
@@ -90,10 +90,24 @@ button:hover {
 }
 
 .matching-container .images li {
-    min-height: 60px;
+    margin-bottom: 20px;
+    text-align: center;
 }
 
-.matching-container .images li.drag-over {
+.matching-container .images img {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+.matching-container .drop-zone {
+    min-height: 40px;
+    border: 2px dashed #ccc;
+    border-radius: 5px;
+    padding: 5px;
+}
+
+.matching-container .drop-zone.drag-over {
     border-color: #4caf50;
     background-color: #e8f5e9;
 }

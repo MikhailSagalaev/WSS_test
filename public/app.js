@@ -93,7 +93,7 @@ class TestApp {
             }
         })
         .catch(error => {
-            console.error("Ошибка при проверке доступнос��и теста:", error);
+            console.error("Ошибка при проверке доступноси теста:", error);
             this.showUnavailableMessage();
         });
     }
@@ -420,12 +420,8 @@ class TestApp {
         }
 
         // Создаём элементы для перетаскивания
-        const options = pairs.map(pair => ({ text: pair.option, image: pair.image }));
+        const options = pairs.map(pair => pair.option);
         const shuffledOptions = this.shuffleArray([...options]);
-
-        // Создаём элементы для изображений
-        const images = pairs.map(pair => ({ image: pair.image }));
-        const shuffledImages = this.shuffleArray([...images]);
 
         // HTML разметка
         let html = `<p>${question.question}</p>`;
@@ -436,19 +432,19 @@ class TestApp {
         html += '<div class="options"><ul>';
         shuffledOptions.forEach((option, index) => {
             html += `
-                <li draggable="true" data-text="${option.text}" data-image="${option.image}">
-                    ${option.text}
+                <li draggable="true" data-option="${option}">
+                    ${option}
                 </li>
             `;
         });
         html += '</ul></div>';
 
         html += '<div class="images"><ul>';
-        shuffledImages.forEach((img, index) => {
+        pairs.forEach((pair, index) => {
             html += `
-                <li data-image="${img.image}">
-                    <img src="${img.image}" alt="Image ${index + 1}" width="100">
-                    <div class="drop-zone"></div>
+                <li>
+                    <img src="${pair.image}" alt="Image ${index + 1}" width="100">
+                    <div class="drop-zone" data-image="${pair.image}"></div>
                 </li>
             `;
         });
@@ -469,10 +465,7 @@ class TestApp {
         draggableElements.forEach(elem => {
             elem.setAttribute('draggable', 'true');
             elem.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', JSON.stringify({
-                    text: elem.getAttribute('data-text'),
-                    image: elem.getAttribute('data-image')
-                }));
+                e.dataTransfer.setData('text/plain', elem.getAttribute('data-option'));
                 setTimeout(() => {
                     elem.classList.add('dragged');
                 }, 0);
@@ -496,12 +489,11 @@ class TestApp {
             zone.addEventListener('drop', (e) => {
                 e.preventDefault();
                 zone.classList.remove('drag-over');
-                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                zone.innerHTML = `<p>${data.text}</p>`;
-                zone.setAttribute('data-image', data.image);
+                const data = e.dataTransfer.getData('text/plain');
+                zone.innerHTML = `<p>${data}</p>`;
                 
                 // Удаляем элемент из списка опций
-                const optionElement = this.questionContainer.querySelector(`.options li[data-text="${data.text}"]`);
+                const optionElement = this.questionContainer.querySelector(`.options li[data-option="${data}"]`);
                 if (optionElement) {
                     optionElement.remove();
                 }
@@ -515,7 +507,6 @@ class TestApp {
         if (questionType === 'multiple-choice') {
             const selectedOption = this.questionContainer.querySelector('input[name="answer"]:checked');
             if (selectedOption) {
-                // Assuming the value corresponds to the index of the selected answer
                 const answerIndex = parseInt(selectedOption.value, 10);
                 return this.currentQuestion.answers[answerIndex];
             } else {
@@ -523,30 +514,25 @@ class TestApp {
                 return null;
             }
         } else if (questionType === 'matching') {
-            const matches = this.questionContainer.querySelectorAll('.images li');
+            const dropZones = this.questionContainer.querySelectorAll('.images .drop-zone');
             const userMatches = {};
             let allMatched = true;
-    
-            matches.forEach(match => {
-                const dropZone = match.querySelector('.drop-zone p');
-                const image = match.getAttribute('data-image');
-                if (dropZone) {
-                    const userAnswer = dropZone.textContent.trim();
-                    if (userAnswer) {
-                        userMatches[image] = userAnswer;
-                    } else {
-                        allMatched = false;
-                    }
+
+            dropZones.forEach(zone => {
+                const image = zone.getAttribute('data-image');
+                const answerElement = zone.querySelector('p');
+                if (answerElement) {
+                    userMatches[image] = answerElement.textContent.trim();
                 } else {
                     allMatched = false;
                 }
             });
-    
+
             if (!allMatched) {
                 alert("Пожалуйста, сопоставьте все элементы.");
                 return null;
             }
-    
+
             return userMatches;
         } else {
             console.error("Неизвестный тип вопроса:", questionType);
@@ -942,7 +928,7 @@ decreaseTestAttempts() {
         console.log("Прогресс сброшен и удалён из localStorage.");
     }
     shuffleArray(array) {
-        // Функция для перемешивания массива
+        // Фунция для перемешивания массива
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [array[i], array[j]] = [array[j], array[i]];
@@ -961,7 +947,7 @@ decreaseTestAttempts() {
     }
 
     finalizeTest() {
-        // Предполагается, что метод computeFinalWss выисляет итоговый WSS
+        // Предполагается, что метод computeFinalWss выисляет итого��ый WSS
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         console.log(`Итоговый WSS: ${finalWss}, Уровень: ${finalLevel}`);
@@ -998,7 +984,7 @@ decreaseTestAttempts() {
         });
     }
 
-    // Доп��лнительные методы для управления логикой теста могут быть добавлены здесь
+    // Доплнительные методы для управления логикой теста могут быть добавлены здесь
 
     showResults() {
         const finalResults = this.stagesResults.map(result => {
