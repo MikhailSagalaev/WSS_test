@@ -594,7 +594,7 @@ class TestApp {
         console.log(`Ответ ${isCorrect ? 'правильный' : 'неправильный'}.`);
 
         this.saveProgressToLocalStorage();
-        this.sendProgress(this.stages[this.currentStageIndex]);
+        this.sendProgress();
 
         if (this.groupTotalAnswers >= 3) {
             this.groupsAnswered++;
@@ -609,6 +609,39 @@ class TestApp {
             this.currentQuestion = null; // Сбрасываем текущий вопрос
             this.loadQuestion();
         }
+    }
+
+    sendProgress() {
+        const progressData = {
+            userLogin: this.user.login,
+            stage: this.stages[this.currentStageIndex],
+            level: this.currentLevel,
+            correctCount: this.correctCount,
+            incorrectCount: this.incorrectCount,
+            totalQuestions: this.totalQuestions,
+            correctHigherLevel: this.correctHigherLevel,
+            incorrectLowerLevel: this.incorrectLowerLevel,
+            timestamp: new Date().toISOString()
+        };
+
+        fetch('/api/progress', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(progressData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error("Ошибка при отправке прогресса:", data.error);
+            } else {
+                console.log("Прогресс успешно отправлен");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка при отправке прогресса:", error);
+        });
     }
 
     finishStage() {

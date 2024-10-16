@@ -119,6 +119,7 @@ button:hover {
 }
 
 .image-content {
+    width: 150px;
     margin-bottom: 5px;
 }
 
