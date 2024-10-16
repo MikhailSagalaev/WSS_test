@@ -22,7 +22,7 @@ class TestApp {
         this.questions = { reading: [], listening: [] };
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0; // Количество правильных ответ в текущей групе
+        this.groupCorrectAnswers = 0; // Количество правильных ответ в текущей груп
         this.groupTotalAnswers = 0; // Количество ответов в текущей группе
         this.groupsAnswered = 0; // Количество завершённых групп
 
@@ -38,6 +38,8 @@ class TestApp {
         this.loadProgressFromLocalStorage();
         this.checkTestAvailability();
         this.loadProgressFromAirtable();
+
+        this.progressLoaded = false;
     }
 
     loadProgressFromAirtable() {
@@ -81,7 +83,11 @@ class TestApp {
         })
         .then(data => {
             if (data.available) {
-                this.loadProgress();
+                this.loadProgressFromAirtable().then(() => {
+                    if (!this.currentQuestion) {
+                        this.loadQuestion();
+                    }
+                });
             } else {
                 this.showUnavailableMessage();
             }
@@ -286,19 +292,21 @@ class TestApp {
     init() {
         console.log("Инициализация приложения");
         this.loadQuestions().then(() => {
-            this.loadProgress();
+            this.loadProgressOnce();
         });
+    }
+
+    loadProgressOnce() {
+        if (!this.progressLoaded) {
+            this.progressLoaded = true;
+            this.loadProgress();
+        }
     }
 
     loadProgress() {
         console.log("Загрузка прогресса");
         this.loadProgressFromLocalStorage();
         this.checkTestAvailability();
-        this.loadProgressFromAirtable().then(() => {
-            if (!this.currentQuestion) {
-                this.loadQuestion();
-            }
-        });
     }
 
     loadQuestions() {
@@ -676,7 +684,7 @@ class TestApp {
         this.groupsAnswered = 0;
         this.groupCorrectAnswers = 0;
         this.groupTotalAnswers = 0;
-        // Сохраняем екущий уровень между этапами
+        // Сохраняем екущий уровень ежду этапами
         // this.currentLevel = 'A1'; // Закомментируйте или удалите эту строку
     }
     
