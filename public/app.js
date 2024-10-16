@@ -22,7 +22,7 @@ class TestApp {
         this.questions = { reading: [], listening: [] };
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0; // Количество правильных ответв в текущей групе
+        this.groupCorrectAnswers = 0; // Количество правильных ответ в текущей групе
         this.groupTotalAnswers = 0; // Количество ответов в текущей группе
         this.groupsAnswered = 0; // Количество завершённых групп
 
@@ -117,7 +117,7 @@ class TestApp {
             questionsOnCurrentLevel: this.questionsOnCurrentLevel
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
-        console.log("Прогресс сохранён в localStorage:", progress);
+        console.log("Прогесс сохранён в localStorage:", progress);
     }
 
     // Метод для загрзки прогресса из localStorage
@@ -285,13 +285,9 @@ class TestApp {
 
     init() {
         console.log("Инициализация приложения");
-        if (this.questions.reading.length === 0 && this.questions.listening.length === 0) {
-            this.loadQuestions().then(() => {
-                this.loadProgress();
-            });
-        } else {
+        this.loadQuestions().then(() => {
             this.loadProgress();
-        }
+        });
     }
 
     loadProgress() {
@@ -343,7 +339,7 @@ class TestApp {
         }
 
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
+        console.log(`Загрузка вопрос для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
         if (!questionsForStage || !Array.isArray(questionsForStage)) {
@@ -750,7 +746,7 @@ class TestApp {
             timestamp: new Date().toISOString()
         };
 
-        console.log("Отправляемые данные прогресса:", progressData);
+        console.log("Отправяемые данные прогресса:", progressData);
 
         fetch('/api/progress', {
             method: 'POST',
@@ -782,7 +778,7 @@ class TestApp {
             .reduce((min, item) => item.wss < min ? item.wss : min, Infinity);
         const finalWssScore = minWssForLevel + shift;
 
-        // Находим уровень п итоговому баллу
+        // Находим уроень п итоговому баллу
         const finalLevelObj = this.wssScale
             .find(item => item.wss <= finalWssScore && item.level === targetLevel);
 
@@ -958,7 +954,7 @@ decreaseTestAttempts() {
     }
 
     finalizeTest() {
-        // Предполагается, что метод computeFinalWss вычисляет итоговый WSS
+        // Предполагается, что метод computeFinalWss выисляет итоговый WSS
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         console.log(`Итоговый WSS: ${finalWss}, Уровень: ${finalLevel}`);
