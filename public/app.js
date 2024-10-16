@@ -22,7 +22,7 @@ class TestApp {
         this.questions = { reading: [], listening: [] };
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0; // Количество правильных ответ��в в текущей группе
+        this.groupCorrectAnswers = 0; // Количество правильных ответв в текущей группе
         this.groupTotalAnswers = 0; // Количество ответов в текущей группе
         this.groupsAnswered = 0; // Количество завершённых групп
 
@@ -59,7 +59,9 @@ class TestApp {
                 // Загружаем прогресс
                 this.loadProgressFromLocalStorage();
                 // Загружаем вопрос после обновления прогресса
-                this.loadQuestion();
+                if (this.questions.reading.length > 0 && this.questions.listening.length > 0) {
+                    this.loadQuestion();
+                }
             }
         })
         .catch(error => {
@@ -286,15 +288,17 @@ class TestApp {
     }
 
     init() {
-        console.log("Инициалиация приложения");
-        this.loadProgress();
+        console.log("Инициализация приложения");
+        this.loadQuestions().then(() => {
+            this.loadProgress();
+        });
     }
 
     loadProgress() {
         console.log("Загрузка прогресса");
-        this.loadQuestions().then(() => {
-            this.loadQuestion();
-        });
+        this.loadProgressFromLocalStorage();
+        this.checkTestAvailability();
+        this.loadProgressFromAirtable();
     }
 
     loadQuestions() {
@@ -608,16 +612,55 @@ class TestApp {
     
     finishStage() {
         console.log(`Завершение этапа: ${this.stages[this.currentStageIndex]}`);
+        const stage = this.stages[this.currentStageIndex];
+        const targetLevel = this.currentLevel;
+        const shift = this.correctCount + this.correctHigherLevel - this.incorrectLowerLevel;
+        const minWssForLevel = this.wssScale
+            .filter(item => item.level === targetLevel)
+            .reduce((min, item) => item.wss < min ? item.wss : min, Infinity);
+        const finalWssScore = minWssForLevel + shift;
+
+        // Находим уровень по итоговому баллу
+        const finalLevelObj = this.wssScale
+            .find(item => item.wss <= finalWssScore && item.level === targetLevel);
+
+        const finalLevel = finalLevelObj ? finalLevelObj.level : 'N/A';
+        console.log(`Итоговый балл WSS: ${finalWssScore}, итоговый уровень: ${finalLevel}`);
+
+        // Сохранение результатов этапа
+        const stageResult = {
+            stage: stage,
+            targetLevel: targetLevel,
+            finalWssScore: finalWssScore,
+            finalLevel: finalLevel,
+            correctCount: this.correctCount,
+            incorrectCount: this.incorrectCount,
+            totalQuestions: this.totalQuestions,
+            timestamp: new Date().toISOString()
+        };
+
+        this.stagesResults.push(stageResult);
+
+        // Очистка счетчиков для следующего этапа
+        this.correctCount = 0;
+        this.incorrectCount = 0;
+        this.totalQuestions = 0;
+        this.correctHigherLevel = 0;
+        this.incorrectLowerLevel = 0;
+        this.groupCorrectAnswers = 0;
+        this.groupTotalAnswers = 0;
+        this.groupsAnswered = 0;
         this.questionsOnCurrentLevel = 0;
+        this.currentLevel = targetLevel; // Начинаем следующий этап с текущего уровня
+
+        // Переход к следующему этапу или завершение теста
         if (this.currentStageIndex < this.stages.length - 1) {
-            // Если это не последний этап, переходим к следующему
             this.currentStageIndex++;
-            this.resetStageVariables();
             this.loadQuestion();
         } else {
-            // Если это последний этап, завершаем тест
             this.finishTest();
         }
+        this.saveProgressToLocalStorage();
     }
     
     resetStageVariables() {
@@ -653,7 +696,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Ошибка при сохранении прогресса:", data.error);
+                console.error("Оибка при сохранении прогресса:", data.error);
             } else {
                 console.log("Прогресс успешно сохранен");
             }
@@ -727,7 +770,7 @@ class TestApp {
             .reduce((min, item) => item.wss < min ? item.wss : min, Infinity);
         const finalWssScore = minWssForLevel + shift;
 
-        // Находим уровень по итоговому баллу
+        // Находим уровень п�� итоговому баллу
         const finalLevelObj = this.wssScale
             .find(item => item.wss <= finalWssScore && item.level === targetLevel);
 
@@ -746,7 +789,6 @@ class TestApp {
             timestamp: new Date().toISOString()
         };
 
-        this.stagesResults = this.stagesResults || [];
         this.stagesResults.push(stageResult);
 
         // Очистка счетчиков для следующего этапа
@@ -758,6 +800,7 @@ class TestApp {
         this.groupCorrectAnswers = 0;
         this.groupTotalAnswers = 0;
         this.groupsAnswered = 0;
+        this.questionsOnCurrentLevel = 0;
         this.currentLevel = targetLevel; // Начинаем следующий этап с текущего уровня
 
         // Переход к следующему этапу или завершение теста
@@ -768,9 +811,6 @@ class TestApp {
             this.finishTest();
         }
         this.saveProgressToLocalStorage();
-
-        // Отправка завершённого этапа в сервер
-        this.sendFinalResults(stageResult);
     }
 
 // Мето для обновления уровня на основе результатов группы
@@ -837,15 +877,6 @@ sendFinalResults() {
 }
 
 finishTest() {
-    if (this.currentStageIndex < this.stages.length - 1) {
-        // Если это не последний этап, переходим к следующему
-        this.currentStageIndex++;
-        this.resetStageVariables();
-        this.loadQuestion();
-        return;
-    }
-
-    // Если это последний этап, завершаем тест
     this.sendFinalResults();
     this.showResults();
     this.decreaseTestAttempts();
@@ -950,6 +981,26 @@ decreaseTestAttempts() {
     }
 
     // Дополнительные методы для управления логикой теста могут быть добавлены здесь
+
+    showResults() {
+        const finalResults = this.stagesResults.map(result => {
+            return `
+                <h3>Этап: ${result.stage}</h3>
+                <p>Целевой уровень: ${result.targetLevel}</p>
+                <p>Итоговый балл WSS: ${result.finalWssScore}</p>
+                <p>Итоговый уровень: ${result.finalLevel}</p>
+                <p>Правильных ответов: ${result.correctCount}</p>
+                <p>Неправильных ответов: ${result.incorrectCount}</p>
+            `;
+        }).join('');
+
+        this.questionContainer.innerHTML = `
+            <h2>Результаты теста</h2>
+            ${finalResults}
+        `;
+        this.submitBtn.style.display = 'none';
+        this.finishBtn.style.display = 'block';
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
