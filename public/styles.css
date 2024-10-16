@@ -87,9 +87,15 @@ button:hover {
     width: 48%;
 }
 
-.words-list, .images-list {
+.words-list{
     list-style-type: none;
     padding: 0;
+}
+
+.images-list {
+    list-style-type: none;
+    padding: 0;
+    display: flex;
 }
 
 .word-item {
@@ -108,6 +114,7 @@ button:hover {
 
 .image-item {
     margin-bottom: 20px;
+    padding: 10px;
 }
 
 .image-content {
