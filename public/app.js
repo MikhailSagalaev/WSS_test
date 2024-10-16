@@ -93,7 +93,7 @@ class TestApp {
             }
         })
         .catch(error => {
-            console.error("Ошибка при проверке доступности теста:", error);
+            console.error("Ошибка при проверке доступнос��и теста:", error);
             this.showUnavailableMessage();
         });
     }
@@ -368,7 +368,7 @@ class TestApp {
             return;
         }
 
-        // Перемешиваем вопросы дя текущего уровня
+        // Перемешем вопосы дя текущего уровня
         const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
         this.currentQuestion = shuffledQuestions.pop();
         console.log("Текущий вопрос:", this.currentQuestion);
@@ -383,7 +383,7 @@ class TestApp {
     }
 
     renderQuestion(question) {
-        console.log("Ренеринг вопроса:", question);
+        console.log("Рендеринг вопроса:", question);
         this.questionContainer.innerHTML = '';
 
         if (question.questionType === 'multiple-choice') {
@@ -712,7 +712,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Оибка при сохранении прогресса:", data.error);
+                console.error("Оибка ри сохранении прогресса:", data.error);
             } else {
                 console.log("Прогресс успешно сохранен");
             }
@@ -839,7 +839,6 @@ updateLevelBasedOnGroupResults() {
         console.log(`Переход на уровень ниже: ${this.currentLevel}`);
     } else if (this.groupCorrectAnswers === 2) {
         console.log(`Оставляем уровень неизменным: ${this.currentLevel}`);
-        // Уровень остаётся тем же
     } else if (this.groupCorrectAnswers === 3) {
         this.currentLevel += 1;
         console.log(`Переход на уровень выше: ${this.currentLevel}`);
@@ -999,7 +998,7 @@ decreaseTestAttempts() {
         });
     }
 
-    // Дополнительные методы для управления логикой теста могут быть добавлены здесь
+    // Доп��лнительные методы для управления логикой теста могут быть добавлены здесь
 
     showResults() {
         const finalResults = this.stagesResults.map(result => {
