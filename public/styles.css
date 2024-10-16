@@ -66,50 +66,89 @@ button:hover {
     background-color: #45a049;
 }
 
+.matching-question {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.question-title {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 20px;
+}
+
 .matching-container {
     display: flex;
     justify-content: space-between;
 }
 
-.matching-container .options, .matching-container .images {
-    width: 45%;
+.words-column, .definitions-column {
+    width: 48%;
 }
 
-.matching-container .options ul, .matching-container .images ul {
+.words-list, .definitions-list {
     list-style-type: none;
     padding: 0;
 }
 
-.matching-container .options li {
-    margin-bottom: 10px;
-    padding: 10px;
+.word-item {
+    background-color: #f0f0f0;
     border: 1px solid #ccc;
     border-radius: 5px;
-    background-color: #fafafa;
-    cursor: grab;
-}
-
-.matching-container .images li {
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.matching-container .images img {
-    max-width: 100%;
-    height: auto;
+    padding: 10px;
     margin-bottom: 10px;
+    cursor: grab;
+    transition: background-color 0.3s;
 }
 
-.matching-container .drop-zone {
-    min-height: 40px;
+.word-item:hover {
+    background-color: #e0e0e0;
+}
+
+.definition-item {
+    margin-bottom: 20px;
+}
+
+.definition-content {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 5px;
+}
+
+.definition-number {
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.definition-text {
+    margin: 0;
+    font-size: 14px;
+}
+
+.drop-zone {
     border: 2px dashed #ccc;
     border-radius: 5px;
-    padding: 5px;
+    height: 40px;
+    margin-left: 34px;
+    transition: background-color 0.3s;
 }
 
-.matching-container .drop-zone.drag-over {
-    border-color: #4caf50;
-    background-color: #e8f5e9;
+.drop-zone.drag-over {
+    background-color: #e6f3ff;
+    border-color: #007bff;
+}
+
+.word-item.dragging {
+    opacity: 0.5;
 }
 
 .dragged {

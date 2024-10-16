@@ -368,7 +368,7 @@ class TestApp {
             return;
         }
 
-        // Перемешем вопосы дя текущего уровня
+        // Пеемешем вопосы дя текущего уровня
         const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
         this.currentQuestion = shuffledQuestions.pop();
         console.log("Текущий вопрос:", this.currentQuestion);
@@ -419,38 +419,33 @@ class TestApp {
             return;
         }
 
-        // Создаём элементы для перетаскивания
-        const options = pairs.map(pair => pair.option);
-        const shuffledOptions = this.shuffleArray([...options]);
-
-        // HTML разметка
-        let html = `<p>${question.question}</p>`;
-        if (question.audio) {
-            html += `<audio controls><source src="${question.audio}" type="audio/mpeg"></audio>`;
-        }
-        html += '<div class="matching-container">';
-        html += '<div class="options"><ul>';
-        shuffledOptions.forEach((option, index) => {
-            html += `
-                <li draggable="true" data-option="${option}">
-                    ${option}
-                </li>
-            `;
-        });
-        html += '</ul></div>';
-
-        html += '<div class="images"><ul>';
-        pairs.forEach((pair, index) => {
-            html += `
-                <li>
-                    <img src="${pair.image}" alt="Image ${index + 1}" width="100">
-                    <div class="drop-zone" data-image="${pair.image}"></div>
-                </li>
-            `;
-        });
-        html += '</ul></div>';
-
-        html += '</div>';
+        let html = `
+            <div class="matching-question">
+                <h2 class="question-title">${question.question}</h2>
+                <div class="matching-container">
+                    <div class="words-column">
+                        <ul class="words-list">
+                            ${pairs.map(pair => `
+                                <li class="word-item" draggable="true" data-word="${pair.option}">${pair.option}</li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                    <div class="definitions-column">
+                        <ul class="definitions-list">
+                            ${pairs.map((pair, index) => `
+                                <li class="definition-item">
+                                    <div class="definition-content">
+                                        <span class="definition-number">${index + 1}</span>
+                                        <p class="definition-text">${pair.definition}</p>
+                                    </div>
+                                    <div class="drop-zone" data-definition="${pair.definition}"></div>
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
 
         this.questionContainer.innerHTML = html;
 
@@ -459,43 +454,40 @@ class TestApp {
     }
 
     initializeDragAndDrop() {
-        const draggableElements = this.questionContainer.querySelectorAll('.options li');
-        const dropZones = this.questionContainer.querySelectorAll('.images .drop-zone');
-    
+        const draggableElements = this.questionContainer.querySelectorAll('.word-item');
+        const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+
         draggableElements.forEach(elem => {
-            elem.setAttribute('draggable', 'true');
             elem.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', elem.getAttribute('data-option'));
-                setTimeout(() => {
-                    elem.classList.add('dragged');
-                }, 0);
+                e.dataTransfer.setData('text/plain', elem.getAttribute('data-word'));
+                elem.classList.add('dragging');
             });
-    
+
             elem.addEventListener('dragend', () => {
-                elem.classList.remove('dragged');
+                elem.classList.remove('dragging');
             });
         });
-    
+
         dropZones.forEach(zone => {
             zone.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 zone.classList.add('drag-over');
             });
-    
+
             zone.addEventListener('dragleave', () => {
                 zone.classList.remove('drag-over');
             });
-    
+
             zone.addEventListener('drop', (e) => {
                 e.preventDefault();
                 zone.classList.remove('drag-over');
-                const data = e.dataTransfer.getData('text/plain');
-                zone.innerHTML = `<p>${data}</p>`;
+                const word = e.dataTransfer.getData('text/plain');
+                const wordElement = this.questionContainer.querySelector(`.word-item[data-word="${word}"]`);
                 
-                // Удаляем элемент из списка опций
-                const optionElement = this.questionContainer.querySelector(`.options li[data-option="${data}"]`);
-                if (optionElement) {
-                    optionElement.remove();
+                if (wordElement && !zone.querySelector('.word-item')) {
+                    zone.appendChild(wordElement);
+                    wordElement.setAttribute('draggable', 'false');
+                    wordElement.style.cursor = 'default';
                 }
             });
         });
@@ -514,15 +506,15 @@ class TestApp {
                 return null;
             }
         } else if (questionType === 'matching') {
-            const dropZones = this.questionContainer.querySelectorAll('.images .drop-zone');
+            const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
             const userMatches = {};
             let allMatched = true;
 
             dropZones.forEach(zone => {
-                const image = zone.getAttribute('data-image');
-                const answerElement = zone.querySelector('p');
-                if (answerElement) {
-                    userMatches[image] = answerElement.textContent.trim();
+                const definition = zone.getAttribute('data-definition');
+                const wordElement = zone.querySelector('.word-item');
+                if (wordElement) {
+                    userMatches[definition] = wordElement.textContent.trim();
                 } else {
                     allMatched = false;
                 }
@@ -947,7 +939,7 @@ decreaseTestAttempts() {
     }
 
     finalizeTest() {
-        // Предполагается, что метод computeFinalWss выисляет итого��ый WSS
+        // Предполагается, что метод computeFinalWss выисляет итогоый WSS
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         console.log(`Итоговый WSS: ${finalWss}, Уровень: ${finalLevel}`);
