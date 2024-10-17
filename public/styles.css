@@ -7,69 +7,35 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
 }
 
 #test-container {
-    display: flex;
     background-color: #fff;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    width: 800px;
-    text-align: center;
-    flex-direction: column;
-    align-items: stretch;
+    width: 90%;
+    max-width: 800px;
 }
 
-h1 {
-    color: #333;
+#progress-bar {
+    height: 10px;
+    background-color: #e0e0e0;
+    border-radius: 5px;
     margin-bottom: 20px;
+}
+
+#progress-bar .progress {
+    height: 100%;
+    background-color: #4caf50;
+    border-radius: 5px;
+    width: 0;
+    transition: width 0.3s ease;
 }
 
 #question-container {
-    position: relative;
-    text-align: left;
     margin-bottom: 20px;
-}
-
-#question-container p {
-    font-size: 18px;
-    margin-bottom: 10px;
-}
-
-#question-container ul {
-    list-style-type: none;
-    padding: 0;
-}
-
-#question-container ul li {
-    margin-bottom: 10px;
-}
-
-#question-container ul li input[type="radio"] {
-    margin-right: 10px;
-}
-
-button {
-    background-color: #4caf50;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    margin-top: 10px;
-}
-
-button:hover {
-    background-color: #45a049;
-}
-
-.matching-question {
-    font-family: Arial, sans-serif;
-    max-width: 800px;
-    margin: 0 auto;
 }
 
 .question-title {
@@ -78,62 +44,86 @@ button:hover {
     margin-bottom: 20px;
 }
 
-.matching-container {
+.answers-container {
     display: flex;
-    justify-content: space-between;
-    flex-direction: column-reverse;
+    flex-direction: column;
 }
 
-.words-column, .images-column {
-    width: 100%;
-}
-
-.words-list{
-    list-style-type: none;
-    padding: 0;
-}
-
-.images-list {
-    list-style-type: none;
-    padding: 0;
-    display: flex;
-}
-
-.word-item {
+.answer-option {
     background-color: #f0f0f0;
-    border: 1px solid #ccc;
+    border: 2px solid #ccc;
     border-radius: 5px;
-    padding: 10px;
+    padding: 15px;
     margin-bottom: 10px;
-    cursor: grab;
-    transition: background-color 0.3s;
+    cursor: pointer;
+    transition: all 0.3s ease;
 }
 
-.word-item:hover {
+.answer-option:hover {
     background-color: #e0e0e0;
 }
 
-.image-item {
-    margin-bottom: 20px;
-    padding: 10px;
+.answer-option.selected {
+    background-color: #4caf50;
+    color: white;
+    border-color: #45a049;
 }
 
-.image-content {
-    width: 150px;
-    margin-bottom: 5px;
-}
-
-.image-content img {
-    max-width: 100%;
-    height: auto;
+button {
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 15px 30px;
     border-radius: 5px;
+    cursor: pointer;
+    font-size: 18px;
+    margin-top: 20px;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #45a049;
+}
+
+button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.matching-question {
+    margin-bottom: 20px;
+}
+
+.matching-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.words-column, .images-column {
+    width: 48%;
+}
+
+.word-item, .image-item {
+    background-color: #f0f0f0;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 10px;
+    cursor: grab;
+    transition: all 0.3s ease;
+}
+
+.word-item:hover, .image-item:hover {
+    background-color: #e0e0e0;
 }
 
 .drop-zone {
     border: 2px dashed #ccc;
     border-radius: 5px;
-    height: 40px;
-    transition: background-color 0.3s;
+    height: 50px;
+    margin-top: 10px;
+    transition: all 0.3s ease;
 }
 
 .drop-zone.drag-over {
@@ -141,24 +131,16 @@ button:hover {
     border-color: #007bff;
 }
 
-.word-item.dragging {
+.dragging {
     opacity: 0.5;
 }
 
-.dragged {
-    opacity: 0.5;
-}
+@media (max-width: 768px) {
+    .matching-container {
+        flex-direction: column;
+    }
 
-.drag-over {
-    border: 2px dashed #000;
-}
-
-.draggable {
-    cursor: grab;
-}
-
-#drop-zone {
-    min-height: 100px;
-    border: 2px solid #ccc;
-    padding: 10px;
+    .words-column, .images-column {
+        width: 100%;
+    }
 }

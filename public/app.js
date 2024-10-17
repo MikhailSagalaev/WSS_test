@@ -33,6 +33,8 @@ class TestApp {
         this.questionContainer = document.getElementById('question-container');
         this.submitBtn = document.getElementById('submit-btn');
         this.finishBtn = document.getElementById('finish-btn');
+        this.progressBar = document.getElementById('progress-bar');
+        this.submitBtn.disabled = true;
 
         this.submitBtn.addEventListener('click', () => this.handleSubmit());
         this.finishBtn.addEventListener('click', () => this.resetProgress());
@@ -101,7 +103,7 @@ class TestApp {
     showUnavailableMessage() {
         this.questionContainer.innerHTML = `
             <div class="unavailable-message">
-                <p>Тестирование не доступно. Обратитесь к администратору.</p>
+                <p>Тестирование не доступно. Обратитес�� к администратору.</p>
                 <a href="https://t.me/@mixadev" target="_blank">Связаться с администратором</a>
             </div>
         `;
@@ -127,7 +129,7 @@ class TestApp {
         console.log("Прогесс сохранён в localStorage:", progress);
     }
 
-    // Метод для загрзки прогресса из localStorage
+    // Метод для загрзки прогресса ��з localStorage
     loadProgressFromLocalStorage() {
         const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
         if (savedProgress) {
@@ -394,22 +396,32 @@ class TestApp {
         } else {
             console.error("Неизвестный тип вопроса:", question.questionType);
         }
+
+        this.updateProgressBar();
     }
 
     renderMultipleChoiceQuestion(question) {
         const html = `
-            <p>${question.question}</p>
+            <h2 class="question-title">${question.question}</h2>
             ${question.audio ? `<audio controls><source src="${question.audio}" type="audio/mpeg"></audio>` : ''}
-            <form id="question-form">
+            <div class="answers-container">
                 ${question.answers.map((answer, index) => `
-                    <label>
-                        <input type="radio" name="answer" value="${index}">
+                    <div class="answer-option" data-index="${index}">
                         ${answer}
-                    </label><br>
+                    </div>
                 `).join('')}
-            </form>
+            </div>
         `;
         this.questionContainer.innerHTML = html;
+
+        const answerOptions = this.questionContainer.querySelectorAll('.answer-option');
+        answerOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                answerOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                this.submitBtn.disabled = false;
+            });
+        });
     }
 
     renderMatchingQuestion(question) {
@@ -506,9 +518,9 @@ class TestApp {
         const questionType = this.currentQuestion.questionType;
         
         if (questionType === 'multiple-choice') {
-            const selectedOption = this.questionContainer.querySelector('input[name="answer"]:checked');
+            const selectedOption = this.questionContainer.querySelector('.answer-option.selected');
             if (selectedOption) {
-                const answerIndex = parseInt(selectedOption.value, 10);
+                const answerIndex = parseInt(selectedOption.getAttribute('data-index'), 10);
                 return this.currentQuestion.answers[answerIndex];
             } else {
                 alert("Пожалуйста, выберите вариант ответа.");
@@ -609,6 +621,8 @@ class TestApp {
             this.currentQuestion = null; // Сбрасываем текущий вопрос
             this.loadQuestion();
         }
+
+        this.submitBtn.disabled = true;
     }
 
     sendProgress() {
@@ -867,6 +881,11 @@ class TestApp {
         .catch(err => {
             console.error("Ошибка при завершении теста:", err);
         });
+    }
+
+    updateProgressBar() {
+        const progress = (this.totalQuestions / 12) * 100; // Предполагаем, что всего 12 вопросов
+        this.progressBar.innerHTML = `<div class="progress" style="width: ${progress}%"></div>`;
     }
 }
 
