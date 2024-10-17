@@ -28,7 +28,16 @@ module.exports = async (req, res) => {
         }
         const data = await response.json();
         console.log("Данные успешно получены из Airtable:", data.records.length, "записей");
-        res.status(200).json(data);
+
+        const questionData = data.records.map(record => {
+            const fields = record.fields;
+            return {
+                // ... (существующие поля)
+                timeLimit: fields.TimeLimit ? parseInt(fields.TimeLimit, 10) : null,
+            };
+        });
+
+        res.status(200).json(questionData);
     } catch (error) {
         console.error("Внутренняя ошибка сервера:", error);
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
