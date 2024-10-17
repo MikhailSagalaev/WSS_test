@@ -46,27 +46,30 @@ module.exports = async (req, res) => {
         console.log("Найденная запись:", record);
 
         // Сбрасываем прогресс
+        const updateData = {
+            fields: {
+                CurrentStageIndex: 0,
+                CurrentLevel: 1,
+                CorrectCount: 0,
+                IncorrectCount: 0,
+                TotalQuestions: 0,
+                CorrectHigherLevel: 0,
+                IncorrectLowerLevel: 0,
+                GroupCorrectAnswers: 0,
+                GroupTotalAnswers: 0,
+                GroupsAnswered: 0,
+                QuestionsOnCurrentLevel: 0
+            }
+        };
+        console.log("Данные для обновления:", updateData);
+
         const updateResponse = await fetch(`${url}/${record.id}`, {
             method: 'PATCH',
             headers: {
                 Authorization: `Bearer ${AIRTABLE_PAT}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                fields: {
-                    CurrentStageIndex: 0,
-                    CurrentLevel: 1,
-                    CorrectCount: 0,
-                    IncorrectCount: 0,
-                    TotalQuestions: 0,
-                    CorrectHigherLevel: 0,
-                    IncorrectLowerLevel: 0,
-                    GroupCorrectAnswers: 0,
-                    GroupTotalAnswers: 0,
-                    GroupsAnswered: 0,
-                    QuestionsOnCurrentLevel: 0
-                }
-            })
+            body: JSON.stringify(updateData)
         });
 
         if (!updateResponse.ok) {

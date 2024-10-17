@@ -337,6 +337,7 @@ class TestApp {
                     }
                     this.questions[stage].push({
                         id: question.id,
+                        stage: stage,
                         level: question.Level,
                         questionType: question["Question Type"],
                         question: question.Question,
@@ -346,6 +347,7 @@ class TestApp {
                         matchPairs: question.MatchPairs ? JSON.parse(question.MatchPairs) : [],
                         timeLimit: question.TimeLimit ? parseInt(question.TimeLimit, 10) : null
                     });
+                    console.log(`Вопрос загружен: ID=${question.id}, Stage=${stage}, Level=${question.Level}`);
                 });
                 console.log('Загруженные вопросы:', this.questions);
             })
