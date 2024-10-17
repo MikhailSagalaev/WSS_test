@@ -324,7 +324,6 @@ class TestApp {
             .then(data => {
                 console.log("Полученные данные вопросов:", data);
                 
-                // Проверка, является ли data массивом
                 if (!Array.isArray(data)) {
                     console.error("Некорректная структура данных вопросов:", data);
                     return;
@@ -332,10 +331,11 @@ class TestApp {
                 
                 console.log("Вопросы загружены:", data.length);
                 data.forEach(question => {
-                    if (!this.questions[question.Stage]) {
-                        this.questions[question.Stage] = [];
+                    const stage = question.Stage || 'undefined';
+                    if (!this.questions[stage]) {
+                        this.questions[stage] = [];
                     }
-                    this.questions[question.Stage].push({
+                    this.questions[stage].push({
                         id: question.id,
                         level: question.Level,
                         questionType: question["Question Type"],
@@ -430,7 +430,7 @@ class TestApp {
 
             if (this.timeLeft <= 0) {
                 clearInterval(this.timer);
-                this.handleSubmit(); // Автоматически отправляем ответ по истечении времени
+                this.handleSubmit(); // Автоматически отправляем ответ по истечнии времени
             }
         }, 1000);
     }
@@ -526,7 +526,7 @@ class TestApp {
 
         this.questionContainer.innerHTML = html;
 
-        // Инициализация Drag-and-Drop
+        // Иницилизация Drag-and-Drop
         this.initializeDragAndDrop();
     }
 
@@ -749,7 +749,7 @@ class TestApp {
         // Сбрасываем текущий вопрос
         this.currentQuestion = null;
 
-        // Переход к следующему этапу или завершение теста
+        // Переход к следующему этау или завершение теста
         if (this.currentStageIndex < this.stages.length - 1) {
             this.currentStageIndex++;
             this.loadQuestion();
@@ -783,26 +783,28 @@ class TestApp {
             console.log("Прогресс успешно сброшен:", data);
             // Очистка локального хранилища
             localStorage.removeItem('testProgress');
+            // Сброс локальных переменных
+            this.currentStageIndex = 0;
+            this.currentLevel = 1;
+            this.correctCount = 0;
+            this.incorrectCount = 0;
+            this.totalQuestions = 0;
+            this.correctHigherLevel = 0;
+            this.incorrectLowerLevel = 0;
+            this.groupCorrectAnswers = 0;
+            this.groupTotalAnswers = 0;
+            this.groupsAnswered = 0;
+            this.questionsOnCurrentLevel = 0;
+            this.stagesResults = [];
+            this.currentQuestion = null;
+            
+            // Перезагрузка страницы или перезапуск теста
+            this.init();
         })
         .catch(error => {
             console.error("Ошибка при сбросе прогресса:", error);
             alert("Произошла ошибка при сбросе прогресса. Пожалуйста, попробуйте еще раз.");
         });
-
-        // Сброс локальных переменных
-        this.currentStageIndex = 0;
-        this.currentLevel = 1;
-        this.correctCount = 0;
-        this.incorrectCount = 0;
-        this.totalQuestions = 0;
-        this.correctHigherLevel = 0;
-        this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0;
-        this.groupTotalAnswers = 0;
-        this.groupsAnswered = 0;
-        this.questionsOnCurrentLevel = 0;
-        this.stagesResults = [];
-        this.currentQuestion = null;
     }
 
     // Мето для обновления уровня на основе результатов группы

@@ -32,16 +32,18 @@ module.exports = async (req, res) => {
         });
 
         if (!getResponse.ok) {
-            throw new Error('Ошибка при запросе к Airtable');
+            throw new Error(`Ошибка при запросе к Airtable: ${getResponse.status} ${getResponse.statusText}`);
         }
 
         const getData = await getResponse.json();
+        console.log("Полученные данные:", getData);
         
         if (getData.records.length === 0) {
             return res.status(404).json({ error: 'Запись прогресса не найдена' });
         }
 
         const record = getData.records[0];
+        console.log("Найденная запись:", record);
 
         // Сбрасываем прогресс
         const updateResponse = await fetch(`${url}/${record.id}`, {
@@ -68,8 +70,13 @@ module.exports = async (req, res) => {
         });
 
         if (!updateResponse.ok) {
-            throw new Error('Ошибка при обновлении Airtable');
+            const errorData = await updateResponse.json();
+            console.error("Ошибка при обновлении Airtable:", errorData);
+            throw new Error(`Ошибка при обновлении Airtable: ${updateResponse.status} ${updateResponse.statusText}`);
         }
+
+        const updatedData = await updateResponse.json();
+        console.log("Обновленные данные:", updatedData);
 
         console.log("Прогресс успешно сброшен");
         res.status(200).json({ message: 'Прогресс успешно сброшен' });
