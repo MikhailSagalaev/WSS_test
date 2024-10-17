@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
+    console.log("Получен запрос на /api/resetProgress");
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Метод не разрешен' });
     }
@@ -67,6 +68,6 @@ module.exports = async (req, res) => {
         res.status(200).json({ message: 'Прогресс успешно сброшен' });
     } catch (error) {
         console.error('Ошибка:', error);
-        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+        res.status(500).json({ error: 'Внутренняя ошибка сервера', details: error.message });
     }
 };

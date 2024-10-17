@@ -33,6 +33,14 @@ class TestApp {
         this.questionContainer = document.getElementById('question-container');
         this.submitBtn = document.getElementById('submit-btn');
         this.finishBtn = document.getElementById('finish-btn');
+        this.progressBar = document.getElementById('progress-bar');
+        this.submitBtn.disabled = true;
+
+        this.questionInfo = document.getElementById('question-info');
+        this.timerElement = document.getElementById('timer');
+        this.currentQuestionNumber = 0;
+        this.timer = null;
+        this.timeLeft = 0;
 
         this.submitBtn.addEventListener('click', () => this.handleSubmit());
         this.finishBtn.addEventListener('click', () => this.resetProgress());
@@ -101,7 +109,7 @@ class TestApp {
     showUnavailableMessage() {
         this.questionContainer.innerHTML = `
             <div class="unavailable-message">
-                <p>Тестирование не доступно. Обратитесь к администратору.</p>
+                <p>Тестирование не доступно. Обратитес к администратору.</p>
                 <a href="https://t.me/@mixadev" target="_blank">Связаться с администратором</a>
             </div>
         `;
@@ -127,7 +135,7 @@ class TestApp {
         console.log("Прогесс сохранён в localStorage:", progress);
     }
 
-    // Метод для загрзки прогресса из localStorage
+    // Метод для загрзки прогресса з localStorage
     loadProgressFromLocalStorage() {
         const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
         if (savedProgress) {
@@ -314,10 +322,18 @@ class TestApp {
         return fetch('/api/questions')
             .then(response => response.json())
             .then(data => {
-                // Обработка полученных данных
+                // Проверка структуры данных
+                if (!data || !data.records || !Array.isArray(data.records)) {
+                    console.error("Некорректная структура данных вопросов:", data);
+                    return;
+                }
+                
                 console.log("Вопросы загружены:", data.records.length);
                 data.records.forEach(record => {
                     const fields = record.fields;
+                    if (!this.questions[fields.Stage]) {
+                        this.questions[fields.Stage] = [];
+                    }
                     this.questions[fields.Stage].push({
                         id: record.id,
                         level: fields.Level,
@@ -326,7 +342,8 @@ class TestApp {
                         answers: fields.Answers ? fields.Answers.split(',').map(ans => ans.trim()) : [],
                         correct: fields.Correct,
                         audio: fields.Audio,
-                        matchPairs: fields.MatchPairs ? JSON.parse(fields.MatchPairs) : []
+                        matchPairs: fields.MatchPairs ? JSON.parse(fields.MatchPairs) : [],
+                        timeLimit: fields.TimeLimit ? parseInt(fields.TimeLimit, 10) : null
                     });
                 });
                 console.log('Загруженные вопросы:', this.questions);
@@ -348,11 +365,12 @@ class TestApp {
         }
 
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Загрузка вопрос для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
+        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
         if (!questionsForStage || !Array.isArray(questionsForStage)) {
             console.error(`Нет вопросов для этапа ${currentStage}`);
+            this.finishStage();
             return;
         }
         console.log(`Всего вопросов на этапе ${currentStage}: ${questionsForStage.length}`);
@@ -375,12 +393,51 @@ class TestApp {
         console.log("Текущий вопрос:", this.currentQuestion);
 
         if (this.currentQuestion) {
-            this.questionsOnCurrentLevel++;
+            this.currentQuestionNumber++;
+            this.updateQuestionInfo();
+            this.startTimer();
             this.renderQuestion(this.currentQuestion);
         } else {
             console.error("Не удалось загрузить вопрос");
             this.finishStage();
         }
+    }
+
+    updateQuestionInfo() {
+        const stage = this.stages[this.currentStageIndex];
+        const questionType = this.currentQuestion.questionType;
+        this.questionInfo.textContent = `Этап: ${stage}, Вопрос: ${this.currentQuestionNumber}, Тип: ${questionType}`;
+    }
+
+    startTimer() {
+        if (this.timer) {
+            clearInterval(this.timer);
+        }
+
+        const timeLimit = this.currentQuestion.timeLimit; // Предполагается, что это поле есть в данных вопроса
+        if (!timeLimit) {
+            this.timerElement.textContent = '';
+            return;
+        }
+
+        this.timeLeft = timeLimit;
+        this.updateTimerDisplay();
+
+        this.timer = setInterval(() => {
+            this.timeLeft--;
+            this.updateTimerDisplay();
+
+            if (this.timeLeft <= 0) {
+                clearInterval(this.timer);
+                this.handleSubmit(); // Автоматически отправляем ответ по истечении времени
+            }
+        }, 1000);
+    }
+
+    updateTimerDisplay() {
+        const minutes = Math.floor(this.timeLeft / 60);
+        const seconds = this.timeLeft % 60;
+        this.timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
 
     renderQuestion(question) {
@@ -394,22 +451,32 @@ class TestApp {
         } else {
             console.error("Неизвестный тип вопроса:", question.questionType);
         }
+
+        this.updateProgressBar();
     }
 
     renderMultipleChoiceQuestion(question) {
         const html = `
-            <p>${question.question}</p>
+            <h2 class="question-title">${question.question}</h2>
             ${question.audio ? `<audio controls><source src="${question.audio}" type="audio/mpeg"></audio>` : ''}
-            <form id="question-form">
+            <div class="answers-container">
                 ${question.answers.map((answer, index) => `
-                    <label>
-                        <input type="radio" name="answer" value="${index}">
+                    <div class="answer-option" data-index="${index}">
                         ${answer}
-                    </label><br>
+                    </div>
                 `).join('')}
-            </form>
+            </div>
         `;
         this.questionContainer.innerHTML = html;
+
+        const answerOptions = this.questionContainer.querySelectorAll('.answer-option');
+        answerOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                answerOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                this.submitBtn.disabled = false;
+            });
+        });
     }
 
     renderMatchingQuestion(question) {
@@ -506,9 +573,9 @@ class TestApp {
         const questionType = this.currentQuestion.questionType;
         
         if (questionType === 'multiple-choice') {
-            const selectedOption = this.questionContainer.querySelector('input[name="answer"]:checked');
+            const selectedOption = this.questionContainer.querySelector('.answer-option.selected');
             if (selectedOption) {
-                const answerIndex = parseInt(selectedOption.value, 10);
+                const answerIndex = parseInt(selectedOption.getAttribute('data-index'), 10);
                 return this.currentQuestion.answers[answerIndex];
             } else {
                 alert("Пожалуйста, выберите вариант ответа.");
@@ -570,6 +637,10 @@ class TestApp {
     }
 
     handleSubmit() {
+        if (this.timer) {
+            clearInterval(this.timer);
+        }
+
         const userAnswer = this.getUserAnswer();
         
         if (userAnswer === null) {
@@ -609,6 +680,8 @@ class TestApp {
             this.currentQuestion = null; // Сбрасываем текущий вопрос
             this.loadQuestion();
         }
+
+        this.submitBtn.disabled = true;
     }
 
     sendProgress() {
@@ -867,6 +940,11 @@ class TestApp {
         .catch(err => {
             console.error("Ошибка при завершении теста:", err);
         });
+    }
+
+    updateProgressBar() {
+        const progress = (this.totalQuestions / 12) * 100; // Предполагаем, что всего 12 вопросов
+        this.progressBar.innerHTML = `<div class="progress" style="width: ${progress}%"></div>`;
     }
 }
 
