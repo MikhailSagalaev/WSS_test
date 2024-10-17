@@ -9,12 +9,18 @@ module.exports = async (req, res) => {
     const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
     const { userLogin } = req.body;
 
+    console.log("Переменные окружения:", { AIRTABLE_PAT: !!AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE });
+    console.log("Данные запроса:", { userLogin });
+
     if (!userLogin) {
         return res.status(400).json({ error: 'Не указан userLogin' });
     }
 
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`;
     const filterFormula = `({UserLogin} = '${userLogin}')`;
+
+    console.log("URL запроса:", url);
+    console.log("Формула фильтра:", filterFormula);
 
     try {
         // Получаем текущую запись прогресса
@@ -65,9 +71,10 @@ module.exports = async (req, res) => {
             throw new Error('Ошибка при обновлении Airtable');
         }
 
+        console.log("Прогресс успешно сброшен");
         res.status(200).json({ message: 'Прогресс успешно сброшен' });
     } catch (error) {
         console.error('Ошибка:', error);
-        res.status(500).json({ error: 'Внутренняя ошибка сервера', details: error.message });
+        res.status(500).json({ error: 'Внутренняя ошибка сервера', details: error.message, stack: error.stack });
     }
 };

@@ -322,28 +322,29 @@ class TestApp {
         return fetch('/api/questions')
             .then(response => response.json())
             .then(data => {
-                // Проверка структуры данных
-                if (!data || !data.records || !Array.isArray(data.records)) {
+                console.log("Полученные данные вопросов:", data);
+                
+                // Проверка, является ли data массивом
+                if (!Array.isArray(data)) {
                     console.error("Некорректная структура данных вопросов:", data);
                     return;
                 }
                 
-                console.log("Вопросы загружены:", data.records.length);
-                data.records.forEach(record => {
-                    const fields = record.fields;
-                    if (!this.questions[fields.Stage]) {
-                        this.questions[fields.Stage] = [];
+                console.log("Вопросы загружены:", data.length);
+                data.forEach(question => {
+                    if (!this.questions[question.Stage]) {
+                        this.questions[question.Stage] = [];
                     }
-                    this.questions[fields.Stage].push({
-                        id: record.id,
-                        level: fields.Level,
-                        questionType: fields["Question Type"],
-                        question: fields.Question,
-                        answers: fields.Answers ? fields.Answers.split(',').map(ans => ans.trim()) : [],
-                        correct: fields.Correct,
-                        audio: fields.Audio,
-                        matchPairs: fields.MatchPairs ? JSON.parse(fields.MatchPairs) : [],
-                        timeLimit: fields.TimeLimit ? parseInt(fields.TimeLimit, 10) : null
+                    this.questions[question.Stage].push({
+                        id: question.id,
+                        level: question.Level,
+                        questionType: question["Question Type"],
+                        question: question.Question,
+                        answers: question.Answers ? question.Answers.split(',').map(ans => ans.trim()) : [],
+                        correct: question.Correct,
+                        audio: question.Audio,
+                        matchPairs: question.MatchPairs ? JSON.parse(question.MatchPairs) : [],
+                        timeLimit: question.TimeLimit ? parseInt(question.TimeLimit, 10) : null
                     });
                 });
                 console.log('Загруженные вопросы:', this.questions);
@@ -765,7 +766,6 @@ class TestApp {
     }
 
     resetProgress() {
-        // Сброс прогресса в Airtable
         fetch('/api/resetProgress', {
             method: 'POST',
             headers: {
@@ -773,18 +773,20 @@ class TestApp {
             },
             body: JSON.stringify({ userLogin: this.user.login })
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                console.error("Ошибка при сбросе прогресса:", data.error);
-            } else {
-                console.log("Прогресс успешно сброшен");
-                // Очистка локального хранилища
-                localStorage.removeItem('testProgress');
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
             }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Прогресс успешно сброшен:", data);
+            // Очистка локального хранилища
+            localStorage.removeItem('testProgress');
         })
         .catch(error => {
             console.error("Ошибка при сбросе прогресса:", error);
+            alert("Произошла ошибка при сбросе прогресса. Пожалуйста, попробуйте еще раз.");
         });
 
         // Сброс локальных переменных
@@ -865,7 +867,7 @@ class TestApp {
         });
     }
 
-    // Доплнительные методы для управления логикой теста могут быть добавлены здесь
+    // Доплнительно, давайте изменим обработку ошибок в клиентском коде:
 
     showResults() {
         const finalResults = this.stagesResults.map(result => {
