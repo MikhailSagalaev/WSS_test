@@ -331,30 +331,23 @@ class TestApp {
                 
                 console.log("Вопросы загружены:", data.length);
                 data.forEach(question => {
-                    // Проверяем наличие необходимых полей
-                    if (!question.fields) {
-                        console.error("Отсутствует поле 'fields' в вопросе:", question);
-                        return;
-                    }
-                    
-                    const fields = question.fields;
-                    const stage = fields.Stage || 'undefined';
+                    const stage = question.fields.Stage || 'undefined';
                     if (!this.questions[stage]) {
                         this.questions[stage] = [];
                     }
                     this.questions[stage].push({
                         id: question.id,
                         stage: stage,
-                        level: fields.Level,
-                        questionType: fields["Question Type"],
-                        question: fields.Question,
-                        answers: fields.Answers ? fields.Answers.split(',').map(ans => ans.trim()) : [],
-                        correct: fields.Correct,
-                        audio: fields.Audio,
-                        matchPairs: fields.MatchPairs ? JSON.parse(fields.MatchPairs) : [],
-                        timeLimit: fields.TimeLimit ? parseInt(fields.TimeLimit, 10) : null
+                        level: parseInt(question.fields.Level, 10),
+                        questionType: question.fields["Question Type"],
+                        question: question.fields.Question,
+                        answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
+                        correct: question.fields.Correct,
+                        audio: question.fields.Audio ? question.fields.Audio[0].url : null,
+                        matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
+                        timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
                     });
-                    console.log(`Вопрос загружен: ID=${question.id}, Stage=${stage}, Level=${fields.Level}`);
+                    console.log(`Вопрос загружен: ID=${question.id}, Stage=${stage}, Level=${question.fields.Level}`);
                 });
                 console.log('Загруженные вопросы:', this.questions);
             })

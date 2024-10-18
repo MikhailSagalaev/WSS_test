@@ -8,38 +8,26 @@ module.exports = async (req, res) => {
         return res.status(405).json({ error: 'Метод не разрешен' });
     }
 
-    const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_QUESTIONS_TABLE } = process.env;
-
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_QUESTIONS_TABLE)}`;
-
-    const options = {
-        headers: {
-            Authorization: `Bearer ${AIRTABLE_PAT}`,
-            'Content-Type': 'application/json'
-        }
-    };
-
     try {
-        const response = await fetch(url, options);
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Ошибка при получении данных из Airtable:", errorData);
-            return res.status(response.status).json({ error: errorData.error });
-        }
-        const data = await response.json();
-        console.log("Данные успешно получены из Airtable:", data.records.length, "записей");
+        const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_QUESTIONS_TABLE } = process.env;
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_QUESTIONS_TABLE)}`;
 
-        const questionData = data.records.map(record => {
-            const fields = record.fields;
-            return {
-                // ... (существующие поля)
-                timeLimit: fields.TimeLimit ? parseInt(fields.TimeLimit, 10) : null,
-            };
+        const response = await fetch(url, {
+            headers: {
+                Authorization: `Bearer ${AIRTABLE_PAT}`
+            }
         });
 
-        res.status(200).json(questionData);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Возвращаем данные как есть, без дополнительной обработки
+        res.status(200).json(data.records);
     } catch (error) {
-        console.error("Внутренняя ошибка сервера:", error);
-        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 };
