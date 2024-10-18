@@ -397,6 +397,7 @@ class TestApp {
 
         if (this.currentQuestion) {
             this.currentQuestionNumber++;
+            document.getElementById('question-number').textContent = this.currentQuestionNumber;
             this.updateQuestionInfo();
             this.startTimer();
             this.renderQuestion(this.currentQuestion);
@@ -407,9 +408,14 @@ class TestApp {
     }
 
     updateQuestionInfo() {
+        const questionInfoElement = document.getElementById('question-info');
+        if (!questionInfoElement) {
+            console.error("Элемент question-info не найден");
+            return;
+        }
         const stage = this.stages[this.currentStageIndex];
         const questionType = this.currentQuestion.questionType;
-        this.questionInfo.textContent = `Этап: ${stage}, Вопрос: ${this.currentQuestionNumber}, Тип: ${questionType}`;
+        questionInfoElement.textContent = `Этап: ${stage}, Тип: ${questionType}`;
     }
 
     startTimer() {
@@ -819,7 +825,7 @@ class TestApp {
             this.stagesResults = [];
             this.currentQuestion = null;
             
-            // Перезагрузка страницы или перезапуск теста
+            // Перезагрузка страницы или перезапус теста
             this.init();
         })
         .catch(error => {
