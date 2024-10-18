@@ -355,7 +355,7 @@ class TestApp {
                 console.log('Загруженные вопросы:', this.questions);
             })
             .catch(err => {
-                console.error("Ошиб��а при загрузке вопросов:", err);
+                console.error("Ошиб�� при загрузке вопросов:", err);
             });
     }
 
@@ -786,26 +786,17 @@ class TestApp {
         switch (question.questionType) {
             case 'multiple-choice':
                 return String(userAnswer) === String(question.correct);
-            
             case 'matching':
-                // Оставьте существующую логику для matching
-                // ...
-
+                // Логика для matching вопросов
+                break;
             case 'typeImg':
-                return userAnswer.every((answer, index) => 
-                    answer.toLowerCase() === (question.imageAnswers[index] || '').toLowerCase()
-                );
-
             case 'typing':
-                return userAnswer.every((answer, index) => 
-                    answer.toLowerCase() === (question.gapAnswers[index] || '').toLowerCase()
-                );
-
             case 'matchingWords':
-                return userAnswer.every((answer, index) => 
-                    answer.toLowerCase() === (question.gapAnswers[index] || '').toLowerCase()
-                );
-
+                if (!Array.isArray(userAnswer)) {
+                    console.error("userAnswer не является массивом:", userAnswer);
+                    return false;
+                }
+                return userAnswer.every((answer, index) => answer.toLowerCase() === (question.gapAnswers[index] || question.imageAnswers[index] || "").toLowerCase());
             default:
                 console.error("Неизвестный тип вопроса:", question.questionType);
                 return false;
