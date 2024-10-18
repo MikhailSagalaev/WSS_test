@@ -414,7 +414,10 @@ class TestApp {
         }
         const stage = this.stages[this.currentStageIndex];
         const questionType = this.currentQuestion.questionType;
-        questionInfoElement.textContent = `Этап: ${stage}, Тип: ${questionType}`;
+        questionInfoElement.innerHTML = `
+            <p><strong>Этап:</strong> ${stage}</p>
+            <p><strong>Тип вопроса:</strong> ${questionType}</p>
+        `;
     }
 
     startTimer() {
@@ -457,7 +460,8 @@ class TestApp {
         this.questionContainer.innerHTML = '';
 
         // Обновляем номер вопроса
-        document.getElementById('question-number').textContent = this.currentQuestionNumber;
+        const totalQuestions = JSON.parse(localStorage.getItem('testProgress'))?.totalQuestions || 0;
+        document.getElementById('question-number').textContent = `${totalQuestions + 1}`;
 
         // Добавляем аудио, если оно есть
         if (question.audio) {
