@@ -495,6 +495,8 @@ class TestApp {
         } else {
             console.error("Неизвестный тип вопроса:", question.questionType);
         }
+
+        this.addInputListeners();
     }
 
     renderMultipleChoiceQuestion(question) {
@@ -626,6 +628,7 @@ class TestApp {
         });
         html += `</div>`;
         this.questionContainer.innerHTML = html;
+        this.checkAllInputsFilled();
     }
 
     renderTypingQuestion(question) {
@@ -639,6 +642,7 @@ class TestApp {
         });
         html += `</div>`;
         this.questionContainer.innerHTML = html;
+        this.checkAllInputsFilled();
     }
 
     renderMatchingWordsQuestion(question) {
@@ -666,6 +670,7 @@ class TestApp {
         `;
         this.questionContainer.innerHTML = html;
         this.initializeWordDragAndDrop();
+        this.checkAllInputsFilled();
     }
 
     initializeWordDragAndDrop() {
@@ -684,8 +689,41 @@ class TestApp {
                 e.preventDefault();
                 const word = e.dataTransfer.getData('text/plain');
                 zone.textContent = word;
+                this.checkAllInputsFilled();
             });
         });
+    }
+
+    addInputListeners() {
+        const inputs = this.questionContainer.querySelectorAll('input[type="text"], .word-drop-zone');
+        inputs.forEach(input => {
+            input.addEventListener('input', (e) => {
+                if (input.tagName === 'INPUT' && !this.isLatinInput(e.target.value)) {
+                    e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '');
+                }
+                this.checkAllInputsFilled();
+            });
+            input.addEventListener('drop', () => this.checkAllInputsFilled());
+        });
+    }
+
+    checkAllInputsFilled() {
+        const questionType = this.currentQuestion.questionType;
+        let allFilled = false;
+
+        if (questionType === 'typeImg' || questionType === 'typing') {
+            const inputs = this.questionContainer.querySelectorAll('input[type="text"]');
+            allFilled = Array.from(inputs).every(input => input.value.trim() !== '');
+        } else if (questionType === 'matchingWords') {
+            const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
+            allFilled = Array.from(dropZones).every(zone => zone.textContent.trim() !== '');
+        }
+
+        this.submitBtn.disabled = !allFilled;
+    }
+
+    isLatinInput(input) {
+        return /^[a-zA-Z]*$/.test(input);
     }
 
     getUserAnswer() {
@@ -1011,7 +1049,7 @@ class TestApp {
         }).join('');
 
         this.questionContainer.innerHTML = `
-            <h2>Результаты теста</h2>
+            <h2>Резултаты теста</h2>
             ${finalResults}
         `;
         this.submitBtn.style.display = 'none';

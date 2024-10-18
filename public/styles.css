@@ -309,7 +309,9 @@ audio {
 }
 
 .matching-words-question .word-drop-zone {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     width: 100px;
     height: 30px;
     border: 2px dashed #ccc;
