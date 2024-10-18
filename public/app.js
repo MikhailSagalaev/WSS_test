@@ -344,10 +344,10 @@ class TestApp {
                         correct: question.fields.Correct,
                         audio: question.fields.Audio && question.fields.Audio.length > 0 ? question.fields.Audio[0].url : null,
                         matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
-                        timeLimit: question.fields.TimeLimit !== undefined ? parseInt(question.fields.TimeLimit, 10) : null,
+                        timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
                         images: question.fields.Images ? question.fields.Images.map(img => img.url) : [],
                         imageAnswers: question.fields.ImageAnswers ? question.fields.ImageAnswers.split(',').map(ans => ans.trim()) : [],
-                        sentenceWithGaps: question.fields.SentenceWithGaps,
+                        sentenceWithGaps: question.fields.SentenceWithGaps || '',
                         gapAnswers: question.fields.GapAnswers ? question.fields.GapAnswers.split(',').map(ans => ans.trim()) : [],
                         wordOptions: question.fields.WordOptions ? question.fields.WordOptions.split(',').map(word => word.trim()) : []
                     });
@@ -784,21 +784,32 @@ class TestApp {
 
         const question = this.currentQuestion;
 
-        if (question.questionType === 'multiple-choice') {
-            return String(userAnswer) === String(question.correct);
-        } else if (question.questionType === 'matching') {
-            const correctMatches = question.correct;
-            for (const image in correctMatches) {
-                if (userAnswer[image] !== correctMatches[image]) {
-                    return false;
-                }
-            }
-            return true;
-        } else if (question.questionType === 'typeImg' || question.questionType === 'typing' || question.questionType === 'matchingWords') {
-            return userAnswer.every((answer, index) => answer.toLowerCase() === question.gapAnswers[index].toLowerCase());
-        } else {
-            console.error("Неизвестный тип вопроса:", question.questionType);
-            return false;
+        switch (question.questionType) {
+            case 'multiple-choice':
+                return String(userAnswer) === String(question.correct);
+            
+            case 'matching':
+                // Оставьте существующую логику для matching
+                // ...
+
+            case 'typeImg':
+                return userAnswer.every((answer, index) => 
+                    answer.toLowerCase() === (question.imageAnswers[index] || '').toLowerCase()
+                );
+
+            case 'typing':
+                return userAnswer.every((answer, index) => 
+                    answer.toLowerCase() === (question.gapAnswers[index] || '').toLowerCase()
+                );
+
+            case 'matchingWords':
+                return userAnswer.every((answer, index) => 
+                    answer.toLowerCase() === (question.gapAnswers[index] || '').toLowerCase()
+                );
+
+            default:
+                console.error("Неизвестный тип вопроса:", question.questionType);
+                return false;
         }
     }
 
