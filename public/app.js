@@ -355,7 +355,7 @@ class TestApp {
                 console.log('Загруженные вопросы:', this.questions);
             })
             .catch(err => {
-                console.error("Ошибка при заг��у��ке вопросов:", err);
+                console.error("Ошибка п��и загуке вопросов:", err);
             });
     }
 
@@ -878,7 +878,7 @@ class TestApp {
             if (data.error) {
                 console.error("Ошибка при отправке прогресса:", data.error);
             } else {
-                console.log("Прогресс успешно отправлен");
+                console.log("Прогресс успешно отправлен", progressData);
             }
         })
         .catch(error => {
@@ -952,7 +952,7 @@ class TestApp {
             console.log("Прогресс успешно сброшен:", data);
             // Очистка локального хранилища
             localStorage.removeItem('testProgress');
-            // Сброс локальных переменных
+            // Сброс лок��льных переменных
             this.currentStageIndex = 0;
             this.currentLevel = 1;
             this.correctCount = 0;
