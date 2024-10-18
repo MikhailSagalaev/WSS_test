@@ -33,7 +33,6 @@ class TestApp {
         this.questionContainer = document.getElementById('question-container');
         this.submitBtn = document.getElementById('submit-btn');
         this.finishBtn = document.getElementById('finish-btn');
-        this.progressBar = document.getElementById('progress-bar');
         this.submitBtn.disabled = true;
 
         this.questionInfo = document.getElementById('question-info');
@@ -368,7 +367,7 @@ class TestApp {
         }
 
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
+        console.log(`Зарузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
         if (!questionsForStage || !Array.isArray(questionsForStage) || questionsForStage.length === 0) {
@@ -445,6 +444,10 @@ class TestApp {
 
     renderQuestion(question) {
         console.log("Рендеринг вопроса:", question);
+        if (!this.questionContainer) {
+            console.error("Элемент questionContainer не найден");
+            return;
+        }
         this.questionContainer.innerHTML = '';
 
         if (question.questionType === 'multiple-choice') {
@@ -454,8 +457,6 @@ class TestApp {
         } else {
             console.error("Неизвестный тип вопроса:", question.questionType);
         }
-
-        this.updateProgressBar();
     }
 
     renderMultipleChoiceQuestion(question) {
@@ -946,11 +947,6 @@ class TestApp {
         .catch(err => {
             console.error("Ошибка при завершении теста:", err);
         });
-    }
-
-    updateProgressBar() {
-        const progress = (this.totalQuestions / 12) * 100; // Предполагаем, что всего 12 вопросов
-        this.progressBar.innerHTML = `<div class="progress" style="width: ${progress}%"></div>`;
     }
 }
 
