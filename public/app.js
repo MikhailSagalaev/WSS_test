@@ -331,23 +331,30 @@ class TestApp {
                 
                 console.log("Вопросы загружены:", data.length);
                 data.forEach(question => {
-                    const stage = question.Stage || 'undefined';
+                    // Проверяем наличие необходимых полей
+                    if (!question.fields) {
+                        console.error("Отсутствует поле 'fields' в вопросе:", question);
+                        return;
+                    }
+                    
+                    const fields = question.fields;
+                    const stage = fields.Stage || 'undefined';
                     if (!this.questions[stage]) {
                         this.questions[stage] = [];
                     }
                     this.questions[stage].push({
                         id: question.id,
                         stage: stage,
-                        level: question.Level,
-                        questionType: question["Question Type"],
-                        question: question.Question,
-                        answers: question.Answers ? question.Answers.split(',').map(ans => ans.trim()) : [],
-                        correct: question.Correct,
-                        audio: question.Audio,
-                        matchPairs: question.MatchPairs ? JSON.parse(question.MatchPairs) : [],
-                        timeLimit: question.TimeLimit ? parseInt(question.TimeLimit, 10) : null
+                        level: fields.Level,
+                        questionType: fields["Question Type"],
+                        question: fields.Question,
+                        answers: fields.Answers ? fields.Answers.split(',').map(ans => ans.trim()) : [],
+                        correct: fields.Correct,
+                        audio: fields.Audio,
+                        matchPairs: fields.MatchPairs ? JSON.parse(fields.MatchPairs) : [],
+                        timeLimit: fields.TimeLimit ? parseInt(fields.TimeLimit, 10) : null
                     });
-                    console.log(`Вопрос загружен: ID=${question.id}, Stage=${stage}, Level=${question.Level}`);
+                    console.log(`Вопрос загружен: ID=${question.id}, Stage=${stage}, Level=${fields.Level}`);
                 });
                 console.log('Загруженные вопросы:', this.questions);
             })
@@ -371,7 +378,7 @@ class TestApp {
         console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
-        if (!questionsForStage || !Array.isArray(questionsForStage)) {
+        if (!questionsForStage || !Array.isArray(questionsForStage) || questionsForStage.length === 0) {
             console.error(`Нет вопросов для этапа ${currentStage}`);
             this.finishStage();
             return;
