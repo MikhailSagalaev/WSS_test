@@ -342,7 +342,7 @@ class TestApp {
                         question: question.fields.Question,
                         answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
                         correct: question.fields.Correct,
-                        audio: question.fields.Audio ? question.fields.Audio[0].url : null,
+                        audio: question.fields.Audio && question.fields.Audio.length > 0 ? question.fields.Audio[0].url : null,
                         matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
                         timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
                     });
@@ -450,6 +450,23 @@ class TestApp {
             return;
         }
         this.questionContainer.innerHTML = '';
+
+        // Обновляем номер вопроса
+        document.getElementById('question-number').textContent = this.currentQuestionNumber;
+
+        // Добавляем аудио, если оно есть
+        if (question.audio) {
+            const audioElement = document.createElement('audio');
+            audioElement.src = question.audio;
+            audioElement.controls = true;
+            this.questionContainer.appendChild(audioElement);
+        }
+
+        // Добавляем текст вопроса
+        const questionTitle = document.createElement('h3');
+        questionTitle.className = 'question-title';
+        questionTitle.textContent = question.question;
+        this.questionContainer.appendChild(questionTitle);
 
         if (question.questionType === 'multiple-choice') {
             this.renderMultipleChoiceQuestion(question);

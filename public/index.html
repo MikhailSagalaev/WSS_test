@@ -9,15 +9,30 @@
 </head>
 <body>
     <div id="test-container">
-        <div id="test-info">
-            <div id="question-info"></div>
-            <div id="timer"></div>
+        <div class="test-wrapper">
+            <div class="sidebar">
+                <h1>English Proficiency Test</h1>
+                <p>Оцените свой уровень английского</p>
+                <div class="icons">
+                    <i class="icon-reading"></i>
+                    <p>Reading</p>
+                    <i class="icon-listening"></i>
+                    <p>Listening</p>
+                </div>
+            </div>
+            <main>
+                <header>
+                    <h2>Question <span id="question-number">1</span></h2>
+                    <div class="timer" id="timer">00:00</div>
+                </header>
+                <div id="question-container"></div>
+                <div class="submit-button">
+                    <button id="submit-btn">NEXT</button>
+                </div>
+                <button id="finish-btn" style="display: none;">Завершить Тест</button>
+            </main>
         </div>
-        <div id="question-container"></div>
-        <button id="submit-btn">NEXT</button>
-        <button id="finish-btn" style="display: none;">Завершить Тест</button>
     </div>
-
     <script src="app.js"></script>
 </body>
 </html>

@@ -91,16 +91,6 @@ header h2 span {
     position: relative;
 }
 
-.question-number {
-    position: absolute;
-    top: -16px;
-    left: 16px;
-    background-color: #d8d8ee;
-    padding: 4px 12px;
-    border-radius: 6px;
-    font-weight: bold;
-}
-
 .question-title {
     font-size: 18px;
     color: #1f2937;
@@ -253,4 +243,9 @@ header h2 span {
 #submit-btn:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
+}
+
+audio {
+    width: 100%;
+    margin-bottom: 16px;
 }
