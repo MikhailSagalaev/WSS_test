@@ -322,18 +322,18 @@ class TestApp {
             .then(response => response.json())
             .then(data => {
                 console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
-                
                 if (!Array.isArray(data)) {
                     console.error("Некорректная структура данных вопросов:", data);
                     return;
                 }
-                
                 console.log("Вопросы загружены:", data.length);
                 data.forEach(question => {
                     const stage = question.fields.Stage || 'undefined';
                     if (!this.questions[stage]) {
                         this.questions[stage] = [];
                     }
+                    const audioUrl = question.fields.Audio && question.fields.Audio.length > 0 ? question.fields.Audio[0].url : null;
+                    console.log(`Вопрос ${question.id}: Audio URL - ${audioUrl}`);
                     this.questions[stage].push({
                         id: question.id,
                         stage: stage,
@@ -342,7 +342,7 @@ class TestApp {
                         question: question.fields.Question,
                         answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
                         correct: question.fields.Correct,
-                        audio: question.fields.Audio && question.fields.Audio.length > 0 ? question.fields.Audio[0].url : null,
+                        audio: audioUrl,
                         matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
                         timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
                         images: question.fields.Images ? question.fields.Images.map(img => img.url) : [],
@@ -351,12 +351,11 @@ class TestApp {
                         gapAnswers: question.fields.GapAnswers ? question.fields.GapAnswers.split(',').map(ans => ans.trim()) : [],
                         wordOptions: question.fields.WordOptions ? question.fields.WordOptions.split(',').map(word => word.trim()) : []
                     });
-                    console.log(`Загружен вопрос: ID=${question.id}, Stage=${stage}, Level=${question.fields.Level}, TimeLimit=${question.fields.TimeLimit}`);
                 });
                 console.log('Загруженные вопросы:', this.questions);
             })
             .catch(err => {
-                console.error("Ошибка при загрузке вопросов:", err);
+                console.error("Ошиб��а при загрузке вопросов:", err);
             });
     }
 
@@ -853,7 +852,7 @@ class TestApp {
             this.groupTotalAnswers = 0;
         }
 
-        if (this.questionsOnCurrentLevel >= 6) {
+        if (this.questionsOnCurrentLevel >= 9) {
             this.finishStage();
         } else {
             this.currentQuestion = null; // Сбрасываем текущий вопрос
@@ -938,6 +937,7 @@ class TestApp {
     }
 
     finishTest() {
+        this.sendResultsToAirtable();
         this.sendFinalResults();
         this.showResults();
         this.resetProgress();
@@ -1121,6 +1121,48 @@ class TestApp {
         })
         .catch(err => {
             console.error("Ошибка при завершении теста:", err);
+        });
+    }
+
+    sendResultsToAirtable() {
+        const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_STORY_TABLE } = process.env;
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_STORY_TABLE)}`;
+
+        const stagesResults = this.stages.map((stage, index) => ({
+            Stage: stage,
+            CorrectCount: this.stagesResults[index].correctCount,
+            IncorrectCount: this.stagesResults[index].incorrectCount,
+            TotalQuestions: this.stagesResults[index].totalQuestions,
+            TargetLevel: this.currentLevel
+        }));
+
+        const data = {
+            fields: {
+                UserLogin: this.user.login,
+                FinishDate: new Date(),
+                StagesResults: stagesResults.map(result => ({id: result.Stage})) // Only send IDs for linked records
+            }
+        };
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${AIRTABLE_PAT}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(result => {
+            console.log('Результаты успешно отправлены в Airtable:', result);
+        })
+        .catch(error => {
+            console.error('Ошибка при отправке результатов в Airtable:', error);
         });
     }
 }
