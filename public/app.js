@@ -321,7 +321,7 @@ class TestApp {
         return fetch('/api/questions')
             .then(response => response.json())
             .then(data => {
-                console.log("Полученные данные вопросов:", data);
+                console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
                 
                 if (!Array.isArray(data)) {
                     console.error("Некорректная структура данных вопросов:", data);
@@ -344,10 +344,9 @@ class TestApp {
                         correct: question.fields.Correct,
                         audio: question.fields.Audio && question.fields.Audio.length > 0 ? question.fields.Audio[0].url : null,
                         matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
-                        timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
+                        timeLimit: question.fields.TimeLimit !== undefined ? parseInt(question.fields.TimeLimit, 10) : null
                     });
-                    // Удалите или закомментируйте следующую строку
-                    // console.log(`Вопрос загружен: ID=${question.id}, Stage=${stage}, Level=${question.fields.Level}`);
+                    console.log(`Загружен вопрос: ID=${question.id}, Stage=${stage}, Level=${question.fields.Level}, TimeLimit=${question.fields.TimeLimit}`);
                 });
                 console.log('Загруженные вопросы:', this.questions);
             })

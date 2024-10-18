@@ -24,8 +24,19 @@ module.exports = async (req, res) => {
 
         const data = await response.json();
         
-        // Возвращаем данные как есть, без дополнительной обработки
-        res.status(200).json(data.records);
+        // Добавим логирование для проверки данных
+        console.log("Данные, полученные из Airtable:", JSON.stringify(data, null, 2));
+
+        // Преобразуем данные, чтобы убедиться, что TimeLimit корректно передается
+        const questions = data.records.map(record => ({
+            id: record.id,
+            fields: {
+                ...record.fields,
+                TimeLimit: record.fields.TimeLimit !== undefined ? Number(record.fields.TimeLimit) : null
+            }
+        }));
+
+        res.status(200).json(questions);
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Internal Server Error' });
