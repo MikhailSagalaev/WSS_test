@@ -423,7 +423,7 @@ class TestApp {
             clearInterval(this.timer);
         }
 
-        const timeLimit = this.currentQuestion.timeLimit; // Предполагается, что это поле есть в данных вопроса
+        const timeLimit = this.currentQuestion.timeLimit;
         if (!timeLimit) {
             this.timerElement.textContent = '';
             return;
@@ -438,7 +438,7 @@ class TestApp {
 
             if (this.timeLeft <= 0) {
                 clearInterval(this.timer);
-                this.handleSubmit(); // Автоматически отправляем ответ по истечнии времени
+                this.handleSubmit(true); // true означает, что время истекло
             }
         }, 1000);
     }
@@ -509,7 +509,6 @@ class TestApp {
 
     renderMatchingQuestion(question) {
         console.log("Рендеринг matching вопроса");
-        console.log("Raw matchPairs:", question.matchPairs);
         
         let pairs;
         try {
@@ -526,26 +525,19 @@ class TestApp {
 
         let html = `
             <div class="matching-question">
-                <h2 class="question-title">${question.question}</h2>
-                <div class="matching-container">
-                    <div class="words-column">
-                        <ul class="words-list">
-                            ${pairs.map(pair => `
-                                <li class="word-item" draggable="true" data-word="${pair.option}">${pair.option}</li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                    <div class="images-column">
-                        <ul class="images-list">
-                            ${pairs.map((pair, index) => `
-                                <li class="image-item">
-                                    <div class="image-content">
-                                        <img src="${pair.image}" alt="Image ${index + 1}">
-                                    </div>
-                                    <div class="drop-zone" data-image="${pair.image}"></div>
-                                </li>
-                            `).join('')}
-                        </ul>
+                <div class="images-column">
+                    ${pairs.map((pair, index) => `
+                        <div class="image-item">
+                            <img src="${pair.image}" alt="Image ${index + 1}">
+                            <div class="drop-zone" data-image="${pair.image}"></div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="words-column">
+                    <div class="words-list">
+                        ${pairs.map(pair => `
+                            <div class="word-item" draggable="true" data-word="${pair.option}">${pair.option}</div>
+                        `).join('')}
                     </div>
                 </div>
             </div>
@@ -553,13 +545,20 @@ class TestApp {
 
         this.questionContainer.innerHTML = html;
 
-        // Иницилизация Drag-and-Drop
+        // Инициализация Drag-and-Drop
         this.initializeDragAndDrop();
     }
 
     initializeDragAndDrop() {
         const draggableElements = this.questionContainer.querySelectorAll('.word-item');
         const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+
+        // Добавим эту функцию внутри initializeDragAndDrop
+        const checkAllMatched = () => {
+            const allDropZones = this.questionContainer.querySelectorAll('.drop-zone');
+            const allMatched = Array.from(allDropZones).every(zone => zone.querySelector('.word-item'));
+            this.submitBtn.disabled = !allMatched;
+        };
 
         draggableElements.forEach(elem => {
             elem.addEventListener('dragstart', (e) => {
@@ -592,9 +591,13 @@ class TestApp {
                     zone.appendChild(wordElement);
                     wordElement.setAttribute('draggable', 'false');
                     wordElement.style.cursor = 'default';
+                    checkAllMatched(); // Проверяем, все ли сопоставлено
                 }
             });
         });
+
+        // Вызовем функцию в конце initializeDragAndDrop
+        checkAllMatched();
     }
 
     getUserAnswer() {
@@ -664,18 +667,20 @@ class TestApp {
         }
     }
 
-    handleSubmit() {
+    handleSubmit(timeExpired = false) {
         if (this.timer) {
             clearInterval(this.timer);
         }
 
-        const userAnswer = this.getUserAnswer();
-        
-        if (userAnswer === null) {
-            return;
-        }
+        let isCorrect = false;
 
-        const isCorrect = this.checkAnswer(userAnswer);
+        if (!timeExpired) {
+            const userAnswer = this.getUserAnswer();
+            if (userAnswer === null) {
+                return;
+            }
+            isCorrect = this.checkAnswer(userAnswer);
+        }
 
         if (isCorrect) {
             this.correctCount++;

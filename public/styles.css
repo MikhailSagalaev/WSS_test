@@ -207,26 +207,56 @@ header h2 span {
     border-color: #3b82f6;
 }
 
-.matching-question .words-column,
-.matching-question .images-column {
-    display: inline-block;
-    vertical-align: top;
-    width: 45%;
+.matching-question {
+    display: flex;
+    flex-direction: column;
 }
 
-.matching-question .word-item,
-.matching-question .image-item {
-    margin-bottom: 10px;
-    padding: 5px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+.images-column {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
 }
 
-.matching-question .drop-zone {
-    min-height: 30px;
+.image-item {
+    text-align: center;
+    margin: 10px;
+}
+
+.image-item img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.drop-zone {
+    width: 100px;
+    height: 40px;
     border: 2px dashed #ccc;
     border-radius: 4px;
-    margin-top: 5px;
+    margin-top: 10px;
+}
+
+.words-column {
+    display: flex;
+    justify-content: center;
+}
+
+.words-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.word-item {
+    background-color: #e5e7eb;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 8px 16px;
+    margin: 5px;
+    cursor: grab;
 }
 
 #submit-btn, #finish-btn {
