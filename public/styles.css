@@ -11,7 +11,7 @@ body {
 }
 
 #test-container {
-    width: 900px;
+    width: 1200px;
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -282,4 +282,52 @@ header h2 span {
 audio {
     width: 100%;
     margin-bottom: 16px;
+}
+
+.type-img-question .image-answer-pair {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.type-img-question img {
+    max-width: 200px;
+    margin-bottom: 10px;
+}
+
+.typing-question input,
+.type-img-question input {
+    margin: 0 5px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.matching-words-question .sentence-with-gaps {
+    margin-bottom: 20px;
+}
+
+.matching-words-question .word-drop-zone {
+    display: inline-block;
+    width: 100px;
+    height: 30px;
+    border: 2px dashed #ccc;
+    border-radius: 4px;
+    margin: 0 5px;
+    vertical-align: middle;
+}
+
+.matching-words-question .word-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.matching-words-question .word-option {
+    padding: 5px 10px;
+    background-color: #e5e7eb;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    cursor: grab;
 }

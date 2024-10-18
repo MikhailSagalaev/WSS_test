@@ -344,7 +344,12 @@ class TestApp {
                         correct: question.fields.Correct,
                         audio: question.fields.Audio && question.fields.Audio.length > 0 ? question.fields.Audio[0].url : null,
                         matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
-                        timeLimit: question.fields.TimeLimit !== undefined ? parseInt(question.fields.TimeLimit, 10) : null
+                        timeLimit: question.fields.TimeLimit !== undefined ? parseInt(question.fields.TimeLimit, 10) : null,
+                        images: question.fields.Images ? question.fields.Images.map(img => img.url) : [],
+                        imageAnswers: question.fields.ImageAnswers ? question.fields.ImageAnswers.split(',').map(ans => ans.trim()) : [],
+                        sentenceWithGaps: question.fields.SentenceWithGaps,
+                        gapAnswers: question.fields.GapAnswers ? question.fields.GapAnswers.split(',').map(ans => ans.trim()) : [],
+                        wordOptions: question.fields.WordOptions ? question.fields.WordOptions.split(',').map(word => word.trim()) : []
                     });
                     console.log(`Загружен вопрос: ID=${question.id}, Stage=${stage}, Level=${question.fields.Level}, TimeLimit=${question.fields.TimeLimit}`);
                 });
@@ -384,7 +389,7 @@ class TestApp {
         console.log(`Найдено вопросов на уровне ${this.currentLevel} для этапа ${currentStage}: ${questionsForLevel.length}`);
 
         if (questionsForLevel.length === 0) {
-            console.error(`Нет вопросов на уровне ${this.currentLevel} для этапа ${currentStage}`);
+            console.error(`Нет вопросов на уровне ${this.currentLevel} дл этапа ${currentStage}`);
             this.finishStage();
             return;
         }
@@ -416,7 +421,7 @@ class TestApp {
         const questionType = this.currentQuestion.questionType;
         questionInfoElement.innerHTML = `
             <p><strong>Этап:</strong> ${stage}</p>
-            <p><strong>Тип вопроса:</strong> ${questionType}</p>
+            <p><strong>Тип вороса:</strong> ${questionType}</p>
         `;
     }
 
@@ -481,6 +486,12 @@ class TestApp {
             this.renderMultipleChoiceQuestion(question);
         } else if (question.questionType === 'matching') {
             this.renderMatchingQuestion(question);
+        } else if (question.questionType === 'typeImg') {
+            this.renderTypeImgQuestion(question);
+        } else if (question.questionType === 'typing') {
+            this.renderTypingQuestion(question);
+        } else if (question.questionType === 'matchingWords') {
+            this.renderMatchingWordsQuestion(question);
         } else {
             console.error("Неизвестный тип вопроса:", question.questionType);
         }
@@ -603,6 +614,80 @@ class TestApp {
         checkAllMatched();
     }
 
+    renderTypeImgQuestion(question) {
+        let html = `<div class="type-img-question">`;
+        question.images.forEach((img, index) => {
+            html += `
+                <div class="image-answer-pair">
+                    <img src="${img}" alt="Image ${index + 1}">
+                    <input type="text" class="image-answer" data-index="${index}">
+                </div>
+            `;
+        });
+        html += `</div>`;
+        this.questionContainer.innerHTML = html;
+    }
+
+    renderTypingQuestion(question) {
+        const words = question.sentenceWithGaps.split('_');
+        let html = `<div class="typing-question">`;
+        words.forEach((word, index) => {
+            html += word;
+            if (index < words.length - 1) {
+                html += `<input type="text" class="gap-answer" data-index="${index}">`;
+            }
+        });
+        html += `</div>`;
+        this.questionContainer.innerHTML = html;
+    }
+
+    renderMatchingWordsQuestion(question) {
+        const words = question.sentenceWithGaps.split('_');
+        let html = `
+            <div class="matching-words-question">
+                <div class="sentence-with-gaps">
+        `;
+        words.forEach((word, index) => {
+            html += word;
+            if (index < words.length - 1) {
+                html += `<div class="word-drop-zone" data-index="${index}"></div>`;
+            }
+        });
+        html += `
+                </div>
+                <div class="word-options">
+        `;
+        question.wordOptions.forEach(word => {
+            html += `<div class="word-option" draggable="true">${word}</div>`;
+        });
+        html += `
+                </div>
+            </div>
+        `;
+        this.questionContainer.innerHTML = html;
+        this.initializeWordDragAndDrop();
+    }
+
+    initializeWordDragAndDrop() {
+        const wordOptions = this.questionContainer.querySelectorAll('.word-option');
+        const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
+
+        wordOptions.forEach(word => {
+            word.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', word.textContent);
+            });
+        });
+
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', (e) => e.preventDefault());
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                const word = e.dataTransfer.getData('text/plain');
+                zone.textContent = word;
+            });
+        });
+    }
+
     getUserAnswer() {
         const questionType = this.currentQuestion.questionType;
         
@@ -636,6 +721,18 @@ class TestApp {
             }
 
             return userMatches;
+        } else if (questionType === 'typeImg') {
+            const answers = Array.from(this.questionContainer.querySelectorAll('.image-answer'))
+                .map(input => input.value.trim());
+            return answers;
+        } else if (questionType === 'typing') {
+            const answers = Array.from(this.questionContainer.querySelectorAll('.gap-answer'))
+                .map(input => input.value.trim());
+            return answers;
+        } else if (questionType === 'matchingWords') {
+            const answers = Array.from(this.questionContainer.querySelectorAll('.word-drop-zone'))
+                .map(zone => zone.textContent.trim());
+            return answers;
         } else {
             console.error("Неизвестный тип вопроса:", questionType);
             return null;
@@ -646,15 +743,10 @@ class TestApp {
         if (!userAnswer) {
             return false;
         }
-    
+
         const question = this.currentQuestion;
-    
-        console.log("Тип вопроса:", question.questionType);
-        console.log("Пользовательский ответ:", userAnswer);
-        console.log("Правильный ответ:", question.correct);
-    
+
         if (question.questionType === 'multiple-choice') {
-            // Преобразуем оба значения к строке для корректного сравнения
             return String(userAnswer) === String(question.correct);
         } else if (question.questionType === 'matching') {
             const correctMatches = question.correct;
@@ -664,6 +756,8 @@ class TestApp {
                 }
             }
             return true;
+        } else if (question.questionType === 'typeImg' || question.questionType === 'typing' || question.questionType === 'matchingWords') {
+            return userAnswer.every((answer, index) => answer.toLowerCase() === question.gapAnswers[index].toLowerCase());
         } else {
             console.error("Неизвестный тип вопроса:", question.questionType);
             return false;
@@ -912,7 +1006,7 @@ class TestApp {
                 <h3>Этап: ${result.stage}</h3>
                 <p>Целевой уровень: ${result.targetLevel}</p>
                 <p>Правильных ответов: ${result.correctCount}</p>
-                <p>Неправильных ответов: ${result.incorrectCount}</p>
+                <p>Неправильных отвтов: ${result.incorrectCount}</p>
             `;
         }).join('');
 
