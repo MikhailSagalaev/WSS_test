@@ -346,7 +346,8 @@ class TestApp {
                         matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
                         timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
                     });
-                    console.log(`Вопрос загружен: ID=${question.id}, Stage=${stage}, Level=${question.fields.Level}`);
+                    // Удалите или закомментируйте следующую строку
+                    // console.log(`Вопрос загружен: ID=${question.id}, Stage=${stage}, Level=${question.fields.Level}`);
                 });
                 console.log('Загруженные вопросы:', this.questions);
             })
