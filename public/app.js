@@ -355,7 +355,7 @@ class TestApp {
                 console.log('Загруженные вопросы:', this.questions);
             })
             .catch(err => {
-                console.error("Ошибка пр�� загрузке вопросов:", err);
+                console.error("Ошибка пр загрузке вопросов:", err);
             });
     }
 
@@ -393,7 +393,7 @@ class TestApp {
             return;
         }
 
-        // Пеемешем вопосы дя текущего уровня
+        // Пеемешем вопоы дя текущего уровня
         const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
         this.currentQuestion = shuffledQuestions.pop();
         console.log("Текущий вопрос:", this.currentQuestion);
@@ -468,11 +468,13 @@ class TestApp {
         document.getElementById('question-number').textContent = `${totalQuestions + 1}`;
 
         // Добавляем аудио, если оно есть
-        if (question.audio) {
+        if (question.fields.Audio) {
             const audioElement = document.createElement('audio');
-            audioElement.src = question.audio;
+            audioElement.src = question.fields.Audio;
             audioElement.controls = true;
             this.questionContainer.appendChild(audioElement);
+        } else {
+            // Можно скрыть аудио-плеер или показать альтернативный контент
         }
 
         // Добавляем текст вопроса
@@ -1162,3 +1164,4 @@ document.addEventListener('DOMContentLoaded', () => {
     const app = new TestApp();
     app.init();
 });
+
