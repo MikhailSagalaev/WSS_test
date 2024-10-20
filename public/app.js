@@ -149,7 +149,7 @@ class TestApp {
             this.groupTotalAnswers = savedProgress.groupTotalAnswers ?? 0;
             this.groupsAnswered = savedProgress.groupsAnswered ?? 0;
             this.questionsOnCurrentLevel = savedProgress.questionsOnCurrentLevel ?? 0;
-            this.stagesResults = savedProgress.stagesResults || [];
+            this.currentStageIndex = this.stages.indexOf(savedProgress.stage) !== -1 ? this.stages.indexOf(savedProgress.stage) : 0;
 
             console.log("Прогресс загружен из localStorage:", savedProgress);
         } else {
@@ -332,7 +332,7 @@ class TestApp {
                     if (!this.questions[stage]) {
                         this.questions[stage] = [];
                     }
-                    const audioUrl = question.fields.Audio && question.fields.Audio.length > 0 ? question.fields.Audio[0].url : null;
+                    const audioUrl = question.fields.Audio;
                     console.log(`Вопрос ${question.id}: Audio URL - ${audioUrl}`);
                     this.questions[stage].push({
                         id: question.id,
@@ -355,7 +355,7 @@ class TestApp {
                 console.log('Загруженные вопросы:', this.questions);
             })
             .catch(err => {
-                console.error("Ошибка п��и загуке вопросов:", err);
+                console.error("Ошибка пр�� загрузке вопросов:", err);
             });
     }
 
@@ -523,7 +523,7 @@ class TestApp {
     }
 
     renderMatchingQuestion(question) {
-        console.log("Рендеринг matching вопроса");
+        console.log("Рендеринг matching вопроа");
         
         let pairs;
         try {
@@ -952,7 +952,7 @@ class TestApp {
             console.log("Прогресс успешно сброшен:", data);
             // Очистка локального хранилища
             localStorage.removeItem('testProgress');
-            // Сброс лок��льных переменных
+            // Сброс локльных переменных
             this.currentStageIndex = 0;
             this.currentLevel = 1;
             this.correctCount = 0;

@@ -32,6 +32,7 @@ module.exports = async (req, res) => {
             id: record.id,
             fields: {
                 ...record.fields,
+                Audio: Array.isArray(record.fields.Audio) ? (record.fields.Audio.length > 0 ? record.fields.Audio[0].url : null) : record.fields.Audio,
                 TimeLimit: record.fields.TimeLimit !== undefined ? Number(record.fields.TimeLimit) : null
             }
         }));
