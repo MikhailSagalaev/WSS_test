@@ -51,12 +51,13 @@ class TestApp {
     }
 
     loadProgressFromAirtable() {
-        return fetch('/api/getProgress', {
+        const currentStage = this.stages[this.currentStageIndex];
+        fetch('/api/getProgress', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ userLogin: this.user.login })
+            body: JSON.stringify({ userLogin: this.user.login, stage: currentStage }) // Передача текущего этапа
         })
         .then(response => response.json())
         .then(data => {
@@ -64,10 +65,21 @@ class TestApp {
                 console.error("Ошибка при загрузке прогресса:", data.error);
             } else if (data.progress) {
                 console.log("Прогресс получен из Airtable:", data.progress);
-                // Обновляем локальное хранилище
-                localStorage.setItem('testProgress', JSON.stringify(data.progress));
-                // Загружаем прогресс
-                this.loadProgressFromLocalStorage();
+                // Обновляем локальное состояние на основе полученного прогресса
+                this.currentStageIndex = data.progress.currentStageIndex;
+                this.currentLevel = data.progress.currentLevel;
+                this.correctCount = data.progress.correctCount;
+                this.incorrectCount = data.progress.incorrectCount;
+                this.totalQuestions = data.progress.totalQuestions;
+                this.correctHigherLevel = data.progress.correctHigherLevel;
+                this.incorrectLowerLevel = data.progress.incorrectLowerLevel;
+                // Добавьте остальные поля по необходимости
+                if (!this.currentQuestion) {
+                    this.loadQuestion();
+                }
+            } else {
+                console.log("Прогресс не найден. Начинаем новый этап.");
+                this.loadQuestion();
             }
         })
         .catch(error => {
@@ -474,30 +486,33 @@ class TestApp {
             audioElement.controls = true;
             this.questionContainer.appendChild(audioElement);
         } else {
-            // Можно скрыть аудио-плеер или показать альтернативный контент
+            // Скрываем аудио-плеер или показываем альтернативный контент
+            console.log("Аудио отсутствует для данного вопроса.");
         }
 
         // Добавляем текст вопроса
         const questionTitle = document.createElement('h3');
         questionTitle.className = 'question-title';
-        questionTitle.textContent = question.question;
+        questionTitle.textContent = question.fields.Question; // Убедитесь, что используете правильное поле
         this.questionContainer.appendChild(questionTitle);
 
-        if (question.questionType === 'multiple-choice') {
+        // Обработка типа вопроса
+        if (question.fields["Question Type"] === 'multiple-choice') {
             this.renderMultipleChoiceQuestion(question);
-        } else if (question.questionType === 'matching') {
+        } else if (question.fields["Question Type"] === 'matching') {
             this.renderMatchingQuestion(question);
-        } else if (question.questionType === 'typeImg') {
+        } else if (question.fields["Question Type"] === 'typeImg') {
             this.renderTypeImgQuestion(question);
-        } else if (question.questionType === 'typing') {
+        } else if (question.fields["Question Type"] === 'typing') {
             this.renderTypingQuestion(question);
-        } else if (question.questionType === 'matchingWords') {
+        } else if (question.fields["Question Type"] === 'matchingWords') {
             this.renderMatchingWordsQuestion(question);
         } else {
-            console.error("Неизвестный тип вопроса:", question.questionType);
+            console.error("Неизвестный тип вопроса:", question.fields["Question Type"]);
         }
 
-        this.addInputListeners();
+        // Обновление информации о вопросе
+        this.updateQuestionInfo();
     }
 
     renderMultipleChoiceQuestion(question) {

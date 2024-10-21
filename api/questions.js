@@ -3,6 +3,7 @@ const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
     console.log("Получен запрос к /api/questions");
+
     if (req.method !== 'GET') {
         console.warn(`Метод ${req.method} не разрешён`);
         return res.status(405).json({ error: 'Метод не разрешен' });
@@ -14,7 +15,8 @@ module.exports = async (req, res) => {
 
         const response = await fetch(url, {
             headers: {
-                Authorization: `Bearer ${AIRTABLE_PAT}`
+                Authorization: `Bearer ${AIRTABLE_PAT}`,
+                'Content-Type': 'application/json'
             }
         });
 
@@ -27,7 +29,7 @@ module.exports = async (req, res) => {
         // Добавим логирование для проверки данных
         console.log("Данные, полученные из Airtable:", JSON.stringify(data, null, 2));
 
-        // Преобразуем данные, чтобы убедиться, что TimeLimit корректно передается
+        // Преобразуем данные, чтобы убедиться, что TimeLimit и Audio корректно передаются
         const questions = data.records.map(record => ({
             id: record.id,
             fields: {

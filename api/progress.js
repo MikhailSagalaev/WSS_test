@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
 
     try {
         // Шаг 1: Проверка существующей записи прогресса
-        const filterFormula = `({UserLogin} = "${userLogin}")`;
+        const filterFormula = `AND({UserLogin} = "${userLogin}", {Stage} = "${stage}")`;
         const progressFetchUrl = `${progressUrl}?filterByFormula=${encodeURIComponent(filterFormula)}`;
         console.log(`Запрос существующего прогресса: ${progressFetchUrl}`);
 
@@ -52,7 +52,7 @@ module.exports = async (req, res) => {
 
             const updateData = {
                 fields: {
-                    Stage: stage,
+                    Stage: stage, // Убедитесь, что Stage обновляется
                     Level: level,
                     CorrectCount: correctCount,
                     IncorrectCount: incorrectCount,
@@ -87,7 +87,7 @@ module.exports = async (req, res) => {
             const createData = {
                 fields: {
                     UserLogin: userLogin,
-                    Stage: stage,
+                    Stage: stage, // Добавлено поле Stage
                     Level: level,
                     CorrectCount: correctCount,
                     IncorrectCount: incorrectCount,
