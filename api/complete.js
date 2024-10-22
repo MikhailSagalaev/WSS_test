@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
         const storyData = {
             fields: {
                 UserLogin: userLogin,
-                StagesResults: JSON.stringify(stagesResults),
+                StagesResults: JSON.stringify(stagesResults), // Убедитесь, что stagesResults содержит информацию о каждом этапе
                 FinishDate: finishDate
             }
         };

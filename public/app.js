@@ -1179,4 +1179,3 @@ document.addEventListener('DOMContentLoaded', () => {
     const app = new TestApp();
     app.init();
 });
-
