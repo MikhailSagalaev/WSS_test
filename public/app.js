@@ -383,7 +383,7 @@ class TestApp {
                 }
             })
             .catch(err => {
-                console.error("Ошибка пр загрузке вопросов:", err);
+                console.error("Ошибка при загрузке вопросов:", err);
             });
     }
 
@@ -399,7 +399,7 @@ class TestApp {
         }
 
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Зарузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
+        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
         if (!questionsForStage || !Array.isArray(questionsForStage) || questionsForStage.length === 0) {
@@ -416,12 +416,12 @@ class TestApp {
         console.log(`Найдено вопросов на уровне ${this.currentLevel} для этапа ${currentStage}: ${questionsForLevel.length}`);
 
         if (questionsForLevel.length === 0) {
-            console.error(`Нет вопросов на уровне ${this.currentLevel} дл этапа ${currentStage}`);
+            console.error(`Нет вопросов на уровне ${this.currentLevel} для этапа ${currentStage}`);
             this.finishStage();
             return;
         }
 
-        // Пеемешем вопоы дя текущего уровня
+        // Перемешаем вопросы для текущего уровня
         const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
         this.currentQuestion = shuffledQuestions.pop();
         console.log("Текущий вопрос:", this.currentQuestion);
@@ -496,35 +496,32 @@ class TestApp {
         document.getElementById('question-number').textContent = `${totalQuestions + 1}`;
 
         // Добавляем аудио, если оно есть
-        if (question.fields.Audio) {
+        if (question.audio) {
             const audioElement = document.createElement('audio');
-            audioElement.src = question.fields.Audio;
+            audioElement.src = question.audio;
             audioElement.controls = true;
             this.questionContainer.appendChild(audioElement);
-        } else {
-            // Скрываем аудио-плеер или показываем альтернативный контент
-            console.log("Аудио отсутствует для данного вопроса.");
         }
 
         // Добавляем текст вопроса
         const questionTitle = document.createElement('h3');
         questionTitle.className = 'question-title';
-        questionTitle.textContent = question.fields.Question; // Убедитесь, что используете правильное поле
+        questionTitle.textContent = question.question;
         this.questionContainer.appendChild(questionTitle);
 
         // Обработка типа вопроса
-        if (question.fields["Question Type"] === 'multiple-choice') {
+        if (question.questionType === 'multiple-choice') {
             this.renderMultipleChoiceQuestion(question);
-        } else if (question.fields["Question Type"] === 'matching') {
+        } else if (question.questionType === 'matching') {
             this.renderMatchingQuestion(question);
-        } else if (question.fields["Question Type"] === 'typeImg') {
+        } else if (question.questionType === 'typeImg') {
             this.renderTypeImgQuestion(question);
-        } else if (question.fields["Question Type"] === 'typing') {
+        } else if (question.questionType === 'typing') {
             this.renderTypingQuestion(question);
-        } else if (question.fields["Question Type"] === 'matchingWords') {
+        } else if (question.questionType === 'matchingWords') {
             this.renderMatchingWordsQuestion(question);
         } else {
-            console.error("Неизвестный тип вопроса:", question.fields["Question Type"]);
+            console.error("Неизвестный тип вопроса:", question.questionType);
         }
 
         // Обновление информации о вопросе
@@ -567,7 +564,7 @@ class TestApp {
         }
 
         if (!Array.isArray(pairs) || pairs.length === 0) {
-            this.questionContainer.innerHTML = `<p>Некорректные данные для сопоставления.</p>`;
+            this.questionContainer.innerHTML = `<p>Некорректные данные для сопосталения.</p>`;
             return;
         }
 
@@ -1067,7 +1064,7 @@ class TestApp {
             }
         })
         .catch(err => {
-            console.error("Ошибка при завершении теста:", err);
+            console.error("Ошибка при завершении тста:", err);
         });
     }
 
