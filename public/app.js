@@ -50,37 +50,54 @@ class TestApp {
         this.progressLoaded = false;
     }
 
-    loadProgressFromAirtable() {
-        const currentStage = this.stages[this.currentStageIndex];
-        return fetch('/api/getProgress', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ userLogin: this.user.login, stage: currentStage })
-        })
-        .then(response => response.json())
-        .then(data => {
+    async loadProgressFromAirtable() {
+        try {
+            const response = await fetch('/api/getProgress', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userLogin: this.user.login })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+
             if (data.error) {
                 console.error("Ошибка при загрузке прогресса:", data.error);
                 throw new Error(data.error);
             } else if (data.progress) {
                 console.log("Прогресс получен из Airtable:", data.progress);
-                this.currentStageIndex = data.progress.currentStageIndex;
-                this.currentLevel = data.progress.currentLevel;
-                this.correctCount = data.progress.correctCount;
-                this.incorrectCount = data.progress.incorrectCount;
-                this.totalQuestions = data.progress.totalQuestions;
-                this.correctHigherLevel = data.progress.correctHigherLevel;
-                this.incorrectLowerLevel = data.progress.incorrectLowerLevel;
+                this.currentStageIndex = this.stages.indexOf(data.progress.Stage);
+                this.currentLevel = data.progress.Level || 1;
+                this.correctCount = data.progress.CorrectCount || 0;
+                this.incorrectCount = data.progress.IncorrectCount || 0;
+                this.totalQuestions = data.progress.TotalQuestions || 0;
+                this.correctHigherLevel = data.progress.CorrectHigherLevel || 0;
+                this.incorrectLowerLevel = data.progress.IncorrectLowerLevel || 0;
             } else {
                 console.log("Прогресс не найден. Начинаем новый этап.");
+                this.currentStageIndex = 0;
+                this.currentLevel = 1;
             }
-        })
-        .catch(error => {
+
+            if (this.currentStageIndex === -1) {
+                console.warn("Неизвестный этап. Устанавливаем начальный этап.");
+                this.currentStageIndex = 0;
+            }
+
+            console.log("Текущий этап:", this.stages[this.currentStageIndex]);
+            console.log("Текущий уровень:", this.currentLevel);
+
+        } catch (error) {
             console.error("Ошибка при загрузке прогресса из Airtable:", error);
-            throw error;
-        });
+            // В случае ошибки, устанавливаем значения по умолчанию
+            this.currentStageIndex = 0;
+            this.currentLevel = 1;
+        }
     }
 
     async checkTestAvailability() {
@@ -103,6 +120,11 @@ class TestApp {
 
             if (data.available) {
                 await this.loadProgressFromAirtable();
+                if (this.currentStageIndex === undefined || this.currentLevel === undefined) {
+                    console.error("Не удалось загрузить прогресс. Устанавливаем начальные значения.");
+                    this.currentStageIndex = 0;
+                    this.currentLevel = 1;
+                }
                 this.loadQuestion();
             } else {
                 this.showUnavailableMessage("Тест в данный момент недоступен.");
@@ -160,7 +182,7 @@ class TestApp {
             this.questionsOnCurrentLevel = savedProgress.questionsOnCurrentLevel ?? 0;
             this.currentStageIndex = this.stages.indexOf(savedProgress.stage) !== -1 ? this.stages.indexOf(savedProgress.stage) : 0;
 
-            console.log("Прогресс загру��ен из localStorage:", savedProgress);
+            console.log("Прогресс загруен из localStorage:", savedProgress);
         } else {
             console.log("Нет сохранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
@@ -371,7 +393,7 @@ class TestApp {
                 throw new Error("Не удалось загрузить вопросы");
             }
 
-            // Если все в порядке, переходим к следующему шагу
+            // Если все в порядке, переходим к следующему шау
             this.checkTestAvailability();
 
         } catch (error) {
