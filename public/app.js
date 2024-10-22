@@ -52,20 +52,20 @@ class TestApp {
 
     loadProgressFromAirtable() {
         const currentStage = this.stages[this.currentStageIndex];
-        fetch('/api/getProgress', {
+        return fetch('/api/getProgress', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ userLogin: this.user.login, stage: currentStage }) // Передача текущего этапа
+            body: JSON.stringify({ userLogin: this.user.login, stage: currentStage })
         })
         .then(response => response.json())
         .then(data => {
             if (data.error) {
                 console.error("Ошибка при загрузке прогресса:", data.error);
+                throw new Error(data.error);
             } else if (data.progress) {
                 console.log("Прогресс получен из Airtable:", data.progress);
-                // Обновляем локальное состояние на основе полученного прогресса
                 this.currentStageIndex = data.progress.currentStageIndex;
                 this.currentLevel = data.progress.currentLevel;
                 this.correctCount = data.progress.correctCount;
@@ -73,22 +73,19 @@ class TestApp {
                 this.totalQuestions = data.progress.totalQuestions;
                 this.correctHigherLevel = data.progress.correctHigherLevel;
                 this.incorrectLowerLevel = data.progress.incorrectLowerLevel;
-                // Добавьте остальные поля по необходимости
-                if (!this.currentQuestion) {
-                    this.loadQuestion();
-                }
             } else {
                 console.log("Прогресс не найден. Начинаем новый этап.");
-                this.loadQuestion();
             }
         })
         .catch(error => {
             console.error("Ошибка при загрузке прогресса из Airtable:", error);
+            throw error;
         });
     }
 
     checkTestAvailability() {
-        fetch('/api/checkTestAvailability', {
+        console.log("Проверка доступности теста");
+        return fetch('/api/checkTestAvailability', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -102,19 +99,18 @@ class TestApp {
             return response.json();
         })
         .then(data => {
+            console.log("Результат проверки доступности:", data);
             if (data.available) {
-                this.loadProgressFromAirtable().then(() => {
-                    if (!this.currentQuestion) {
-                        this.loadQuestion();
-                    }
-                });
+                return this.loadProgressFromAirtable();
             } else {
                 this.showUnavailableMessage();
+                throw new Error("Тест недоступен");
             }
         })
         .catch(error => {
-            console.error("Ошибка при проверке доступноси теста:", error);
+            console.error("Ошибка при проверке доступности теста:", error);
             this.showUnavailableMessage();
+            throw error; // Перебрасываем ошибку дальше
         });
     }
     showUnavailableMessage() {
@@ -314,8 +310,15 @@ class TestApp {
         this.showLoading();
         this.loadQuestions()
             .then(() => {
-                this.hideLoading();
+                console.log("Вопросы загружены, проверяем доступность теста");
                 return this.checkTestAvailability();
+            })
+            .then(() => {
+                console.log("Тест доступен, загружаем вопрос");
+                this.hideLoading();
+                if (!this.currentQuestion) {
+                    this.loadQuestion();
+                }
             })
             .catch(error => {
                 console.error("Ошибка при инициализации:", error);
@@ -598,7 +601,7 @@ class TestApp {
         const draggableElements = this.questionContainer.querySelectorAll('.word-item');
         const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
 
-        // Добавим эту функцию внутри initializeDragAndDrop
+        // Добавим эту функцию внути initializeDragAndDrop
         const checkAllMatched = () => {
             const allDropZones = this.questionContainer.querySelectorAll('.drop-zone');
             const allMatched = Array.from(allDropZones).every(zone => zone.querySelector('.word-item'));
