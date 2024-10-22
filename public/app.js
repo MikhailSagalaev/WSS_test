@@ -312,10 +312,16 @@ class TestApp {
     init() {
         console.log("Инициализация приложения");
         this.showLoading();
-        this.loadQuestions().then(() => {
-            this.hideLoading();
-            this.loadProgressOnce();
-        });
+        this.loadQuestions()
+            .then(() => {
+                this.hideLoading();
+                return this.checkTestAvailability();
+            })
+            .catch(error => {
+                console.error("Ошибка при инициализации:", error);
+                this.hideLoading();
+                this.showUnavailableMessage();
+            });
     }
 
     loadProgressOnce() {
@@ -1129,7 +1135,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Оши��ка при завершении теста:", data.error);
+                console.error("Ошибка при завершении теста:", data.error);
             } else {
                 console.log("Тест успешно завершён:", data);
             }

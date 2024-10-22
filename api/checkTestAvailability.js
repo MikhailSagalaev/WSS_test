@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
         const data = await response.json();
         
         if (data.records.length === 0) {
-            return res.status(404).json({ error: 'Пользователь не найден' });
+            return res.status(404).json({ error: 'Польз��ватель не найден' });
         }
 
         const testAttempts = data.records[0].fields.TestAttempts || 0;
@@ -41,3 +41,4 @@ module.exports = async (req, res) => {
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 };
+
