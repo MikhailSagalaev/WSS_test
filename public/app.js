@@ -66,13 +66,17 @@ class TestApp {
             } else if (data.progress) {
                 console.log("Прогресс получен из Airtable:", data.progress);
                 // Обновляем локальное состояние на основе полученного прогресса
-                this.currentStageIndex = data.progress.currentStageIndex;
-                this.currentLevel = data.progress.currentLevel;
-                this.correctCount = data.progress.correctCount;
-                this.incorrectCount = data.progress.incorrectCount;
-                this.totalQuestions = data.progress.totalQuestions;
-                this.correctHigherLevel = data.progress.correctHigherLevel;
-                this.incorrectLowerLevel = data.progress.incorrectLowerLevel;
+                this.currentStageIndex = data.progress.currentStageIndex ?? 0;
+                this.currentLevel = data.progress.currentLevel ?? 1;
+                this.correctCount = data.progress.correctCount ?? 0;
+                this.incorrectCount = data.progress.incorrectCount ?? 0;
+                this.totalQuestions = data.progress.totalQuestions ?? 0;
+                this.correctHigherLevel = data.progress.correctHigherLevel ?? 0;
+                this.incorrectLowerLevel = data.progress.incorrectLowerLevel ?? 0;
+                // Обновляем stage, если необходимо
+                if (data.progress.stage && this.stages.includes(data.progress.stage)) {
+                    this.currentStageIndex = this.stages.indexOf(data.progress.stage);
+                }
                 // Добавьте остальные поля по необходимости
                 if (!this.currentQuestion) {
                     this.loadQuestion();
@@ -140,13 +144,14 @@ class TestApp {
             groupCorrectAnswers: this.groupCorrectAnswers,
             groupTotalAnswers: this.groupTotalAnswers,
             groupsAnswered: this.groupsAnswered,
-            questionsOnCurrentLevel: this.questionsOnCurrentLevel
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
+            stage: this.stages[this.currentStageIndex] // Добавлено поле Stage
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
-        console.log("Прогесс сохранён в localStorage:", progress);
+        console.log("Прогресс сохранён в localStorage:", progress);
     }
 
-    // Метод для загрзки прогресса з localStorage
+    // Метод для загрузки прогресса из localStorage
     loadProgressFromLocalStorage() {
         const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
         if (savedProgress) {
@@ -330,45 +335,45 @@ class TestApp {
     }
 
     loadQuestions() {
-        return fetch('/api/questions')
-            .then(response => response.json())
-            .then(data => {
-                console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
-                if (!Array.isArray(data)) {
-                    console.error("Некорректная структура данных вопросов:", data);
-                    return;
+        fetch('/api/questions')
+        .then(response => response.json())
+        .then(data => {
+            console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
+            if (!Array.isArray(data)) {
+                console.error("Некорректная структура данных вопросов:", data);
+                return;
+            }
+            console.log("Вопросы загружены:", data.length);
+            data.forEach(question => {
+                const stage = question.fields.Stage || 'undefined';
+                if (!this.questions[stage]) {
+                    this.questions[stage] = [];
                 }
-                console.log("Вопросы загружены:", data.length);
-                data.forEach(question => {
-                    const stage = question.fields.Stage || 'undefined';
-                    if (!this.questions[stage]) {
-                        this.questions[stage] = [];
-                    }
-                    const audioUrl = question.fields.Audio;
-                    console.log(`Вопрос ${question.id}: Audio URL - ${audioUrl}`);
-                    this.questions[stage].push({
-                        id: question.id,
-                        stage: stage,
-                        level: parseInt(question.fields.Level, 10),
-                        questionType: question.fields["Question Type"],
-                        question: question.fields.Question,
-                        answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
-                        correct: question.fields.Correct,
-                        audio: audioUrl,
-                        matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
-                        timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
-                        images: question.fields.Images ? question.fields.Images.map(img => img.url) : [],
-                        imageAnswers: question.fields.ImageAnswers ? question.fields.ImageAnswers.split(',').map(ans => ans.trim()) : [],
-                        sentenceWithGaps: question.fields.SentenceWithGaps || '',
-                        gapAnswers: question.fields.GapAnswers ? question.fields.GapAnswers.split(',').map(ans => ans.trim()) : [],
-                        wordOptions: question.fields.WordOptions ? question.fields.WordOptions.split(',').map(word => word.trim()) : []
-                    });
+                const audioUrl = question.fields.Audio;
+                console.log(`Вопрос ${question.id}: Audio URL - ${audioUrl}`);
+                this.questions[stage].push({
+                    id: question.id,
+                    stage: stage,
+                    level: parseInt(question.fields.Level, 10),
+                    questionType: question.fields["Question Type"],
+                    question: question.fields.Question,
+                    answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
+                    correct: question.fields.Correct,
+                    audio: audioUrl,
+                    matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
+                    timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
+                    images: question.fields.Images ? question.fields.Images.map(img => img.url) : [],
+                    imageAnswers: question.fields.ImageAnswers ? question.fields.ImageAnswers.split(',').map(ans => ans.trim()) : [],
+                    sentenceWithGaps: question.fields.SentenceWithGaps || '',
+                    gapAnswers: question.fields.GapAnswers ? question.fields.GapAnswers.split(',').map(ans => ans.trim()) : [],
+                    wordOptions: question.fields.WordOptions ? question.fields.WordOptions.split(',').map(word => word.trim()) : []
                 });
-                console.log('Загруженные вопросы:', this.questions);
-            })
-            .catch(err => {
-                console.error("Ошибка пр загрузке вопросов:", err);
             });
+            console.log("Загруженные вопросы:", this.questions);
+        })
+        .catch(error => {
+            console.error("Ошибка при загрузке вопросов:", error);
+        });
     }
 
     loadQuestion() {
@@ -383,7 +388,7 @@ class TestApp {
         }
 
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Зарузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
+        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
         if (!questionsForStage || !Array.isArray(questionsForStage) || questionsForStage.length === 0) {
@@ -400,19 +405,19 @@ class TestApp {
         console.log(`Найдено вопросов на уровне ${this.currentLevel} для этапа ${currentStage}: ${questionsForLevel.length}`);
 
         if (questionsForLevel.length === 0) {
-            console.error(`Нет вопросов на уровне ${this.currentLevel} дл этапа ${currentStage}`);
+            console.error(`Нет вопросов на уровне ${this.currentLevel} для этапа ${currentStage}`);
             this.finishStage();
             return;
         }
 
-        // Пеемешем вопоы дя текущего уровня
+        // Перемешаем вопросы для текущего уровня
         const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
         this.currentQuestion = shuffledQuestions.pop();
         console.log("Текущий вопрос:", this.currentQuestion);
 
         if (this.currentQuestion) {
             this.currentQuestionNumber++;
-            document.getElementById('question-number').textContent = this.currentQuestionNumber;
+            document.getElementById('question-number').textContent = `${this.currentQuestionNumber}`;
             this.updateQuestionInfo();
             this.startTimer();
             this.renderQuestion(this.currentQuestion);
@@ -863,7 +868,7 @@ class TestApp {
         if (this.questionsOnCurrentLevel >= 9) {
             this.finishStage();
         } else {
-            this.currentQuestion = null; // Сбрасываем текущий вопрос
+            this.currentQuestion = null; // брасыве текущий вопрос
             this.loadQuestion();
         }
 
