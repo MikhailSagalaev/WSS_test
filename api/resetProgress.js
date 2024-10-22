@@ -7,17 +7,17 @@ module.exports = async (req, res) => {
     }
 
     const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
-    const { userLogin, stage } = req.body;
+    const { userLogin } = req.body;
 
     console.log("Переменные окружения:", { AIRTABLE_PAT: !!AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE });
-    console.log("Данные запроса:", { userLogin, stage });
+    console.log("Данные запроса:", { userLogin });
 
     if (!userLogin) {
         return res.status(400).json({ error: 'Не указан userLogin' });
     }
 
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`;
-    const filterFormula = `AND({UserLogin} = "${userLogin}", {Stage} = "${stage}")`;
+    const filterFormula = `({UserLogin} = '${userLogin}')`;
 
     console.log("URL запроса:", url);
     console.log("Формула фильтра:", filterFormula);
@@ -58,8 +58,7 @@ module.exports = async (req, res) => {
                 GroupCorrectAnswers: 0,
                 GroupTotalAnswers: 0,
                 GroupsAnswered: 0,
-                QuestionsOnCurrentLevel: 0,
-                Stage: 'reading' // Установите начальный этап или удалите, если не требуется
+                QuestionsOnCurrentLevel: 0
             }
         };
         console.log("Данные для обновления:", updateData);

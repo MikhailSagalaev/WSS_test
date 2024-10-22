@@ -66,7 +66,7 @@ module.exports = async (req, res) => {
             groupTotalAnswers: latestProgress.GroupTotalAnswers,
             groupsAnswered: latestProgress.GroupsAnswered,
             questionsOnCurrentLevel: latestProgress.QuestionsOnCurrentLevel,
-            stage: latestProgress.Stage // Добавлено поле Stage
+            stage: latestProgress.Stage // Добавляем Stage
         };
 
         console.log("Отправляемый прогресс:", progress);
