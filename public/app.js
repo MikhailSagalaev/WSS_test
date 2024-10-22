@@ -311,7 +311,9 @@ class TestApp {
 
     init() {
         console.log("Инициализация приложения");
+        this.showLoading();
         this.loadQuestions().then(() => {
+            this.hideLoading();
             this.loadProgressOnce();
         });
     }
@@ -329,8 +331,8 @@ class TestApp {
         this.checkTestAvailability();
     }
 
-    loadQuestions() {
-        return fetch('/api/questions')
+    loadQuestions(offset = 0, limit = 100) {
+        return fetch(`/api/questions?offset=${offset}&limit=${limit}`)
             .then(response => response.json())
             .then(data => {
                 console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
@@ -365,6 +367,11 @@ class TestApp {
                     });
                 });
                 console.log('Загруженные вопросы:', this.questions);
+                
+                // Если есть еще вопросы, загружаем следующую порцию
+                if (data.length === limit) {
+                    return this.loadQuestions(offset + limit, limit);
+                }
             })
             .catch(err => {
                 console.error("Ошибка пр загрузке вопросов:", err);
@@ -1122,7 +1129,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Ошибка при завершении теста:", data.error);
+                console.error("Оши��ка при завершении теста:", data.error);
             } else {
                 console.log("Тест успешно завершён:", data);
             }
@@ -1172,6 +1179,14 @@ class TestApp {
         .catch(error => {
             console.error('Ошибка при отправке результатов в Airtable:', error);
         });
+    }
+
+    showLoading() {
+        document.getElementById('loading-indicator').style.display = 'block';
+    }
+
+    hideLoading() {
+        document.getElementById('loading-indicator').style.display = 'none';
     }
 }
 
