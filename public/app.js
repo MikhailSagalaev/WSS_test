@@ -316,9 +316,7 @@ class TestApp {
             .then(() => {
                 console.log("Тест доступен, загружаем вопрос");
                 this.hideLoading();
-                if (!this.currentQuestion) {
-                    this.loadQuestion();
-                }
+                this.loadQuestion();
             })
             .catch(error => {
                 console.error("Ошибка при инициализации:", error);
@@ -335,7 +333,7 @@ class TestApp {
     }
 
     loadProgress() {
-        console.log("Загрузка прогресса");
+        console.log("Загрузка прогесса");
         this.loadProgressFromLocalStorage();
         this.checkTestAvailability();
     }
@@ -388,11 +386,7 @@ class TestApp {
     }
 
     loadQuestion() {
-        if (this.currentQuestion) {
-            console.log("Текущий вопрос уже загружен, пропускаем загрузку нового вопроса");
-            return;
-        }
-
+        console.log("Загрузка вопроса");
         if (this.currentStageIndex === undefined || this.currentLevel === undefined) {
             console.error("currentStageIndex или currentLevel не определены");
             return;
@@ -409,10 +403,7 @@ class TestApp {
         }
         console.log(`Всего вопросов на этапе ${currentStage}: ${questionsForStage.length}`);
 
-        const questionsForLevel = questionsForStage.filter(q => {
-            const questionLevel = typeof q.level === 'string' ? parseInt(q.level, 10) : q.level;
-            return questionLevel === this.currentLevel;
-        });
+        const questionsForLevel = questionsForStage.filter(q => parseInt(q.level, 10) === this.currentLevel);
         console.log(`Найдено вопросов на уровне ${this.currentLevel} для этапа ${currentStage}: ${questionsForLevel.length}`);
 
         if (questionsForLevel.length === 0) {
@@ -423,7 +414,7 @@ class TestApp {
 
         // Перемешаем вопросы для текущего уровня
         const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
-        this.currentQuestion = shuffledQuestions.pop();
+        this.currentQuestion = shuffledQuestions[0];
         console.log("Текущий вопрос:", this.currentQuestion);
 
         if (this.currentQuestion) {
@@ -491,9 +482,11 @@ class TestApp {
         }
         this.questionContainer.innerHTML = '';
 
-        // Обновляем номер вопроса
-        const totalQuestions = JSON.parse(localStorage.getItem('testProgress'))?.totalQuestions || 0;
-        document.getElementById('question-number').textContent = `${totalQuestions + 1}`;
+        // Добавляем текст вопроса
+        const questionTitle = document.createElement('h3');
+        questionTitle.className = 'question-title';
+        questionTitle.textContent = question.question;
+        this.questionContainer.appendChild(questionTitle);
 
         // Добавляем аудио, если оно есть
         if (question.audio) {
@@ -503,29 +496,27 @@ class TestApp {
             this.questionContainer.appendChild(audioElement);
         }
 
-        // Добавляем текст вопроса
-        const questionTitle = document.createElement('h3');
-        questionTitle.className = 'question-title';
-        questionTitle.textContent = question.question;
-        this.questionContainer.appendChild(questionTitle);
+        // Добавляем варианты ответов
+        const answersContainer = document.createElement('div');
+        answersContainer.className = 'answers-container';
+        question.answers.forEach((answer, index) => {
+            const answerElement = document.createElement('div');
+            answerElement.className = 'answer-option';
+            answerElement.textContent = answer;
+            answerElement.dataset.index = index;
+            answerElement.addEventListener('click', () => this.selectAnswer(answerElement));
+            answersContainer.appendChild(answerElement);
+        });
+        this.questionContainer.appendChild(answersContainer);
 
-        // Обработка типа вопроса
-        if (question.questionType === 'multiple-choice') {
-            this.renderMultipleChoiceQuestion(question);
-        } else if (question.questionType === 'matching') {
-            this.renderMatchingQuestion(question);
-        } else if (question.questionType === 'typeImg') {
-            this.renderTypeImgQuestion(question);
-        } else if (question.questionType === 'typing') {
-            this.renderTypingQuestion(question);
-        } else if (question.questionType === 'matchingWords') {
-            this.renderMatchingWordsQuestion(question);
-        } else {
-            console.error("Неизвестный тип вопроса:", question.questionType);
-        }
+        this.submitBtn.disabled = true;
+    }
 
-        // Обновление информации о вопросе
-        this.updateQuestionInfo();
+    selectAnswer(selectedElement) {
+        const answerOptions = this.questionContainer.querySelectorAll('.answer-option');
+        answerOptions.forEach(option => option.classList.remove('selected'));
+        selectedElement.classList.add('selected');
+        this.submitBtn.disabled = false;
     }
 
     renderMultipleChoiceQuestion(question) {
