@@ -83,35 +83,36 @@ class TestApp {
         });
     }
 
-    checkTestAvailability() {
+    async checkTestAvailability() {
         console.log("Проверка доступности теста");
-        return fetch('/api/checkTestAvailability', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ userLogin: this.user.login })
-        })
-        .then(response => {
+        try {
+            const response = await fetch('/api/checkTestAvailability', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userLogin: this.user.login })
+            });
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
-        })
-        .then(data => {
+
+            const data = await response.json();
             console.log("Результат проверки доступности:", data);
+
             if (data.available) {
-                return this.loadProgressFromAirtable();
+                await this.loadProgressFromAirtable();
+                this.loadQuestion();
             } else {
-                this.showUnavailableMessage();
-                throw new Error("Тест недоступен");
+                this.showUnavailableMessage("Тест в данный момент недоступен.");
             }
-        })
-        .catch(error => {
+        } catch (error) {
             console.error("Ошибка при проверке доступности теста:", error);
-            this.showUnavailableMessage();
-            throw error; // Перебрасываем ошибку дальше
-        });
+            this.showUnavailableMessage("Произошла ошибка при проверке доступности теста.");
+        } finally {
+            this.hideLoading();
+        }
     }
     showUnavailableMessage() {
         this.questionContainer.innerHTML = `
@@ -159,7 +160,7 @@ class TestApp {
             this.questionsOnCurrentLevel = savedProgress.questionsOnCurrentLevel ?? 0;
             this.currentStageIndex = this.stages.indexOf(savedProgress.stage) !== -1 ? this.stages.indexOf(savedProgress.stage) : 0;
 
-            console.log("Прогресс загружен из localStorage:", savedProgress);
+            console.log("Прогресс загру��ен из localStorage:", savedProgress);
         } else {
             console.log("Нет сохранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
@@ -308,21 +309,7 @@ class TestApp {
     init() {
         console.log("Инициализация приложения");
         this.showLoading();
-        this.loadQuestions()
-            .then(() => {
-                console.log("Вопросы загружены, проверяем доступность теста");
-                return this.checkTestAvailability();
-            })
-            .then(() => {
-                console.log("Тест доступен, загружаем вопрос");
-                this.hideLoading();
-                this.loadQuestion();
-            })
-            .catch(error => {
-                console.error("Ошибка при инициализации:", error);
-                this.hideLoading();
-                this.showUnavailableMessage();
-            });
+        this.loadQuestions();
     }
 
     loadProgressOnce() {
@@ -338,51 +325,59 @@ class TestApp {
         this.checkTestAvailability();
     }
 
-    loadQuestions(offset = 0, limit = 100) {
-        return fetch(`/api/questions?offset=${offset}&limit=${limit}`)
-            .then(response => response.json())
-            .then(data => {
-                console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
-                if (!Array.isArray(data)) {
-                    console.error("Некорректная структура данных вопросов:", data);
-                    return;
+    async loadQuestions() {
+        console.log("Начало загрузки вопросов");
+        this.questions = { reading: [], listening: [] };
+
+        try {
+            const response = await fetch('/api/questions');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+
+            if (!Array.isArray(data)) {
+                throw new Error("Полученные данные не являются массивом");
+            }
+
+            console.log(`Получено ${data.length} вопросов`);
+
+            data.forEach(item => {
+                const question = {
+                    id: item.id,
+                    stage: item.fields.Stage,
+                    level: parseInt(item.fields.Level, 10),
+                    questionType: item.fields["Question Type"],
+                    question: item.fields.Question,
+                    answers: item.fields.Answers ? item.fields.Answers.split(',').map(ans => ans.trim()) : [],
+                    correct: item.fields.Correct,
+                    audio: item.fields.Audio,
+                    timeLimit: item.fields.TimeLimit ? parseInt(item.fields.TimeLimit, 10) : null
+                };
+
+                if (question.stage === 'reading' || question.stage === 'listening') {
+                    this.questions[question.stage].push(question);
+                } else {
+                    console.warn(`Неизвестный этап для вопроса: ${question.id}`);
                 }
-                console.log("Вопросы загружены:", data.length);
-                data.forEach(question => {
-                    const stage = question.fields.Stage || 'undefined';
-                    if (!this.questions[stage]) {
-                        this.questions[stage] = [];
-                    }
-                    const audioUrl = question.fields.Audio;
-                    console.log(`Вопрос ${question.id}: Audio URL - ${audioUrl}`);
-                    this.questions[stage].push({
-                        id: question.id,
-                        stage: stage,
-                        level: parseInt(question.fields.Level, 10),
-                        questionType: question.fields["Question Type"],
-                        question: question.fields.Question,
-                        answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
-                        correct: question.fields.Correct,
-                        audio: audioUrl,
-                        matchPairs: question.fields.MatchPairs ? JSON.parse(question.fields.MatchPairs) : [],
-                        timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
-                        images: question.fields.Images ? question.fields.Images.map(img => img.url) : [],
-                        imageAnswers: question.fields.ImageAnswers ? question.fields.ImageAnswers.split(',').map(ans => ans.trim()) : [],
-                        sentenceWithGaps: question.fields.SentenceWithGaps || '',
-                        gapAnswers: question.fields.GapAnswers ? question.fields.GapAnswers.split(',').map(ans => ans.trim()) : [],
-                        wordOptions: question.fields.WordOptions ? question.fields.WordOptions.split(',').map(word => word.trim()) : []
-                    });
-                });
-                console.log('Загруженные вопросы:', this.questions);
-                
-                // Если есть еще вопросы, загружаем следующую порцию
-                if (data.length === limit) {
-                    return this.loadQuestions(offset + limit, limit);
-                }
-            })
-            .catch(err => {
-                console.error("Ошибка при загрузке вопросов:", err);
             });
+
+            console.log("Загрузка вопросов завершена");
+            console.log("Вопросы для чтения:", this.questions.reading.length);
+            console.log("Вопросы для аудирования:", this.questions.listening.length);
+
+            // Проверяем, есть ли вопросы
+            if (this.questions.reading.length === 0 && this.questions.listening.length === 0) {
+                throw new Error("Не удалось загрузить вопросы");
+            }
+
+            // Если все в порядке, переходим к следующему шагу
+            this.checkTestAvailability();
+
+        } catch (error) {
+            console.error("Ошибка при загрузке вопросов:", error);
+            this.showUnavailableMessage("Произошла ошибка при загрузке вопросов. Пожалуйста, попробуйте позже.");
+        }
     }
 
     loadQuestion() {
