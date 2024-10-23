@@ -48,6 +48,20 @@ class TestApp {
         this.loadProgressFromAirtable();
 
         this.progressLoaded = false;
+
+        this.init();
+    }
+
+    async init() {
+        try {
+            await this.checkTestAvailability();
+            if (!this.progressLoaded) {
+                await this.loadProgressFromAirtable();
+                this.progressLoaded = true;
+            }
+        } catch (error) {
+            console.error("Ошибка при инициализации:", error);
+        }
     }
 
     async loadProgressFromAirtable() {
@@ -71,7 +85,8 @@ class TestApp {
                 throw new Error(data.error);
             } else if (data.progress) {
                 console.log("Прогресс получен из Airtable:", data.progress);
-                this.currentStageIndex = this.stages.indexOf(data.progress.Stage);
+                const stageIndex = this.stages.indexOf(data.progress.Stage);
+                this.currentStageIndex = stageIndex !== -1 ? stageIndex : 0;
                 this.currentLevel = data.progress.Level || 1;
                 this.correctCount = data.progress.CorrectCount || 0;
                 this.incorrectCount = data.progress.IncorrectCount || 0;
@@ -101,7 +116,7 @@ class TestApp {
     }
 
     async checkTestAvailability() {
-        console.log("Проверка доступности теста");
+        console.log("Проверка доступноти теста");
         try {
             const response = await fetch('/api/checkTestAvailability', {
                 method: 'POST',
@@ -130,7 +145,7 @@ class TestApp {
                 this.showUnavailableMessage("Тест в данный момент недоступен.");
             }
         } catch (error) {
-            console.error("Ошибка при проверке доступности теста:", error);
+            console.error("Ошибка при проверке доступноси теста:", error);
             this.showUnavailableMessage("Произошла ошибка при проверке доступности теста.");
         } finally {
             this.hideLoading();
@@ -149,6 +164,7 @@ class TestApp {
     // Метод для сохранения прогресса в localStorage
     saveProgressToLocalStorage() {
         const progress = {
+            stage: this.stages[this.currentStageIndex],
             currentStageIndex: this.currentStageIndex,
             currentLevel: this.currentLevel,
             correctCount: this.correctCount,
@@ -326,12 +342,6 @@ class TestApp {
             { wss: 0, level: 'N/A' }
         ];
         return scale;
-    }
-
-    init() {
-        console.log("Инициализация приложения");
-        this.showLoading();
-        this.loadQuestions();
     }
 
     loadProgressOnce() {
