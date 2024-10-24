@@ -368,7 +368,7 @@ class TestApp {
                     const stage = (question.fields.Stage || '').toLowerCase();
                     if (stage === 'reading' || stage === 'listening') {
                         const audioUrl = question.fields.Audio ? question.fields.Audio[0].url : null;
-                        //console.log(`Вопрос ${question.id}: Audio URL - ${audioUrl}`);
+                        //console.log(`Во��ос ${question.id}: Audio URL - ${audioUrl}`);
                         this.questions[stage].push({
                             id: question.id,
                             stage: stage,
@@ -381,7 +381,7 @@ class TestApp {
                             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
                         });
                     } else {
-                        console.warn(`��еизвестный этап для вопроса ${question.id}: ${stage}`);
+                        console.warn(`еизвестный этап для вопроса ${question.id}: ${stage}`);
                     }
                 });
                 console.log('Загруженные вопросы:', this.questions);
@@ -561,7 +561,7 @@ class TestApp {
         }
 
         if (!Array.isArray(pairs) || pairs.length === 0) {
-            this.questionContainer.innerHTML = `<p>Некорректные данные для сопосталения.</p>`;
+            this.questionContainer.innerHTML = `<p>Некорректные данные для со��осталения.</p>`;
             return;
         }
 
@@ -817,7 +817,7 @@ class TestApp {
             case 'multiple-choice':
                 return String(userAnswer) === String(question.correct);
             case 'matching':
-                // Логика для matching вопросов
+                // Логика для matching вопрсов
                 break;
             case 'typeImg':
             case 'typing':
@@ -1036,7 +1036,7 @@ class TestApp {
         })
         .catch(error => {
             console.error("Ошибка при сбросе прогресса:", error);
-            alert("Произошла ошибка при сброс�� прогресса. Пожалуйста, попробуйте ещ раз.");
+            alert("Произошла ошибка при сброс прогресса. Пожалуйста, попробуйте ещ раз.");
         });
     }
 
@@ -1156,13 +1156,29 @@ class TestApp {
         }
     }
 
-    setUser(user) {
-        this.user = user;
+    setUser() {
+        try {
+            const userProfileString = localStorage.getItem('tilda_members_profile10011255');
+            if (userProfileString) {
+                const userProfile = JSON.parse(userProfileString);
+                if (userProfile && userProfile.email) {
+                    this.user = { login: userProfile.email };
+                    console.log("User email set:", this.user.login);
+                } else {
+                    throw new Error("User email not found in profile");
+                }
+            } else {
+                throw new Error("User profile not found in localStorage");
+            }
+        } catch (error) {
+            console.error("Error setting user:", error);
+            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, войдите в систему.");
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const app = new TestApp();
-    app.setUser({ login: 'exampleUser' }); // Replace with actual user data
+    app.setUser();
     app.init().catch(error => console.error("Error initializing app:", error));
 });
