@@ -1248,13 +1248,3 @@ document.addEventListener('DOMContentLoaded', () => {
         app.init().catch(error => console.error("Error initializing app:", error));
     }
 });
-
-
-
-
-
-
-
-
-
-
