@@ -130,7 +130,7 @@ class TestApp {
                 console.error("Ошибка при загрузке прогресса:", data.error);
                 throw new Error(data.error);
             } else if (data.progress) {
-                console.log("Прогресс получен из Airtable:", data.progress);
+                console.log("Прогр��сс получен из Airtable:", data.progress);
                 this.setProgress(data.progress);
                 this.saveProgressToLocalStorage(); // Сохраняем прогресс в localStorage после получения из Airtable
             } else {
@@ -186,7 +186,7 @@ class TestApp {
         console.log("Прогесс сохранён в localStorage:", progress);
     }
 
-    // Метод дя загрзки прореса з localStorage
+    // Метод д зарзки прореса з localStorage
     loadProgressFromLocalStorage() {
         const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
         if (savedProgress) {
@@ -375,7 +375,7 @@ class TestApp {
             if (!Array.isArray(data)) {
                 throw new Error("Некорректная структура данных вопросов");
             }
-            console.log("Вопросы загружены:", data.length);
+            console.log("Вопроы агружены:", data.length);
             this.questions = { reading: [], listening: [] };
             data.forEach(question => {
                 const stage = (question.fields.Stage || '').toLowerCase();
@@ -490,6 +490,18 @@ class TestApp {
 
     renderQuestion(question) {
         console.log("Рендеринг вопроса типа:", question.questionType);
+        
+        // Добавляем аудио для этапа listening
+        if (this.stages[this.currentStageIndex] === 'listening' && question.audio) {
+            const audioHtml = `
+                <audio controls>
+                    <source src="${question.audio}" type="audio/mpeg">
+                    Your browser does not support the audio element.
+                </audio>
+            `;
+            this.questionContainer.innerHTML = audioHtml;
+        }
+        
         switch (question.questionType) {
             case 'multiple-choice':
                 this.renderMultipleChoiceQuestion(question);
@@ -1012,7 +1024,7 @@ class TestApp {
         });
     }
 
-    // Мето для обновления уровня на основе результатов группы
+    // Мето для обновленя уровня на основе результатов группы
     updateLevelBasedOnGroupResults() {
         if (this.groupCorrectAnswers === 1) {
             this.currentLevel = Math.max(1, this.currentLevel - 1);
@@ -1032,17 +1044,16 @@ class TestApp {
             return `
                 <h3>Этап: ${result.stage}</h3>
                 <p>Целевой уровень: ${result.targetLevel}</p>
-                <p>Правильных отетов: ${result.correctCount}</p>
-                <p>Неправильных отвтв: ${result.incorrectCount}</p>
+                <p>Правильных ответов: ${result.correctCount}</p>
+                <p>Неправильных ответов: ${result.incorrectCount}</p>
             `;
         }).join('');
 
         this.questionContainer.innerHTML = `
-            <h2>Резултаты теста</h2>
+            <h2>Результаты теста</h2>
             ${finalResults}
         `;
         this.submitBtn.style.display = 'none';
-        this.finishBtn.style.display = 'block';
     }
 
     shuffleArray(array) {
@@ -1056,25 +1067,23 @@ class TestApp {
 
     // Логика для вычисения итогового уровня на основе WSS
     calculateFinalLevel(wss) {
-        for (const scale of this.wssScale) {
-            if (wss >= scale.wss) {
-                return scale.level;
-            }
-        }
-        return 'Неизвестный уровень';
+        // Здесь должна быть логика определения уровня на основе WSS
+        // Это пример, вам нужно реализовать свою логику в соответствии с требованиями теста
+        if (wss >= 160) return 'C2';
+        if (wss >= 140) return 'C1';
+        if (wss >= 120) return 'B2';
+        if (wss >= 100) return 'B1';
+        if (wss >= 80) return 'A2';
+        return 'A1';
     }
 
     sendResultsToAirtable() {
+        // Здесь должна быть логика отправки результатов в Airtable
+        // Пример:
         const data = {
             UserLogin: this.user.login,
             FinishDate: new Date(),
-            StagesResults: this.stagesResults.map(result => ({
-                Stage: result.stage,
-                CorrectCount: result.correctCount,
-                IncorrectCount: result.incorrectCount,
-                TotalQuestions: result.totalQuestions,
-                TargetLevel: result.targetLevel
-            }))
+            StagesResults: this.stagesResults
         };
 
         fetch('/api/sendResults', {
@@ -1089,7 +1098,7 @@ class TestApp {
             console.log('Результаты успешно отправлены в Airtable:', result);
         })
         .catch(error => {
-            console.error('Ошибка при отправке реультатов в Airtable:', error);
+            console.error('Ошибка при отправке результатов в Airtable:', error);
         });
     }
 
@@ -1207,6 +1216,17 @@ class TestApp {
         if (this.questionNumberElement) {
             this.questionNumberElement.textContent = this.totalQuestions + 1;
         }
+    }
+
+    computeFinalWss() {
+        // Здесь должна быть логика вычисления финального WSS
+        // Это пример, вам нужно реализовать свою логику в соответствии с требованиями теста
+        const totalCorrect = this.stagesResults.reduce((sum, result) => sum + result.correctCount, 0);
+        const totalQuestions = this.stagesResults.reduce((sum, result) => sum + result.totalQuestions, 0);
+        const percentageCorrect = (totalCorrect / totalQuestions) * 100;
+        
+        // Пример простого расчета WSS
+        return Math.round(percentageCorrect * 1.8); // WSS от 0 до 180
     }
 }
 
