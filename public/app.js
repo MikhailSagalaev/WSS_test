@@ -477,41 +477,28 @@ class TestApp {
     }
 
     renderQuestion(question) {
-        console.log("Рендеринг вопроса:", question);
-        if (!this.questionContainer) {
-            console.error("Элемент questionContainer не найден");
-            return;
+        console.log("Рендеринг вопроса типа:", question.questionType);
+        switch (question.questionType) {
+            case 'multiple-choice':
+                this.renderMultipleChoiceQuestion(question);
+                break;
+            case 'matching':
+                this.renderMatchingQuestion(question);
+                break;
+            case 'typeImg':
+                this.renderTypeImgQuestion(question);
+                break;
+            case 'typing':
+                this.renderTypingQuestion(question);
+                break;
+            case 'matchingWords':
+                this.renderMatchingWordsQuestion(question);
+                break;
+            default:
+                console.error("Неизвестный тип вопроса:", question.questionType);
+                this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
         }
-        this.questionContainer.innerHTML = '';
-
-        // Добавлям текст вопроса
-        const questionTitle = document.createElement('h3');
-        questionTitle.className = 'question-title';
-        questionTitle.textContent = question.question;
-        this.questionContainer.appendChild(questionTitle);
-
-        // Добавляем аудио, если оно есть
-        if (question.audio) {
-            const audioElement = document.createElement('audio');
-            audioElement.src = question.audio;
-            audioElement.controls = true;
-            this.questionContainer.appendChild(audioElement);
-        }
-
-        // Добавляем варианты ответов
-        const answersContainer = document.createElement('div');
-        answersContainer.className = 'answers-container';
-        question.answers.forEach((answer, index) => {
-            const answerElement = document.createElement('div');
-            answerElement.className = 'answer-option';
-            answerElement.textContent = answer;
-            answerElement.dataset.index = index;
-            answerElement.addEventListener('click', () => this.selectAnswer(answerElement));
-            answersContainer.appendChild(answerElement);
-        });
-        this.questionContainer.appendChild(answersContainer);
-
-        this.submitBtn.disabled = true;
+        this.startTimer();
     }
 
     selectAnswer(selectedElement) {
@@ -751,79 +738,37 @@ class TestApp {
         return /^[a-zA-Z]*$/.test(input);
     }
     getUserAnswer() {
-        const questionType = this.currentQuestion.questionType;
-        
-        if (questionType === 'multiple-choice') {
-            const selectedOption = this.questionContainer.querySelector('.answer-option.selected');
-            if (selectedOption) {
-                const answerIndex = parseInt(selectedOption.getAttribute('data-index'), 10);
-                return this.currentQuestion.answers[answerIndex];
-            } else {
-                alert("Пожалуйста, выберите вариант ответа.");
+        switch (this.currentQuestion.questionType) {
+            case 'multiple-choice':
+                return this.getMultipleChoiceAnswer();
+            case 'matching':
+                return this.getMatchingAnswer();
+            case 'typeImg':
+                return this.getTypeImgAnswer();
+            case 'typing':
+                return this.getTypingAnswer();
+            case 'matchingWords':
+                return this.getMatchingWordsAnswer();
+            default:
+                console.error("Неизвестный тип вопроса:", this.currentQuestion.questionType);
                 return null;
-            }
-        } else if (questionType === 'matching') {
-            const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
-            const userMatches = {};
-            let allMatched = true;
-
-            dropZones.forEach(zone => {
-                const image = zone.getAttribute('data-image');
-                const wordElement = zone.querySelector('.word-item');
-                if (wordElement) {
-                    userMatches[image] = wordElement.textContent.trim();
-                } else {
-                    allMatched = false;
-                }
-            });
-
-            if (!allMatched) {
-                alert("Пожалуйста, сопоставьте все элементы.");
-                return null;
-            }
-
-            return userMatches;
-        } else if (questionType === 'typeImg') {
-            const answers = Array.from(this.questionContainer.querySelectorAll('.image-answer'))
-                .map(input => input.value.trim());
-            return answers;
-        } else if (questionType === 'typing') {
-            const answers = Array.from(this.questionContainer.querySelectorAll('.gap-answer'))
-                .map(input => input.value.trim());
-            return answers;
-        } else if (questionType === 'matchingWords') {
-            const answers = Array.from(this.questionContainer.querySelectorAll('.word-drop-zone'))
-                .map(zone => zone.textContent.trim());
-            return answers;
-        } else {
-            console.error("Неизвестный тип вопроса:", questionType);
-            return null;
         }
     }
 
     checkAnswer(userAnswer) {
-        if (!userAnswer) {
-            return false;
-        }
-
-        const question = this.currentQuestion;
-
-        switch (question.questionType) {
+        switch (this.currentQuestion.questionType) {
             case 'multiple-choice':
-                return String(userAnswer) === String(question.correct);
+                return this.checkMultipleChoiceAnswer(userAnswer);
             case 'matching':
-                // Логика для matching вопрсов
-                break;
+                return this.checkMatchingAnswer(userAnswer);
             case 'typeImg':
+                return this.checkTypeImgAnswer(userAnswer);
             case 'typing':
+                return this.checkTypingAnswer(userAnswer);
             case 'matchingWords':
-                if (!Array.isArray(userAnswer)) {
-                    console.error("userAnswer не является массивом:", userAnswer);
-                    return false;
-                }
-                return userAnswer.every((answer, index) => answer.toLowerCase() === (question.gapAnswers[index] || question.imageAnswers[index] || "").toLowerCase());
+                return this.checkMatchingWordsAnswer(userAnswer);
             default:
-                console.error("Неизвестный тип вопроса:", question.questionType);
+                console.error("Неизвестный тип вопроса:", this.currentQuestion.questionType);
                 return false;
         }
     }
@@ -871,7 +816,7 @@ class TestApp {
         if (this.questionsOnCurrentLevel >= 9) {
             this.finishStage();
         } else {
-            this.currentQuestion = null; // Сбрасы��аем текущий вопрос
+            this.currentQuestion = null; // Сбрасыаем текущий вопрос
             this.loadQuestion();
         }
 
@@ -901,7 +846,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Ошибка при отправке прогресса:", data.error);
+                console.error("Оши��ка при отправке прогресса:", data.error);
             } else {
                 console.log("Прогресс успешно отправлен", progressData);
             }
@@ -1179,3 +1124,4 @@ document.addEventListener('DOMContentLoaded', () => {
         app.init().catch(error => console.error("Error initializing app:", error));
     }
 });
+
