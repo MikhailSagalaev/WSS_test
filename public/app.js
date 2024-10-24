@@ -11,6 +11,7 @@ class TestApp {
         this.submitBtn.addEventListener('click', () => this.handleSubmit());
         this.questionNumber = 0;
         this.questionNumberElement = document.getElementById('question-number');
+        this.stagesResults = [];
     }
 
     initializeElements() {
@@ -99,7 +100,7 @@ class TestApp {
             console.log("Результат проверки доступности:", data);
 
             if (!data.available) {
-                this.showUnavailableMessage("Тест в данный момнт недоступен.");
+                this.showUnavailableMessage("Тест в данный момнт неоступен.");
                 throw new Error("Test not available");
             }
         } catch (error) {
@@ -185,7 +186,7 @@ class TestApp {
         console.log("Прогесс сохранён в localStorage:", progress);
     }
 
-    // Метод для загрзки прогресса з localStorage
+    // Метод дя загрзки прореса з localStorage
     loadProgressFromLocalStorage() {
         const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
         if (savedProgress) {
@@ -521,11 +522,12 @@ class TestApp {
     }
 
     renderMultipleChoiceQuestion(question) {
+        const shuffledAnswers = this.shuffleArray([...question.answers]);
         const html = `
             <h2 class="question-title">${question.question}</h2>
             ${question.audio ? `<audio controls><source src="${question.audio}" type="audio/mpeg"></audio>` : ''}
             <div class="answers-container">
-                ${question.answers.map((answer, index) => `
+                ${shuffledAnswers.map((answer, index) => `
                     <div class="answer-option" data-index="${index}">
                         ${answer}
                     </div>
@@ -536,11 +538,7 @@ class TestApp {
 
         const answerOptions = this.questionContainer.querySelectorAll('.answer-option');
         answerOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                answerOptions.forEach(opt => opt.classList.remove('selected'));
-                option.classList.add('selected');
-                this.submitBtn.disabled = false;
-            });
+            option.addEventListener('click', () => this.selectAnswer(option));
         });
     }
 
@@ -817,6 +815,9 @@ class TestApp {
             console.error("Ошибка при проверке ответа:", error);
             return;
         }
+
+        this.totalQuestions++;
+        this.updateQuestionNumber();
 
         if (isCorrect) {
             this.correctCount++;
@@ -1165,7 +1166,7 @@ class TestApp {
 
     getMultipleChoiceAnswer() {
         const selectedOption = this.questionContainer.querySelector('.answer-option.selected');
-        return selectedOption ? selectedOption.textContent : null;
+        return selectedOption ? selectedOption.textContent.trim() : null;
     }
 
     getTypeImgAnswer() {
@@ -1204,7 +1205,7 @@ class TestApp {
 
     updateQuestionNumber() {
         if (this.questionNumberElement) {
-            this.questionNumberElement.textContent = this.questionNumber;
+            this.questionNumberElement.textContent = this.totalQuestions + 1;
         }
     }
 }
