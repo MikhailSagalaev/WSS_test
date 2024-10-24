@@ -12,6 +12,15 @@ class TestApp {
         this.questionNumber = 0;
         this.questionNumberElement = document.getElementById('question-number');
         this.stagesResults = [];
+        this.levels = ['pre-A1', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+        this.currentLevelIndex = 0;
+        this.questionsInCurrentSeries = 0;
+        this.correctInCurrentSeries = 0;
+        this.questionsOnCurrentLevel = 0;
+        this.correctOnCurrentLevel = 0;
+        this.correctOnHigherLevel = 0;
+        this.incorrectOnLowerLevel = 0;
+        this.targetLevel = null;
     }
 
     initializeElements() {
@@ -130,7 +139,7 @@ class TestApp {
                 console.error("Ошибка при загрузке прогресса:", data.error);
                 throw new Error(data.error);
             } else if (data.progress) {
-                console.log("Прогр��сс получен из Airtable:", data.progress);
+                console.log("Прогрсс получен из Airtable:", data.progress);
                 this.setProgress(data.progress);
                 this.saveProgressToLocalStorage(); // Сохраняем прогресс в localStorage после получения из Airtable
             } else {
@@ -183,7 +192,7 @@ class TestApp {
             questionsOnCurrentLevel: this.questionsOnCurrentLevel
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
-        console.log("Прогесс сохранён в localStorage:", progress);
+        console.log("П��огесс сохранён в localStorage:", progress);
     }
 
     // Метод д зарзки прореса з localStorage
@@ -368,7 +377,7 @@ class TestApp {
     }
 
     async loadQuestions() {
-        console.log("Начало загрузки вопросов");
+        console.log("ачало загрузки вопросов");
         try {
             const response = await fetch('/api/questions');
             const data = await response.json();
@@ -401,7 +410,7 @@ class TestApp {
             question: question.fields.Question,
             answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
             correct: question.fields.Correct,
-            audio: question.fields.Audio ? question.fields.Audio[0].url : null,
+            audio: question.fields.Audio && question.fields.Audio.length > 0 ? question.fields.Audio[0].url : null,
             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
             sentenceWithGaps: question.fields.SentenceWithGaps,
             wordOptions: question.fields.WordOptions,
@@ -430,7 +439,7 @@ class TestApp {
 
         const randomIndex = Math.floor(Math.random() * questionsForLevel.length);
         this.currentQuestion = questionsForLevel[randomIndex];
-        console.log("Текущий вопрос:", this.currentQuestion);
+        console.log("Загруженный вопрос:", this.currentQuestion);
 
         this.questionNumber++;
         this.updateQuestionNumber();
@@ -492,14 +501,18 @@ class TestApp {
         console.log("Рендеринг вопроса типа:", question.questionType);
         
         // Добавляем аудио для этапа listening
-        if (this.stages[this.currentStageIndex] === 'listening' && question.audio) {
-            const audioHtml = `
-                <audio controls>
-                    <source src="${question.audio}" type="audio/mpeg">
-                    Your browser does not support the audio element.
-                </audio>
-            `;
-            this.questionContainer.innerHTML = audioHtml;
+        if (this.stages[this.currentStageIndex] === 'listening') {
+            if (question.audio) {
+                const audioHtml = `
+                    <audio controls>
+                        <source src="${question.audio}" type="audio/mpeg">
+                        Your browser does not support the audio element.
+                    </audio>
+                `;
+                this.questionContainer.innerHTML = audioHtml;
+            } else {
+                console.warn("Аудио не найдено для вопроса этапа listening:", question.id);
+            }
         }
         
         switch (question.questionType) {
@@ -800,70 +813,64 @@ class TestApp {
     }
 
     handleSubmit() {
-        if (this.submitBtn.disabled) {
-            return;
-        }
+        if (this.submitBtn.disabled) return;
 
-        if (this.timer) {
-            clearInterval(this.timer);
-        }
+        const userAnswer = this.getUserAnswer();
+        if (userAnswer === null) return;
 
-        let userAnswer;
-        try {
-            userAnswer = this.getUserAnswer();
-        } catch (error) {
-            console.error("Ошибка при получении ответа пользователя:", error);
-            return;
-        }
+        const isCorrect = this.checkAnswer(userAnswer);
 
-        if (userAnswer === null) {
-            return;
-        }
-
-        let isCorrect;
-        try {
-            isCorrect = this.checkAnswer(userAnswer);
-        } catch (error) {
-            console.error("Ошибка при проверке ответа:", error);
-            return;
-        }
-
+        this.questionsInCurrentSeries++;
+        this.questionsOnCurrentLevel++;
         this.totalQuestions++;
-        this.updateQuestionNumber();
 
         if (isCorrect) {
-            this.correctCount++;
-            this.groupCorrectAnswers++;
-            this.correctHigherLevel += 1;
-        } else {
-            this.incorrectCount++;
-            this.incorrectLowerLevel += 1;
+            this.correctInCurrentSeries++;
+            this.correctOnCurrentLevel++;
         }
 
-        this.totalQuestions++;
-        this.groupTotalAnswers++;
-        this.questionsOnCurrentLevel++;
+        this.updateQuestionNumber();
 
-        console.log(`Ответ ${isCorrect ? 'правильный' : 'неправильный'}.`);
-
-        this.saveProgressToLocalStorage();
-        this.sendProgress();
-
-        if (this.groupTotalAnswers >= 3) {
-            this.groupsAnswered++;
-            this.updateLevelBasedOnGroupResults();
-            this.groupCorrectAnswers = 0;
-            this.groupTotalAnswers = 0;
+        if (this.questionsInCurrentSeries === 3) {
+            this.evaluateSeries();
         }
 
-        if (this.questionsOnCurrentLevel >= 9) {
-            this.finishStage();
+        if (this.questionsOnCurrentLevel >= 27) {
+            this.targetLevel = this.levels[this.currentLevelIndex];
+            this.finishTest();
         } else {
-            this.currentQuestion = null;
             this.loadQuestion();
         }
+    }
 
-        this.submitBtn.disabled = true;
+    evaluateSeries() {
+        if (this.correctInCurrentSeries === 3) {
+            this.moveToNextLevel();
+        } else if (this.correctInCurrentSeries <= 1) {
+            this.moveToPreviousLevel();
+        }
+        // Если 2 правильных ответа, остаемся н текущем уровне
+
+        this.questionsInCurrentSeries = 0;
+        this.correctInCurrentSeries = 0;
+    }
+
+    moveToNextLevel() {
+        if (this.currentLevelIndex < this.levels.length - 1) {
+            this.correctOnHigherLevel += this.correctOnCurrentLevel;
+            this.currentLevelIndex++;
+            this.questionsOnCurrentLevel = 0;
+            this.correctOnCurrentLevel = 0;
+        }
+    }
+
+    moveToPreviousLevel() {
+        if (this.currentLevelIndex > 0) {
+            this.incorrectOnLowerLevel += (3 - this.correctInCurrentSeries);
+            this.currentLevelIndex--;
+            this.questionsOnCurrentLevel = 0;
+            this.correctOnCurrentLevel = 0;
+        }
     }
 
     sendProgress() {
@@ -1219,14 +1226,24 @@ class TestApp {
     }
 
     computeFinalWss() {
-        // Здесь должна быть логика вычисления финального WSS
-        // Это пример, вам нужно реализовать свою логику в соответствии с требованиями теста
-        const totalCorrect = this.stagesResults.reduce((sum, result) => sum + result.correctCount, 0);
-        const totalQuestions = this.stagesResults.reduce((sum, result) => sum + result.totalQuestions, 0);
-        const percentageCorrect = (totalCorrect / totalQuestions) * 100;
-        
-        // Пример простого расчета WSS
-        return Math.round(percentageCorrect * 1.8); // WSS от 0 до 180
+        const targetLevelIndex = this.levels.indexOf(this.targetLevel);
+        const minWss = this.getMinWssForLevel(this.targetLevel);
+        const wssShift = this.correctOnCurrentLevel + this.correctOnHigherLevel - this.incorrectOnLowerLevel;
+        return minWss + wssShift;
+    }
+
+    getMinWssForLevel(level) {
+        // Здесь нужно реализовать логику получения минимального WSS для каждого уровня
+        const wssScale = {
+            'pre-A1': 0,
+            'A1': 50,
+            'A2': 80,
+            'B1': 90,
+            'B2': 120,
+            'C1': 140,
+            'C2': 160
+        };
+        return wssScale[level] || 0;
     }
 }
 
