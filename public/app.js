@@ -192,7 +192,7 @@ class TestApp {
             questionsOnCurrentLevel: this.questionsOnCurrentLevel
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
-        console.log("П��огесс сохранён в localStorage:", progress);
+        console.log("П��гесс сохранён в localStorage:", progress);
     }
 
     // Метод д зарзки прореса з localStorage
@@ -402,7 +402,8 @@ class TestApp {
     }
 
     formatQuestion(question) {
-        return {
+        console.log("Форматирование вопроса:", question);
+        const formattedQuestion = {
             id: question.id,
             stage: question.fields.Stage.toLowerCase(),
             level: parseInt(question.fields.Level, 10),
@@ -410,46 +411,38 @@ class TestApp {
             question: question.fields.Question,
             answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
             correct: question.fields.Correct,
-            audio: question.fields.Audio && question.fields.Audio.length > 0 ? question.fields.Audio[0].url : null,
+            audio: question.fields.Audio || null, // Изменено здесь
             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
             sentenceWithGaps: question.fields.SentenceWithGaps,
             wordOptions: question.fields.WordOptions,
             matchPairs: question.fields.MatchPairs
         };
+        console.log("Отформатированный вопрос:", formattedQuestion);
+        return formattedQuestion;
     }
 
     loadQuestion() {
-        console.log("Загрузка вопроса");
+        const currentLevel = this.levels[this.currentLevelIndex];
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
+        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
-        if (!questionsForStage || questionsForStage.length === 0) {
-            console.error(`Нет вопросов для этапа ${currentStage}`);
-            this.finishStage();
-            return;
-        }
-
-        const questionsForLevel = questionsForStage.filter(q => q.level === this.currentLevel);
+        console.log(`Всего вопросов на этапе ${currentStage}:`, questionsForStage.length);
+        
+        const questionsForLevel = questionsForStage.filter(q => q.level === this.currentLevelIndex + 1);
+        console.log(`Найдено вопросов на уровне ${currentLevel} для этапа ${currentStage}:`, questionsForLevel.length);
+        
         if (questionsForLevel.length === 0) {
-            console.error(`Нет вопросов на уровне ${this.currentLevel} для этапа ${currentStage}`);
-            this.finishStage();
+            console.error(`Нет вопросов для уровня ${currentLevel}`);
+            this.finishTest();
             return;
         }
 
         const randomIndex = Math.floor(Math.random() * questionsForLevel.length);
         this.currentQuestion = questionsForLevel[randomIndex];
-        console.log("Загруженный вопрос:", this.currentQuestion);
+        console.log("Текущий вопрос:", this.currentQuestion);
 
-        this.questionNumber++;
-        this.updateQuestionNumber();
-
-        if (this.currentQuestion) {
-            this.renderQuestion(this.currentQuestion);
-        } else {
-            console.error("Не удалось загрузить вопрос");
-            this.finishStage();
-        }
+        this.renderQuestion(this.currentQuestion);
     }
 
     updateQuestionInfo() {
@@ -498,11 +491,12 @@ class TestApp {
     }
 
     renderQuestion(question) {
+        console.log("Рендеринг вопроса:", question);
         console.log("Рендеринг вопроса типа:", question.questionType);
         
-        // Добавляем аудио для этапа listening
         if (this.stages[this.currentStageIndex] === 'listening') {
             if (question.audio) {
+                console.log("Аудио найдено:", question.audio);
                 const audioHtml = `
                     <audio controls>
                         <source src="${question.audio}" type="audio/mpeg">
