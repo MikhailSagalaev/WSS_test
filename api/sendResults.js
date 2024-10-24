@@ -24,8 +24,4 @@ module.exports = async (req, res) => {
         console.error('Ошибка при отправке результатов в Airtable:', error);
         res.status(500).json({ error: 'Ошибка при отправке результатов' });
     }
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 2960c604c4b595dacb4b738ca9ba3ef0787e455d
