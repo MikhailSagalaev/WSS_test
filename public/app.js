@@ -97,7 +97,7 @@ class TestApp {
             console.log("Результат проверки доступности:", data);
 
             if (!data.available) {
-                this.showUnavailableMessage("Тест в данный момент недоступен.");
+                this.showUnavailableMessage("Тест в данный мом��нт недоступен.");
                 throw new Error("Test not available");
             }
         } catch (error) {
@@ -207,7 +207,7 @@ class TestApp {
 
             console.log("Прогресс загруен из localStorage:", savedProgress);
         } else {
-            console.log("Нет схранённого прогресса в localStorage. Начинаем новый тест.");
+            console.log("Не�� схранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
             this.currentLevel = 1;
         }
@@ -409,7 +409,7 @@ class TestApp {
     loadQuestion() {
         console.log("Загрузка вопроса");
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Зарузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
+        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
         if (!questionsForStage || questionsForStage.length === 0) {
@@ -425,8 +425,8 @@ class TestApp {
             return;
         }
 
-        const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
-        this.currentQuestion = shuffledQuestions[0];
+        const randomIndex = Math.floor(Math.random() * questionsForLevel.length);
+        this.currentQuestion = questionsForLevel[randomIndex];
         console.log("Текущий вопрос:", this.currentQuestion);
 
         if (this.currentQuestion) {
@@ -793,12 +793,25 @@ class TestApp {
             clearInterval(this.timer);
         }
 
-        const userAnswer = this.getUserAnswer();
+        let userAnswer;
+        try {
+            userAnswer = this.getUserAnswer();
+        } catch (error) {
+            console.error("Ошибка при получении ответа пользователя:", error);
+            return;
+        }
+
         if (userAnswer === null) {
             return;
         }
 
-        const isCorrect = this.checkAnswer(userAnswer);
+        let isCorrect;
+        try {
+            isCorrect = this.checkAnswer(userAnswer);
+        } catch (error) {
+            console.error("Ошибка при проверке ответа:", error);
+            return;
+        }
 
         if (isCorrect) {
             this.correctCount++;
@@ -1034,7 +1047,7 @@ class TestApp {
         return array;
     }
 
-    // Логика для вычис��ения итогового уровня на основе WSS
+    // Логика для вычисения итогового уровня на основе WSS
     calculateFinalLevel(wss) {
         for (const scale of this.wssScale) {
             if (wss >= scale.wss) {
@@ -1127,6 +1140,58 @@ class TestApp {
             this.userNotAuthorized = true;
         }
     }
+
+    getMatchingAnswer() {
+        const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+        const answers = Array.from(dropZones).map(zone => {
+            const wordItem = zone.querySelector('.word-item');
+            return wordItem ? wordItem.getAttribute('data-word') : null;
+        });
+        return answers;
+    }
+
+    checkMatchingAnswer(userAnswer) {
+        const correctPairs = JSON.parse(this.currentQuestion.matchPairs);
+        return correctPairs.every((pair, index) => pair.option === userAnswer[index]);
+    }
+
+    getMultipleChoiceAnswer() {
+        const selectedOption = this.questionContainer.querySelector('.answer-option.selected');
+        return selectedOption ? selectedOption.textContent : null;
+    }
+
+    getTypeImgAnswer() {
+        const inputs = this.questionContainer.querySelectorAll('.image-answer');
+        return Array.from(inputs).map(input => input.value);
+    }
+
+    getTypingAnswer() {
+        const inputs = this.questionContainer.querySelectorAll('.gap-answer');
+        return Array.from(inputs).map(input => input.value);
+    }
+
+    getMatchingWordsAnswer() {
+        const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
+        return Array.from(dropZones).map(zone => zone.textContent);
+    }
+
+    checkMultipleChoiceAnswer(userAnswer) {
+        return userAnswer === this.currentQuestion.correct;
+    }
+
+    checkTypeImgAnswer(userAnswer) {
+        return JSON.stringify(userAnswer) === JSON.stringify(this.currentQuestion.correct.split(','));
+    }
+
+    checkTypingAnswer(userAnswer) {
+        const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim().toLowerCase());
+        return userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
+    }
+
+    checkMatchingWordsAnswer(userAnswer) {
+        const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim().toLowerCase());
+        return userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1136,6 +1201,10 @@ document.addEventListener('DOMContentLoaded', () => {
         app.init().catch(error => console.error("Error initializing app:", error));
     }
 });
+
+
+
+
 
 
 
