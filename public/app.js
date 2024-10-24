@@ -386,6 +386,20 @@ class TestApp {
         }
     }
 
+    formatQuestion(question) {
+        return {
+            id: question.id,
+            stage: question.fields.Stage.toLowerCase(),
+            level: parseInt(question.fields.Level, 10),
+            questionType: question.fields["Question Type"],
+            question: question.fields.Question,
+            answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
+            correct: question.fields.Correct,
+            audio: question.fields.Audio ? question.fields.Audio[0].url : null,
+            timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
+        };
+    }
+
     loadQuestion() {
         console.log("Загрузка вопроса");
         const currentStage = this.stages[this.currentStageIndex];
@@ -857,7 +871,7 @@ class TestApp {
         if (this.questionsOnCurrentLevel >= 9) {
             this.finishStage();
         } else {
-            this.currentQuestion = null; // Сбрасываем текущий вопрос
+            this.currentQuestion = null; // Сбрасы��аем текущий вопрос
             this.loadQuestion();
         }
 
