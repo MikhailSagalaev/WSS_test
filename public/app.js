@@ -7,6 +7,8 @@ class TestApp {
         this.initializeElements();
         this.loadProgressFromLocalStorage();
         this.progressLoaded = false;
+        this.submitBtn = document.getElementById('submit-btn');
+        this.submitBtn.addEventListener('click', () => this.handleSubmit());
     }
 
     initializeElements() {
@@ -51,6 +53,7 @@ class TestApp {
             this.showUnavailableMessage("An error occurred while initializing the test.");
         }
     }
+    
 
     showUnavailableMessage(message) {
         if (this.questionContainer) {
@@ -113,33 +116,33 @@ class TestApp {
                 },
                 body: JSON.stringify({ userLogin: this.user.login })
             });
-
+    
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+    
             const data = await response.json();
-
+    
             if (data.error) {
                 console.error("Ошибка при загрузке прогресса:", data.error);
                 throw new Error(data.error);
             } else if (data.progress) {
                 console.log("Прогресс получен из Airtable:", data.progress);
                 this.setProgress(data.progress);
+                this.saveProgressToLocalStorage(); // Сохраняем прогресс в localStorage после получения из Airtable
             } else {
                 console.log("Прогресс не найден. Начинаем новый этап.");
                 this.setInitialProgress();
             }
-
+    
             console.log("Текущий этап:", this.stages[this.currentStageIndex]);
             console.log("Текущий уровень:", this.currentLevel);
-
+    
         } catch (error) {
             console.error("Ошибка при загрузке прогресса из Airtable:", error);
-            this.setInitialProgress();
+            this.loadProgressFromLocalStorage(); // Загружаем из localStorage только если не удалось загрузить из Airtable
         }
     }
-
     setProgress(progress) {
         this.currentStageIndex = this.stages.indexOf(progress.stage);
         this.currentLevel = progress.currentLevel || 1;
@@ -781,20 +784,21 @@ class TestApp {
         }
     }
 
-    handleSubmit(timeExpired = false) {
+    handleSubmit() {
+        if (this.submitBtn.disabled) {
+            return;
+        }
+
         if (this.timer) {
             clearInterval(this.timer);
         }
 
-        let isCorrect = false;
-
-        if (!timeExpired) {
-            const userAnswer = this.getUserAnswer();
-            if (userAnswer === null) {
-                return;
-            }
-            isCorrect = this.checkAnswer(userAnswer);
+        const userAnswer = this.getUserAnswer();
+        if (userAnswer === null) {
+            return;
         }
+
+        const isCorrect = this.checkAnswer(userAnswer);
 
         if (isCorrect) {
             this.correctCount++;
@@ -824,7 +828,7 @@ class TestApp {
         if (this.questionsOnCurrentLevel >= 9) {
             this.finishStage();
         } else {
-            this.currentQuestion = null; // Сбрасыаем текущий вопрос
+            this.currentQuestion = null; // Сбрасываем текущий вопрос
             this.loadQuestion();
         }
 
@@ -1030,7 +1034,7 @@ class TestApp {
         return array;
     }
 
-    // Логика для вычисления итогового уровня на основе WSS
+    // Логика для вычис��ения итогового уровня на основе WSS
     calculateFinalLevel(wss) {
         for (const scale of this.wssScale) {
             if (wss >= scale.wss) {
@@ -1132,5 +1136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         app.init().catch(error => console.error("Error initializing app:", error));
     }
 });
+
+
 
 
