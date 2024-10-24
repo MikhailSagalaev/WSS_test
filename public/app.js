@@ -151,7 +151,12 @@ class TestApp {
             this.groupTotalAnswers = savedProgress.groupTotalAnswers ?? 0;
             this.groupsAnswered = savedProgress.groupsAnswered ?? 0;
             this.questionsOnCurrentLevel = savedProgress.questionsOnCurrentLevel ?? 0;
-            this.currentStageIndex = this.stages.indexOf(savedProgress.stage) !== -1 ? this.stages.indexOf(savedProgress.stage) : 0;
+            if (!this.stages) {
+                console.error("Stages are not initialized.");
+                this.currentStageIndex = 0; // or handle it as needed
+            } else {
+                this.currentStageIndex = this.stages.indexOf(savedProgress.stage) !== -1 ? this.stages.indexOf(savedProgress.stage) : 0;
+            }
 
             console.log("Прогресс загруен из localStorage:", savedProgress);
         } else {
