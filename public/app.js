@@ -829,7 +829,7 @@ class TestApp {
             this.evaluateSeries();
         }
 
-        if (this.questionsOnCurrentLevel >= 27) {
+        if (this.questionsOnCurrentLevel >= 9) {
             this.targetLevel = this.levels[this.currentLevelIndex];
             this.finishTest();
         } else {
