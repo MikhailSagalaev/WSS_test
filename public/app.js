@@ -1096,6 +1096,7 @@ class TestApp {
     }
 
     sendResultsToAirtable() {
+<<<<<<< HEAD
         const data = {
             UserLogin: this.user.login,
             FinishDate: new Date(),
@@ -1106,6 +1107,20 @@ class TestApp {
                 TotalQuestions: result.totalQuestions,
                 TargetLevel: result.targetLevel
             }))
+=======
+        const stagesResults = this.stages.map((stage, index) => ({
+            Stage: stage,
+            CorrectCount: this.stagesResults[index].correctCount,
+            IncorrectCount: this.stagesResults[index].incorrectCount,
+            TotalQuestions: this.stagesResults[index].totalQuestions,
+            TargetLevel: this.currentLevel
+        }));
+
+        const data = {
+            UserLogin: this.user.login,
+            FinishDate: new Date(),
+            StagesResults: stagesResults
+>>>>>>> 2960c604c4b595dacb4b738ca9ba3ef0787e455d
         };
 
         fetch('/api/sendResults', {
@@ -1120,7 +1135,7 @@ class TestApp {
             console.log('Результаты успешно отправлены в Airtable:', result);
         })
         .catch(error => {
-            console.error('Ошибка при отправке результатов в Airtable:', error);
+            console.error('Ошибка при отправке результат в Airtable:', error);
         });
     }
 
