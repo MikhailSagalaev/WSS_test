@@ -134,6 +134,7 @@ class TestApp {
             console.log("Результат проверки доступности:", data);
 
             if (data.available) {
+                await this.loadQuestions();  // Добавьте эту строку
                 await this.loadProgressFromAirtable();
                 if (this.currentStageIndex === undefined || this.currentLevel === undefined) {
                     console.error("Не удалось загрузить прогресс. Устанавливаем начальные значения.");
@@ -359,57 +360,41 @@ class TestApp {
 
     async loadQuestions() {
         console.log("Начало загрузки вопросов");
-        this.questions = { reading: [], listening: [] };
-
-        try {
-            const response = await fetch('/api/questions');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-
-            if (!Array.isArray(data)) {
-                throw new Error("Полученные данные не являются массивом");
-            }
-
-            console.log(`Получено ${data.length} вопросов`);
-
-            data.forEach(item => {
-                const question = {
-                    id: item.id,
-                    stage: item.fields.Stage,
-                    level: parseInt(item.fields.Level, 10),
-                    questionType: item.fields["Question Type"],
-                    question: item.fields.Question,
-                    answers: item.fields.Answers ? item.fields.Answers.split(',').map(ans => ans.trim()) : [],
-                    correct: item.fields.Correct,
-                    audio: item.fields.Audio,
-                    timeLimit: item.fields.TimeLimit ? parseInt(item.fields.TimeLimit, 10) : null
-                };
-
-                if (question.stage === 'reading' || question.stage === 'listening') {
-                    this.questions[question.stage].push(question);
-                } else {
-                    console.warn(`Неизвестный этап для вопроса: ${question.id}`);
+        return fetch('/api/questions')
+            .then(response => response.json())
+            .then(data => {
+                console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
+                if (!Array.isArray(data)) {
+                    console.error("Некорректная структура данных вопросов:", data);
+                    return;
                 }
+                console.log("Вопросы загружены:", data.length);
+                this.questions = { reading: [], listening: [] };
+                data.forEach(question => {
+                    const stage = (question.fields.Stage || '').toLowerCase();
+                    if (stage === 'reading' || stage === 'listening') {
+                        const audioUrl = question.fields.Audio ? question.fields.Audio[0].url : null;
+                        console.log(`Вопрос ${question.id}: Audio URL - ${audioUrl}`);
+                        this.questions[stage].push({
+                            id: question.id,
+                            stage: stage,
+                            level: parseInt(question.fields.Level, 10),
+                            questionType: question.fields["Question Type"],
+                            question: question.fields.Question,
+                            answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
+                            correct: question.fields.Correct,
+                            audio: audioUrl,
+                            timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
+                        });
+                    } else {
+                        console.warn(`Неизвестный этап для вопроса ${question.id}: ${stage}`);
+                    }
+                });
+                console.log('Загруженные вопросы:', this.questions);
+            })
+            .catch(err => {
+                console.error("Ошибка при загрузке вопросов:", err);
             });
-
-            console.log("Загрузка вопросов завершена");
-            console.log("Вопросы для чтения:", this.questions.reading.length);
-            console.log("Вопросы для аудирования:", this.questions.listening.length);
-
-            // Проверяем, есть ли вопросы
-            if (this.questions.reading.length === 0 && this.questions.listening.length === 0) {
-                throw new Error("Не удалось загрузить вопросы");
-            }
-
-            // Если все в порядке, переходим к следующему шау
-            this.checkTestAvailability();
-
-        } catch (error) {
-            console.error("Ошибка при загрузке вопросов:", error);
-            this.showUnavailableMessage("Произошла ошибка при загрузке вопросов. Пожалуйста, попробуйте позже.");
-        }
     }
 
     loadQuestion() {
@@ -976,10 +961,44 @@ class TestApp {
     }
 
     finishTest() {
-        this.sendResultsToAirtable();
-        this.sendFinalResults();
-        this.showResults();
-        this.resetProgress();
+        // Вычисляем финальный WSS и уровень
+        const finalWss = this.computeFinalWss();
+        const finalLevel = this.calculateFinalLevel(finalWss);
+        
+        // Формируем финальные данные
+        const completionData = {
+            userLogin: this.user.login,
+            stagesResults: this.stagesResults,
+            finishDate: new Date().toISOString(),
+            finalWss: finalWss,
+            finalLevel: finalLevel
+        };
+
+        // Отправляем результаты
+        fetch('/api/complete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(completionData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error("Ошибка при завершении теста:", data.error);
+            } else {
+                console.log("Тест успешно завершён:", data);
+                // Отправляем результаты в Airtable
+                this.sendResultsToAirtable();
+                // Показываем результаты пользователю
+                this.showResults();
+                // Сбрасываем прогресс
+                this.resetProgress();
+            }
+        })
+        .catch(err => {
+            console.error("Ошибка при завершении теста:", err);
+        });
     }
 
     resetProgress() {
@@ -1037,55 +1056,6 @@ class TestApp {
         }
     }
 
-    // Метод для отправки финальных результатов на сервер
-    sendFinalResults() {
-        if (!this.stagesResults) {
-            this.stagesResults = [];
-        }
-
-        const stageResult = {
-            stage: this.stages[this.currentStageIndex],
-            targetLevel: this.currentLevel,
-            correctCount: this.correctCount,
-            incorrectCount: this.incorrectCount,
-            correctHigherLevel: this.correctHigherLevel,
-            incorrectLowerLevel: this.incorrectLowerLevel
-            // Добавьте дополнительные поля, если необходимо
-        };
-
-        this.stagesResults.push(stageResult);
-
-        console.log("Отправка финальных результатов:", stageResult);
-
-        // Пример отправки результатов на сервер
-        const completionData = {
-            userLogin: this.user.login,
-            stagesResults: this.stagesResults,
-            finishDate: new Date().toISOString()
-        };
-
-        console.log("Отправляемые данные завершения:", completionData);
-
-        fetch('/api/complete', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(completionData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                console.error("Ошибка при завершении теста:", data.error);
-            } else {
-                console.log("Тест успешно завершён:", data);
-            }
-        })
-        .catch(err => {
-            console.error("Ошибка при завершении тста:", err);
-        });
-    }
-
     // Доплнительно, давайте изменим обработку ошибок в клиентском коде:
 
     showResults() {
@@ -1125,78 +1095,27 @@ class TestApp {
         return 'Неизвестный уровень';
     }
 
-    finalizeTest() {
-        // Предполагается, что метод computeFinalWss выисляет итогоый WSS
-        const finalWss = this.computeFinalWss();
-        const finalLevel = this.calculateFinalLevel(finalWss);
-        console.log(`Итоговый WSS: ${finalWss}, Уровень: ${finalLevel}`);
-        this.questionContainer.innerHTML = `<p>Ваш итоговый уровень: ${finalLevel}</p>`;
-        this.submitBtn.style.display = 'none';
-        this.finishBtn.style.display = 'block';
-        
-        // Отправка результатов на сервер
-        const completionData = {
-            userLogin: this.user.login,
-            stagesResults: this.stagesResults,
-            finishDate: new Date().toISOString(),
-            finalWss: finalWss,
-            finalLevel: finalLevel
-        };
-
-        fetch('/api/complete', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(completionData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                console.error("Ошибка при завершении теста:", data.error);
-            } else {
-                console.log("Тест успешно завершён:", data);
-            }
-        })
-        .catch(err => {
-            console.error("Ошибка при завершении теста:", err);
-        });
-    }
-
     sendResultsToAirtable() {
-        const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_STORY_TABLE } = process.env;
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_STORY_TABLE)}`;
-
-        const stagesResults = this.stages.map((stage, index) => ({
-            Stage: stage,
-            CorrectCount: this.stagesResults[index].correctCount,
-            IncorrectCount: this.stagesResults[index].incorrectCount,
-            TotalQuestions: this.stagesResults[index].totalQuestions,
-            TargetLevel: this.currentLevel
-        }));
-
         const data = {
-            fields: {
-                UserLogin: this.user.login,
-                FinishDate: new Date(),
-                StagesResults: stagesResults.map(result => ({id: result.Stage})) // Only send IDs for linked records
-            }
+            UserLogin: this.user.login,
+            FinishDate: new Date(),
+            StagesResults: this.stagesResults.map(result => ({
+                Stage: result.stage,
+                CorrectCount: result.correctCount,
+                IncorrectCount: result.incorrectCount,
+                TotalQuestions: result.totalQuestions,
+                TargetLevel: result.targetLevel
+            }))
         };
 
-        fetch(url, {
+        fetch('/api/sendResults', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${AIRTABLE_PAT}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify(data)
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(result => {
             console.log('Результаты успешно отправлены в Airtable:', result);
         })
