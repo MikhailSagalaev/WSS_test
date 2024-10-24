@@ -9,6 +9,8 @@ class TestApp {
         this.progressLoaded = false;
         this.submitBtn = document.getElementById('submit-btn');
         this.submitBtn.addEventListener('click', () => this.handleSubmit());
+        this.questionNumber = 0;
+        this.questionNumberElement = document.getElementById('question-number');
     }
 
     initializeElements() {
@@ -97,7 +99,7 @@ class TestApp {
             console.log("Результат проверки доступности:", data);
 
             if (!data.available) {
-                this.showUnavailableMessage("Тест в данный мом��нт недоступен.");
+                this.showUnavailableMessage("Тест в данный момнт недоступен.");
                 throw new Error("Test not available");
             }
         } catch (error) {
@@ -207,7 +209,7 @@ class TestApp {
 
             console.log("Прогресс загруен из localStorage:", savedProgress);
         } else {
-            console.log("Не�� схранённого прогресса в localStorage. Начинаем новый тест.");
+            console.log("Не схранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
             this.currentLevel = 1;
         }
@@ -428,6 +430,9 @@ class TestApp {
         const randomIndex = Math.floor(Math.random() * questionsForLevel.length);
         this.currentQuestion = questionsForLevel[randomIndex];
         console.log("Текущий вопрос:", this.currentQuestion);
+
+        this.questionNumber++;
+        this.updateQuestionNumber();
 
         if (this.currentQuestion) {
             this.renderQuestion(this.currentQuestion);
@@ -841,7 +846,7 @@ class TestApp {
         if (this.questionsOnCurrentLevel >= 9) {
             this.finishStage();
         } else {
-            this.currentQuestion = null; // Сбрасываем текущий вопрос
+            this.currentQuestion = null;
             this.loadQuestion();
         }
 
@@ -920,6 +925,7 @@ class TestApp {
             this.finishTest();
         }
         this.saveProgressToLocalStorage();
+        this.questionNumber = 0;
     }
 
     finishTest() {
@@ -1152,7 +1158,9 @@ class TestApp {
 
     checkMatchingAnswer(userAnswer) {
         const correctPairs = JSON.parse(this.currentQuestion.matchPairs);
-        return correctPairs.every((pair, index) => pair.option === userAnswer[index]);
+        return correctPairs.every((pair, index) => 
+            pair.option.toLowerCase() === userAnswer[index].toLowerCase()
+        );
     }
 
     getMultipleChoiceAnswer() {
@@ -1176,11 +1184,12 @@ class TestApp {
     }
 
     checkMultipleChoiceAnswer(userAnswer) {
-        return userAnswer === this.currentQuestion.correct;
+        return userAnswer.toLowerCase() === this.currentQuestion.correct.toLowerCase();
     }
 
     checkTypeImgAnswer(userAnswer) {
-        return JSON.stringify(userAnswer) === JSON.stringify(this.currentQuestion.correct.split(','));
+        const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim().toLowerCase());
+        return userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
     }
 
     checkTypingAnswer(userAnswer) {
@@ -1192,6 +1201,12 @@ class TestApp {
         const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim().toLowerCase());
         return userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
     }
+
+    updateQuestionNumber() {
+        if (this.questionNumberElement) {
+            this.questionNumberElement.textContent = this.questionNumber;
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1201,6 +1216,8 @@ document.addEventListener('DOMContentLoaded', () => {
         app.init().catch(error => console.error("Error initializing app:", error));
     }
 });
+
+
 
 
 
