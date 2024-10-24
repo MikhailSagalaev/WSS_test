@@ -377,7 +377,7 @@ class TestApp {
     }
 
     async loadQuestions() {
-        console.log("ачало загрузки вопросов");
+        console.log("ачало за��рузки вопросов");
         try {
             const response = await fetch('/api/questions');
             const data = await response.json();
@@ -829,8 +829,8 @@ class TestApp {
         // Сохраняем прогресс в localStorage
         this.saveProgressToLocalStorage();
 
-        // Сохраняем прогресс в Airtable
-        this.saveProgressToAirtable();
+        // Отправляем прогресс в Airtable
+        this.sendProgress();
 
         if (this.questionsInCurrentSeries === 3) {
             this.evaluateSeries();
@@ -930,7 +930,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Ошика при отправе прогресса:", data.error);
+                console.error("Ошибка при отправке прогресса:", data.error);
             } else {
                 console.log("Прогресс успешно отправлен", progressData);
             }
