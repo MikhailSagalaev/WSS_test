@@ -28,7 +28,12 @@ class TestApp {
     async init() {
         if (this.isInitialized) return;
         this.isInitialized = true;
-
+    
+        if (this.userNotAuthorized) {
+            this.showUnavailableMessage("Пожалуйста, войдите в систему для прохождения теста.");
+            return;
+        }
+    
         try {
             await this.checkTestAvailability();
             await this.loadProgressFromAirtable();
@@ -61,9 +66,10 @@ class TestApp {
         console.log("Проверка доступности теста");
         if (!this.user || !this.user.login) {
             console.error("User or user login is not defined");
-            throw new Error("User not set");
+            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, войдите в систему.");
+            return;
         }
-
+    
         try {
             const response = await fetch('/api/checkTestAvailability', {
                 method: 'POST',
@@ -368,7 +374,7 @@ class TestApp {
                     const stage = (question.fields.Stage || '').toLowerCase();
                     if (stage === 'reading' || stage === 'listening') {
                         const audioUrl = question.fields.Audio ? question.fields.Audio[0].url : null;
-                        //console.log(`Во��ос ${question.id}: Audio URL - ${audioUrl}`);
+                        //console.log(`Воос ${question.id}: Audio URL - ${audioUrl}`);
                         this.questions[stage].push({
                             id: question.id,
                             stage: stage,
@@ -561,7 +567,7 @@ class TestApp {
         }
 
         if (!Array.isArray(pairs) || pairs.length === 0) {
-            this.questionContainer.innerHTML = `<p>Некорректные данные для со��осталения.</p>`;
+            this.questionContainer.innerHTML = `<p>Некорректные данные для соосталения.</p>`;
             return;
         }
 
@@ -754,7 +760,6 @@ class TestApp {
     isLatinInput(input) {
         return /^[a-zA-Z]*$/.test(input);
     }
-
     getUserAnswer() {
         const questionType = this.currentQuestion.questionType;
         
@@ -1060,7 +1065,7 @@ class TestApp {
             return `
                 <h3>Этап: ${result.stage}</h3>
                 <p>Целевой уровень: ${result.targetLevel}</p>
-                <p>Правильных ответов: ${result.correctCount}</p>
+                <p>Правильных отетов: ${result.correctCount}</p>
                 <p>Неправильных отвтов: ${result.incorrectCount}</p>
             `;
         }).join('');
@@ -1161,18 +1166,18 @@ class TestApp {
             const userProfileString = localStorage.getItem('tilda_members_profile10011255');
             if (userProfileString) {
                 const userProfile = JSON.parse(userProfileString);
-                if (userProfile && userProfile.email) {
-                    this.user = { login: userProfile.email };
+                if (userProfile && userProfile.login) {
+                    this.user = { login: userProfile.login };
                     console.log("User email set:", this.user.login);
                 } else {
-                    throw new Error("User email not found in profile");
+                    throw new Error("User login not found in profile");
                 }
             } else {
                 throw new Error("User profile not found in localStorage");
             }
         } catch (error) {
             console.error("Error setting user:", error);
-            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, войдите в систему.");
+            this.userNotAuthorized = true;
         }
     }
 }
@@ -1180,5 +1185,7 @@ class TestApp {
 document.addEventListener('DOMContentLoaded', () => {
     const app = new TestApp();
     app.setUser();
-    app.init().catch(error => console.error("Error initializing app:", error));
+    if (!app.userNotAuthorized) {
+        app.init().catch(error => console.error("Error initializing app:", error));
+    }
 });
