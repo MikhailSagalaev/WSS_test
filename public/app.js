@@ -98,7 +98,7 @@ class TestApp {
                 throw new Error("Test not available");
             }
         } catch (error) {
-            console.error("Ошибка при проверке доступности теста:", error);
+            console.error("Ошибка при проверке д��ступности теста:", error);
             this.showUnavailableMessage("Произошла ошибка при проверке доступности теста.");
             throw error;
         }
@@ -379,7 +379,7 @@ class TestApp {
                     console.warn(`Неизвестный этап для вопроса ${question.id}: ${stage}`);
                 }
             });
-            console.log('��агруженные вопросы:', this.questions);
+            console.log('агруженные вопросы:', this.questions);
         } catch (err) {
             console.error("Ошибка при загрузке вопросов:", err);
             throw err;
@@ -657,6 +657,7 @@ class TestApp {
     }
 
     renderMatchingWordsQuestion(question) {
+        console.log("Полные данные вопроса matchingWords:", JSON.stringify(question, null, 2));
         console.log("Рендеринг вопроса типа matchingWords:", question);
         
         if (!question.sentenceWithGaps || !question.wordOptions) {
