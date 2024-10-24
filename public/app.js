@@ -3,6 +3,7 @@
 class TestApp {
     constructor() {
         this.isInitialized = false;
+        this.stages = ['reading', 'listening']; // Add this line
         this.loadProgressFromLocalStorage();
         this.progressLoaded = false;
         this.init();
@@ -11,11 +12,16 @@ class TestApp {
     async init() {
         if (this.isInitialized) return;
         this.isInitialized = true;
-
-        await this.checkTestAvailability();
-        await this.loadProgressFromAirtable();
-        await this.loadQuestions();
-        this.loadQuestion();
+    
+        try {
+            await this.checkTestAvailability();
+            await this.loadProgressFromAirtable();
+            await this.loadQuestions();
+            this.loadQuestion();
+        } catch (error) {
+            console.error("Error during initialization:", error);
+            this.showUnavailableMessage("An error occurred while initializing the test.");
+        }
     }
 
     async loadProgressFromAirtable() {
@@ -160,7 +166,7 @@ class TestApp {
 
             console.log("Прогресс загруен из localStorage:", savedProgress);
         } else {
-            console.log("Нет сохранённого прогресса в localStorage. Начинаем новый тест.");
+            console.log("Нет с��хранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
             this.currentLevel = 1;
         }
@@ -453,7 +459,7 @@ class TestApp {
         }
         this.questionContainer.innerHTML = '';
 
-        // Добавляем текст вопроса
+        // Добавлям текст вопроса
         const questionTitle = document.createElement('h3');
         questionTitle.className = 'question-title';
         questionTitle.textContent = question.question;
@@ -1120,10 +1126,14 @@ class TestApp {
             this.loadNextQuestion();
         }
     }
+
+    setUser(user) {
+        this.user = user;
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const app = new TestApp();
-    //app.init();
+    app.setUser({ login: 'exampleUser' }); // Replace with actual user data
+    app.init().catch(error => console.error("Error initializing app:", error));
 });
-
