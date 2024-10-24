@@ -3,16 +3,32 @@
 class TestApp {
     constructor() {
         this.isInitialized = false;
-        this.stages = ['reading', 'listening']; // Add this line
+        this.stages = ['reading', 'listening'];
+        this.initializeElements();
         this.loadProgressFromLocalStorage();
         this.progressLoaded = false;
-        this.init();
+    }
+
+    initializeElements() {
+        this.questionContainer = document.getElementById('question-container');
+        this.submitBtn = document.getElementById('submit-btn');
+        this.timerElement = document.getElementById('timer');
+        
+        if (!this.questionContainer) {
+            console.error("Question container not found in the DOM");
+        }
+        if (!this.submitBtn) {
+            console.error("Submit button not found in the DOM");
+        }
+        if (!this.timerElement) {
+            console.error("Timer element not found in the DOM");
+        }
     }
 
     async init() {
         if (this.isInitialized) return;
         this.isInitialized = true;
-    
+
         try {
             await this.checkTestAvailability();
             await this.loadProgressFromAirtable();
@@ -21,6 +37,66 @@ class TestApp {
         } catch (error) {
             console.error("Error during initialization:", error);
             this.showUnavailableMessage("An error occurred while initializing the test.");
+        }
+    }
+
+    showUnavailableMessage(message) {
+        if (this.questionContainer) {
+            this.questionContainer.innerHTML = `
+                <div class="unavailable-message">
+                    <p>${message}</p>
+                    <a href="https://t.me/@mixadev" target="_blank">Связаться с администратором</a>
+                </div>
+            `;
+        } else {
+            console.error("Cannot show unavailable message: question container not found");
+        }
+        
+        if (this.submitBtn) {
+            this.submitBtn.style.display = 'none';
+        }
+    }
+
+    async checkTestAvailability() {
+        console.log("Проверка доступности теста");
+        if (!this.user || !this.user.login) {
+            console.error("User or user login is not defined");
+            throw new Error("User not set");
+        }
+
+        try {
+            const response = await fetch('/api/checkTestAvailability', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userLogin: this.user.login })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("Результат проверки доступности:", data);
+
+            if (data.available) {
+                await this.loadQuestions();
+                await this.loadProgressFromAirtable();
+                if (this.currentStageIndex === undefined || this.currentLevel === undefined) {
+                    console.error("Не удалось загрузить прогресс. Устанавливаем начальные значения.");
+                    this.currentStageIndex = 0;
+                    this.currentLevel = 1;
+                }
+                this.loadQuestion();
+            } else {
+                this.showUnavailableMessage("Тест в данный момент недоступен.");
+            }
+        } catch (error) {
+            console.error("Ошибка при проверке доступности теста:", error);
+            this.showUnavailableMessage("Произошла ошибка при проверке доступности теста.");
+        } finally {
+            this.hideLoading();
         }
     }
 
@@ -75,53 +151,6 @@ class TestApp {
         }
     }
 
-    async checkTestAvailability() {
-        console.log("Проверка доступноти теста");
-        try {
-            const response = await fetch('/api/checkTestAvailability', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ userLogin: this.user.login })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log("Результат проверки доступности:", data);
-
-            if (data.available) {
-                await this.loadQuestions();  // Добавьте эту строку
-                await this.loadProgressFromAirtable();
-                if (this.currentStageIndex === undefined || this.currentLevel === undefined) {
-                    console.error("Не удалось загрузить прогресс. Устанавливаем начальные значения.");
-                    this.currentStageIndex = 0;
-                    this.currentLevel = 1;
-                }
-                this.loadQuestion();
-            } else {
-                this.showUnavailableMessage("Тест в данный момент недоступен.");
-            }
-        } catch (error) {
-            console.error("Ошибка при проверке доступноси теста:", error);
-            this.showUnavailableMessage("Произошла ошибка при проверке доступности теста.");
-        } finally {
-            this.hideLoading();
-        }
-    }
-    showUnavailableMessage() {
-        this.questionContainer.innerHTML = `
-            <div class="unavailable-message">
-                <p>Тестирование не доступно. Обратитес к администратору.</p>
-                <a href="https://t.me/@mixadev" target="_blank">Связаться с администратором</a>
-            </div>
-        `;
-        this.submitBtn.style.display = 'none';
-    }
-
     // Метод для сохранения прогресса в localStorage
     saveProgressToLocalStorage() {
         const progress = {
@@ -166,7 +195,7 @@ class TestApp {
 
             console.log("Прогресс загруен из localStorage:", savedProgress);
         } else {
-            console.log("Нет с��хранённого прогресса в localStorage. Начинаем новый тест.");
+            console.log("Нет схранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
             this.currentLevel = 1;
         }
@@ -352,7 +381,7 @@ class TestApp {
                             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
                         });
                     } else {
-                        console.warn(`Неизвестный этап для вопроса ${question.id}: ${stage}`);
+                        console.warn(`��еизвестный этап для вопроса ${question.id}: ${stage}`);
                     }
                 });
                 console.log('Загруженные вопросы:', this.questions);
@@ -1007,7 +1036,7 @@ class TestApp {
         })
         .catch(error => {
             console.error("Ошибка при сбросе прогресса:", error);
-            alert("Произошла ошибка при сбросе прогресса. Пожалуйста, попробуйте ещ раз.");
+            alert("Произошла ошибка при сброс�� прогресса. Пожалуйста, попробуйте ещ раз.");
         });
     }
 
