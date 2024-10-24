@@ -363,7 +363,7 @@ class TestApp {
         return fetch('/api/questions')
             .then(response => response.json())
             .then(data => {
-                console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
+                //console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
                 if (!Array.isArray(data)) {
                     console.error("Некорректная структура данных вопросов:", data);
                     return;
