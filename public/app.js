@@ -140,6 +140,26 @@ class TestApp {
         }
     }
 
+    setProgress(progress) {
+        this.currentStageIndex = this.stages.indexOf(progress.stage);
+        this.currentLevel = progress.currentLevel || 1;
+        this.correctCount = progress.correctCount || 0;
+        this.incorrectCount = progress.incorrectCount || 0;
+        this.totalQuestions = progress.totalQuestions || 0;
+        this.correctHigherLevel = progress.correctHigherLevel || 0;
+        this.incorrectLowerLevel = progress.incorrectLowerLevel || 0;
+    }
+
+    setInitialProgress() {
+        this.currentStageIndex = 0;
+        this.currentLevel = 1;
+        this.correctCount = 0;
+        this.incorrectCount = 0;
+        this.totalQuestions = 0;
+        this.correctHigherLevel = 0;
+        this.incorrectLowerLevel = 0;
+    }
+
     // Метод для сохранения прогресса в localStorage
     saveProgressToLocalStorage() {
         const progress = {
