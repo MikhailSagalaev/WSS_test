@@ -379,7 +379,7 @@ class TestApp {
                     console.warn(`Неизвестный этап для вопроса ${question.id}: ${stage}`);
                 }
             });
-            console.log('а��уженные вопросы:', this.questions);
+            console.log('аенные вопросы:', this.questions);
         } catch (err) {
             console.error("Ошибка при загрузке вопросов:", err);
             throw err;
@@ -502,6 +502,7 @@ class TestApp {
                 this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
         }
         this.startTimer();
+        this.submitBtn.disabled = true; // Изначально кнопка неактивна для всех типов вопросов
     }
 
     selectAnswer(selectedElement) {
@@ -572,9 +573,8 @@ class TestApp {
         `;
 
         this.questionContainer.innerHTML = html;
-
-        // Инициализация Drag-and-Drop
         this.initializeDragAndDrop();
+        this.checkAllMatchesMade();
     }
 
     initializeDragAndDrop() {
@@ -612,9 +612,16 @@ class TestApp {
                     zone.appendChild(wordElement);
                     wordElement.setAttribute('draggable', 'false');
                     wordElement.style.cursor = 'default';
+                    this.checkAllMatchesMade();
                 }
             });
         });
+    }
+
+    checkAllMatchesMade() {
+        const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+        const allMatched = Array.from(dropZones).every(zone => zone.querySelector('.word-item'));
+        this.submitBtn.disabled = !allMatched;
     }
 
     renderTypeImgQuestion(question) {
@@ -643,6 +650,7 @@ class TestApp {
         });
         html += `</div>`;
         this.questionContainer.innerHTML = html;
+        this.addInputListeners();
         this.checkAllInputsFilled();
     }
 
@@ -682,6 +690,7 @@ class TestApp {
         `;
         this.questionContainer.innerHTML = html;
         this.initializeWordDragAndDrop();
+        this.checkAllWordsFilled();
     }
 
     initializeWordDragAndDrop() {
@@ -700,45 +709,42 @@ class TestApp {
                 e.preventDefault();
                 const word = e.dataTransfer.getData('text/plain');
                 zone.textContent = word;
-                this.checkAllInputsFilled();
+                this.checkAllWordsFilled();
             });
         });
+    }
+
+    checkAllWordsFilled() {
+        const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
+        const allFilled = Array.from(dropZones).every(zone => zone.textContent.trim() !== '');
+        this.submitBtn.disabled = !allFilled;
     }
 
     addInputListeners() {
         if (this.inputListenersAdded) return;
         this.inputListenersAdded = true;
 
-        const inputs = this.questionContainer.querySelectorAll('input[type="text"], .word-drop-zone');
+        const inputs = this.questionContainer.querySelectorAll('input[type="text"]');
         inputs.forEach(input => {
             input.addEventListener('input', (e) => {
-                if (input.tagName === 'INPUT' && !this.isLatinInput(e.target.value)) {
+                if (!this.isLatinInput(e.target.value)) {
                     e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '');
                 }
                 this.checkAllInputsFilled();
             });
-            input.addEventListener('drop', () => this.checkAllInputsFilled());
         });
-    }
-
-    checkAllInputsFilled() {
-        const questionType = this.currentQuestion.questionType;
-        let allFilled = false;
-
-        if (questionType === 'typeImg' || questionType === 'typing') {
-            const inputs = this.questionContainer.querySelectorAll('input[type="text"]');
-            allFilled = Array.from(inputs).every(input => input.value.trim() !== '');
-        } else if (questionType === 'matchingWords') {
-            const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
-            allFilled = Array.from(dropZones).every(zone => zone.textContent.trim() !== '');
-        }
-
-        this.submitBtn.disabled = !allFilled;
     }
 
     isLatinInput(input) {
         return /^[a-zA-Z]*$/.test(input);
     }
+
+    checkAllInputsFilled() {
+        const inputs = this.questionContainer.querySelectorAll('input[type="text"]');
+        const allFilled = Array.from(inputs).every(input => input.value.trim() !== '');
+        this.submitBtn.disabled = !allFilled;
+    }
+
     getUserAnswer() {
         switch (this.currentQuestion.questionType) {
             case 'multiple-choice':
@@ -848,7 +854,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Ошика при отправке прогресса:", data.error);
+                console.error("Ошика при отправе прогресса:", data.error);
             } else {
                 console.log("Прогресс успешно отправлен", progressData);
             }
@@ -958,7 +964,7 @@ class TestApp {
             console.log("Прогресс успешно сброшен:", data);
             // Очстка локального хранилища
             localStorage.removeItem('testProgress');
-            // Сброс локльных переменных
+            // Сбос локльных переменных
             this.currentStageIndex = 0;
             this.currentLevel = 1;
             this.correctCount = 0;
@@ -1003,7 +1009,7 @@ class TestApp {
                 <h3>Этап: ${result.stage}</h3>
                 <p>Целевой уровень: ${result.targetLevel}</p>
                 <p>Правильных отетов: ${result.correctCount}</p>
-                <p>Неправильных отвтов: ${result.incorrectCount}</p>
+                <p>Неправильных отвтв: ${result.incorrectCount}</p>
             `;
         }).join('');
 
@@ -1126,4 +1132,5 @@ document.addEventListener('DOMContentLoaded', () => {
         app.init().catch(error => console.error("Error initializing app:", error));
     }
 });
+
 
