@@ -116,7 +116,7 @@ class TestApp {
     }
 
     async checkTestAvailability() {
-        console.log("Проверка доступности теста");
+        console.log("Проверка доступноти теста");
         try {
             const response = await fetch('/api/checkTestAvailability', {
                 method: 'POST',
@@ -146,7 +146,7 @@ class TestApp {
                 this.showUnavailableMessage("Тест в данный момент недоступен.");
             }
         } catch (error) {
-            console.error("Ошибка при проверке доступности теста:", error);
+            console.error("Ошибка при проверке доступноси теста:", error);
             this.showUnavailableMessage("Произошла ошибка при проверке доступности теста.");
         } finally {
             this.hideLoading();
