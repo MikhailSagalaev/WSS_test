@@ -11,7 +11,9 @@ module.exports = async (req, res) => {
                 'Authorization': `Bearer ${AIRTABLE_PAT}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(req.body)
+            body: JSON.stringify({
+                fields: req.body
+            })
         });
 
         if (!response.ok) {

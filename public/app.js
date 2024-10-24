@@ -377,7 +377,7 @@ class TestApp {
     }
 
     async loadQuestions() {
-        console.log("ачало за��рузки вопросов");
+        console.log("ачало зарузки вопросов");
         try {
             const response = await fetch('/api/questions');
             const data = await response.json();
@@ -422,10 +422,10 @@ class TestApp {
     loadQuestion() {
         const currentLevel = this.levels[this.currentLevelIndex];
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${currentLevel}`);
+        console.log(`Загрузка вопроса для этап: ${currentStage}, уровня: ${currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
-        console.log(`Всего вопросов на этапе ${currentStage}:`, questionsForStage.length);
+        console.log(`Всего вопросов на ��тапе ${currentStage}:`, questionsForStage.length);
         
         const questionsForLevel = questionsForStage.filter(q => q.level === this.currentLevelIndex + 1);
         console.log(`Найдено вопросов на уровне ${currentLevel} для этапа ${currentStage}:`, questionsForLevel.length);
@@ -524,11 +524,11 @@ class TestApp {
                 this.renderMatchingWordsQuestion(question);
                 break;
             default:
-                console.error("Неизвестный тип вопроса:", question.questionType);
+                console.error("Неизвестый тип вопроса:", question.questionType);
                 this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
         }
         this.startTimer();
-        this.submitBtn.disabled = true; // Изначально кнопка неактивна для всех типов вопросов
+        this.submitBtn.disabled = true; // Изначально кнопка неактивна для всех типо�� вопросов
     }
 
     selectAnswer(selectedElement) {
@@ -836,9 +836,13 @@ class TestApp {
             this.evaluateSeries();
         }
 
-        if (this.questionsOnCurrentLevel >= 9) {
+        if (this.questionsOnCurrentLevel >= 27) {
             this.targetLevel = this.levels[this.currentLevelIndex];
-            this.finishTest();
+            if (this.currentStageIndex < this.stages.length - 1) {
+                this.finishStage();
+            } else {
+                this.finishTest();
+            }
         } else {
             this.loadQuestion();
         }
@@ -943,7 +947,7 @@ class TestApp {
     finishStage() {
         console.log(`Завершение этапа: ${this.stages[this.currentStageIndex]}`);
         const stage = this.stages[this.currentStageIndex];
-        const targetLevel = this.currentLevel;
+        const targetLevel = this.levels[this.currentLevelIndex];
 
         // Сохранение результатов этапа
         const stageResult = {
@@ -957,7 +961,7 @@ class TestApp {
 
         this.stagesResults.push(stageResult);
 
-        // Очистка счетчиков для следующег этапа
+        // Очистка счетчиков для следующего этапа
         this.correctCount = 0;
         this.incorrectCount = 0;
         this.totalQuestions = 0;
@@ -968,18 +972,14 @@ class TestApp {
         this.groupsAnswered = 0;
         this.questionsOnCurrentLevel = 0;
 
-        // Сбрасываем текущий вопрос
-        this.currentQuestion = null;
+        // Переход к следующему этапу
+        this.currentStageIndex++;
+        this.currentLevelIndex = 0; // Сбрасываем уровень для нового этапа
+        console.log(`Переход к этапу: ${this.stages[this.currentStageIndex]}`);
 
-        // Переход к следующему этау или завершение теста
-        if (this.currentStageIndex < this.stages.length - 1) {
-            this.currentStageIndex++;
-            this.loadQuestion();
-        } else {
-            this.finishTest();
-        }
         this.saveProgressToLocalStorage();
-        this.questionNumber = 0;
+        this.sendProgress();
+        this.loadQuestion();
     }
 
     finishTest() {
@@ -1119,12 +1119,10 @@ class TestApp {
     }
 
     sendResultsToAirtable() {
-        // Здесь должна быть логика отправки результатов в Airtable
-        // Пример:
         const data = {
             UserLogin: this.user.login,
-            FinishDate: new Date(),
-            StagesResults: this.stagesResults
+            FinishDate: new Date().toISOString(),
+            StagesResults: JSON.stringify(this.stagesResults)
         };
 
         fetch('/api/sendResults', {
@@ -1134,7 +1132,12 @@ class TestApp {
             },
             body: JSON.stringify(data)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(result => {
             console.log('Результаты успешно отправлены в Airtable:', result);
         })
