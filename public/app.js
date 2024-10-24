@@ -2,62 +2,20 @@
 
 class TestApp {
     constructor() {
-        // Извлечение объекта из localStorage
-        const storedUser = JSON.parse(localStorage.getItem('tilda_members_profile10011255')) || { login: 'anonymous' };
-        console.log("Инициализированный пользователь:", storedUser);
-
-        // Сохранение только поля login
-        this.user = {
-            login: storedUser.login
-        };
-
-        // Инициализация параметров теста
-        this.stagesResults = []; // Добавляем инициализацию массива для результатов этапов
-        this.currentStageIndex = 0; // 0: reading, 1: listening
-        this.stages = ['reading', 'listening'];
-        this.currentLevel = 1;
-        this.correctCount = 0;
-        this.incorrectCount = 0;
-        this.totalQuestions = 0;
-        this.questions = { reading: [], listening: [] };
-        this.correctHigherLevel = 0;
-        this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0; // Количество правильных ответ в текущей грп
-        this.groupTotalAnswers = 0; // Количество ответов в текущей группе
-        this.groupsAnswered = 0; // Количество завершённых групп
-        this.questionsOnCurrentLevel = 0;
-
-        // Шкала WSS
-        this.wssScale = this.initializeWssScale();
-
-        this.questionContainer = document.getElementById('question-container');
-        this.submitBtn = document.getElementById('submit-btn');
-        this.finishBtn = document.getElementById('finish-btn');
-        this.submitBtn.disabled = true;
-
-        this.questionInfo = document.getElementById('question-info');
-        this.timerElement = document.getElementById('timer');
-        this.currentQuestionNumber = 0;
-        this.timer = null;
-        this.timeLeft = 0;
-
-        this.submitBtn.addEventListener('click', () => this.handleSubmit());
-        this.finishBtn.addEventListener('click', () => this.resetProgress());
+        this.isInitialized = false;
         this.loadProgressFromLocalStorage();
         this.progressLoaded = false;
         this.init();
     }
 
     async init() {
-        try {
-            await this.checkTestAvailability();
-            if (!this.progressLoaded) {
-                await this.loadProgressFromAirtable();
-                this.progressLoaded = true;
-            }
-        } catch (error) {
-            console.error("Ошибка при инициализации:", error);
-        }
+        if (this.isInitialized) return;
+        this.isInitialized = true;
+
+        await this.checkTestAvailability();
+        await this.loadProgressFromAirtable();
+        await this.loadQuestions();
+        this.loadQuestion();
     }
 
     async loadProgressFromAirtable() {
@@ -723,6 +681,9 @@ class TestApp {
     }
 
     addInputListeners() {
+        if (this.inputListenersAdded) return;
+        this.inputListenersAdded = true;
+
         const inputs = this.questionContainer.querySelectorAll('input[type="text"], .word-drop-zone');
         inputs.forEach(input => {
             input.addEventListener('input', (e) => {
@@ -1031,7 +992,7 @@ class TestApp {
             this.currentQuestion = null;
             
             // Перезагрузка страницы или перезапус теста
-            this.init();
+            //this.init();
         })
         .catch(error => {
             console.error("Ошибка при сбросе прогресса:", error);
@@ -1158,6 +1119,6 @@ class TestApp {
 
 document.addEventListener('DOMContentLoaded', () => {
     const app = new TestApp();
-    app.init();
+    //app.init();
 });
 
