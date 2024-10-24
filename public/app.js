@@ -22,7 +22,7 @@ class TestApp {
         this.questions = { reading: [], listening: [] };
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0; // Количество правильных ответ в текущей груп
+        this.groupCorrectAnswers = 0; // Количество правильных ответ в текущей гр��п
         this.groupTotalAnswers = 0; // Количество ответов в текущей группе
         this.groupsAnswered = 0; // Количество завершённых групп
         this.questionsOnCurrentLevel = 0;
@@ -1130,6 +1130,33 @@ class TestApp {
 
     hideLoading() {
         document.getElementById('loading-indicator').style.display = 'none';
+    }
+
+    updateProgress(isCorrect) {
+        if (isCorrect) {
+            this.correctCount++;
+            this.groupCorrectAnswers++;
+            this.correctHigherLevel++;
+        } else {
+            this.incorrectCount++;
+            this.incorrectLowerLevel++;
+        }
+        this.totalQuestions++;
+        this.groupTotalAnswers++;
+        this.questionsOnCurrentLevel++;
+
+        this.saveProgressToLocalStorage();
+        this.sendProgress();
+
+        if (this.groupTotalAnswers >= 3) {
+            this.updateLevelBasedOnGroupResults();
+        }
+
+        if (this.questionsOnCurrentLevel >= 9) {
+            this.finishStage();
+        } else {
+            this.loadNextQuestion();
+        }
     }
 }
 
