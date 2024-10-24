@@ -98,7 +98,7 @@ class TestApp {
                 throw new Error("Test not available");
             }
         } catch (error) {
-            console.error("Ошибка при проверке д��ступности теста:", error);
+            console.error("Ошибка при проверке дступности теста:", error);
             this.showUnavailableMessage("Произошла ошибка при проверке доступности теста.");
             throw error;
         }
@@ -398,14 +398,15 @@ class TestApp {
             audio: question.fields.Audio ? question.fields.Audio[0].url : null,
             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
             sentenceWithGaps: question.fields.SentenceWithGaps,
-            wordOptions: question.fields.WordOptions ? question.fields.WordOptions.split(',').map(word => word.trim()) : []
+            wordOptions: question.fields.WordOptions,
+            matchPairs: question.fields.MatchPairs
         };
     }
 
     loadQuestion() {
         console.log("Загрузка вопроса");
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
+        console.log(`За��рузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
         if (!questionsForStage || questionsForStage.length === 0) {
@@ -535,7 +536,7 @@ class TestApp {
     }
 
     renderMatchingQuestion(question) {
-        console.log("Рендеринг matching вопроа");
+        console.log("Рендеринг matching вопроса");
         
         let pairs;
         try {
@@ -546,7 +547,7 @@ class TestApp {
         }
 
         if (!Array.isArray(pairs) || pairs.length === 0) {
-            this.questionContainer.innerHTML = `<p>Некорректные данные для соосталения.</p>`;
+            this.questionContainer.innerHTML = `<p>Некорректные данные для сопоставления.</p>`;
             return;
         }
 
@@ -580,13 +581,6 @@ class TestApp {
         const draggableElements = this.questionContainer.querySelectorAll('.word-item');
         const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
 
-        // Добавим эту функцию внути initializeDragAndDrop
-        const checkAllMatched = () => {
-            const allDropZones = this.questionContainer.querySelectorAll('.drop-zone');
-            const allMatched = Array.from(allDropZones).every(zone => zone.querySelector('.word-item'));
-            this.submitBtn.disabled = !allMatched;
-        };
-
         draggableElements.forEach(elem => {
             elem.addEventListener('dragstart', (e) => {
                 e.dataTransfer.setData('text/plain', elem.getAttribute('data-word'));
@@ -618,13 +612,9 @@ class TestApp {
                     zone.appendChild(wordElement);
                     wordElement.setAttribute('draggable', 'false');
                     wordElement.style.cursor = 'default';
-                    checkAllMatched(); // Проверяем, все ли сопоставлено
                 }
             });
         });
-
-        // Вызовем функцию в конце initializeDragAndDrop
-        checkAllMatched();
     }
 
     renderTypeImgQuestion(question) {
@@ -658,7 +648,6 @@ class TestApp {
 
     renderMatchingWordsQuestion(question) {
         console.log("Полные данные вопроса matchingWords:", JSON.stringify(question, null, 2));
-        console.log("Рендеринг вопроса типа matchingWords:", question);
         
         if (!question.sentenceWithGaps || !question.wordOptions) {
             console.error("Отсутствуют необходимые данные для вопроса типа matchingWords:", question);
@@ -884,7 +873,7 @@ class TestApp {
 
         this.stagesResults.push(stageResult);
 
-        // Очистка счетчиков для следующего этапа
+        // Очистка счетчиков для следующег этапа
         this.correctCount = 0;
         this.incorrectCount = 0;
         this.totalQuestions = 0;
@@ -965,7 +954,7 @@ class TestApp {
         })
         .then(data => {
             console.log("Прогресс успешно сброшен:", data);
-            // Очистка локального хранилища
+            // Оч��стка локального хранилища
             localStorage.removeItem('testProgress');
             // Сброс локльных переменных
             this.currentStageIndex = 0;
