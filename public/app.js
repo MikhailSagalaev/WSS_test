@@ -192,7 +192,7 @@ class TestApp {
             questionsOnCurrentLevel: this.questionsOnCurrentLevel
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
-        console.log("П��гесс сохранён в localStorage:", progress);
+        console.log("Пгесс сохранён в localStorage:", progress);
     }
 
     // Метод д зарзки прореса з localStorage
@@ -402,7 +402,6 @@ class TestApp {
     }
 
     formatQuestion(question) {
-        console.log("Форматирование вопроса:", question);
         const formattedQuestion = {
             id: question.id,
             stage: question.fields.Stage.toLowerCase(),
@@ -417,7 +416,6 @@ class TestApp {
             wordOptions: question.fields.WordOptions,
             matchPairs: question.fields.MatchPairs
         };
-        console.log("Отформатированный вопрос:", formattedQuestion);
         return formattedQuestion;
     }
 
@@ -821,20 +819,62 @@ class TestApp {
         if (isCorrect) {
             this.correctInCurrentSeries++;
             this.correctOnCurrentLevel++;
+            this.correctCount++;
+        } else {
+            this.incorrectCount++;
         }
 
         this.updateQuestionNumber();
+
+        // Сохраняем прогресс в localStorage
+        this.saveProgressToLocalStorage();
+
+        // Сохраняем прогресс в Airtable
+        this.saveProgressToAirtable();
 
         if (this.questionsInCurrentSeries === 3) {
             this.evaluateSeries();
         }
 
-        if (this.questionsOnCurrentLevel >= 9) {
+        if (this.questionsOnCurrentLevel >= 27) {
             this.targetLevel = this.levels[this.currentLevelIndex];
             this.finishTest();
         } else {
             this.loadQuestion();
         }
+    }
+
+    saveProgressToAirtable() {
+        const progress = {
+            userLogin: this.user.login,
+            stage: this.stages[this.currentStageIndex],
+            currentLevel: this.levels[this.currentLevelIndex],
+            correctCount: this.correctCount,
+            incorrectCount: this.incorrectCount,
+            totalQuestions: this.totalQuestions,
+            correctOnCurrentLevel: this.correctOnCurrentLevel,
+            correctOnHigherLevel: this.correctOnHigherLevel,
+            incorrectOnLowerLevel: this.incorrectOnLowerLevel
+        };
+
+        fetch('/api/saveProgress', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(progress)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error("Ошибка при сохранении прогресса в Airtable:", data.error);
+            } else {
+                console.log("Прогресс успешно сохранен в Airtable");
+            }
+        })
+        .catch(error => {
+            console.error("Ошибка при сохранении прогресса в Airtable:", error);
+        });
     }
 
     evaluateSeries() {
