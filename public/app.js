@@ -35,9 +35,16 @@ class TestApp {
         }
     
         try {
+            // 1. Проверка доступности теста
             await this.checkTestAvailability();
+            
+            // 2. Подгрузка прогресса из Airtable
             await this.loadProgressFromAirtable();
+            
+            // 3. Загрузка вопросов соответствующих этапу
             await this.loadQuestions();
+            
+            // 4. Рендеринг вопроса в зависимости от его типа
             this.loadQuestion();
         } catch (error) {
             console.error("Error during initialization:", error);
@@ -86,23 +93,14 @@ class TestApp {
             const data = await response.json();
             console.log("Результат проверки доступности:", data);
 
-            if (data.available) {
-                await this.loadQuestions();
-                await this.loadProgressFromAirtable();
-                if (this.currentStageIndex === undefined || this.currentLevel === undefined) {
-                    console.error("Не удалось загрузить прогресс. Устанавливаем начальные значения.");
-                    this.currentStageIndex = 0;
-                    this.currentLevel = 1;
-                }
-                this.loadQuestion();
-            } else {
+            if (!data.available) {
                 this.showUnavailableMessage("Тест в данный момент недоступен.");
+                throw new Error("Test not available");
             }
         } catch (error) {
             console.error("Ошибка при проверке доступности теста:", error);
             this.showUnavailableMessage("Произошла ошибка при проверке доступности теста.");
-        } finally {
-            this.hideLoading();
+            throw error;
         }
     }
 
@@ -127,23 +125,10 @@ class TestApp {
                 throw new Error(data.error);
             } else if (data.progress) {
                 console.log("Прогресс получен из Airtable:", data.progress);
-                const stageIndex = this.stages.indexOf(data.progress.Stage);
-                this.currentStageIndex = stageIndex !== -1 ? stageIndex : 0;
-                this.currentLevel = data.progress.currentLevel || 1;
-                this.correctCount = data.progress.CorrectCount || 0;
-                this.incorrectCount = data.progress.IncorrectCount || 0;
-                this.totalQuestions = data.progress.TotalQuestions || 0;
-                this.correctHigherLevel = data.progress.CorrectHigherLevel || 0;
-                this.incorrectLowerLevel = data.progress.IncorrectLowerLevel || 0;
+                this.setProgress(data.progress);
             } else {
                 console.log("Прогресс не найден. Начинаем новый этап.");
-                this.currentStageIndex = 0;
-                this.currentLevel = 1;
-            }
-
-            if (this.currentStageIndex === -1) {
-                console.warn("Неизвестный этап. Устанавливаем начальный этап.");
-                this.currentStageIndex = 0;
+                this.setInitialProgress();
             }
 
             console.log("Текущий этап:", this.stages[this.currentStageIndex]);
@@ -151,9 +136,7 @@ class TestApp {
 
         } catch (error) {
             console.error("Ошибка при загрузке прогресса из Airtable:", error);
-            // В случае ошибки, устанавливаем значения по умолчанию
-            this.currentStageIndex = 0;
-            this.currentLevel = 1;
+            this.setInitialProgress();
         }
     }
 
@@ -360,80 +343,53 @@ class TestApp {
 
     async loadQuestions() {
         console.log("Начало загрузки вопросов");
-        return fetch('/api/questions')
-            .then(response => response.json())
-            .then(data => {
-                //console.log("Полученные данные вопросов:", JSON.stringify(data, null, 2));
-                if (!Array.isArray(data)) {
-                    console.error("Некорректная структура данных вопросов:", data);
-                    return;
+        try {
+            const response = await fetch('/api/questions');
+            const data = await response.json();
+            if (!Array.isArray(data)) {
+                throw new Error("Некорректная структура данных вопросов");
+            }
+            console.log("Вопросы загружены:", data.length);
+            this.questions = { reading: [], listening: [] };
+            data.forEach(question => {
+                const stage = (question.fields.Stage || '').toLowerCase();
+                if (stage === 'reading' || stage === 'listening') {
+                    this.questions[stage].push(this.formatQuestion(question));
+                } else {
+                    console.warn(`Неизвестный этап для вопроса ${question.id}: ${stage}`);
                 }
-                console.log("Вопросы загружены:", data.length);
-                this.questions = { reading: [], listening: [] };
-                data.forEach(question => {
-                    const stage = (question.fields.Stage || '').toLowerCase();
-                    if (stage === 'reading' || stage === 'listening') {
-                        const audioUrl = question.fields.Audio ? question.fields.Audio[0].url : null;
-                        //console.log(`Воос ${question.id}: Audio URL - ${audioUrl}`);
-                        this.questions[stage].push({
-                            id: question.id,
-                            stage: stage,
-                            level: parseInt(question.fields.Level, 10),
-                            questionType: question.fields["Question Type"],
-                            question: question.fields.Question,
-                            answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
-                            correct: question.fields.Correct,
-                            audio: audioUrl,
-                            timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
-                        });
-                    } else {
-                        console.warn(`еизвестный этап для вопроса ${question.id}: ${stage}`);
-                    }
-                });
-                console.log('Загруженные вопросы:', this.questions);
-            })
-            .catch(err => {
-                console.error("Ошибка при загрузке вопросов:", err);
             });
+            console.log('Загруженные вопросы:', this.questions);
+        } catch (err) {
+            console.error("Ошибка при загрузке вопросов:", err);
+            throw err;
+        }
     }
 
     loadQuestion() {
         console.log("Загрузка вопроса");
-        if (this.currentStageIndex === undefined || this.currentLevel === undefined) {
-            console.error("currentStageIndex или currentLevel не определены");
-            return;
-        }
-
         const currentStage = this.stages[this.currentStageIndex];
         console.log(`Загрузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
-        if (!questionsForStage || !Array.isArray(questionsForStage) || questionsForStage.length === 0) {
+        if (!questionsForStage || questionsForStage.length === 0) {
             console.error(`Нет вопросов для этапа ${currentStage}`);
             this.finishStage();
             return;
         }
-        console.log(`Всего вопросов на этапе ${currentStage}: ${questionsForStage.length}`);
 
         const questionsForLevel = questionsForStage.filter(q => q.level === this.currentLevel);
-        console.log(`Найдено вопросов на уровне ${this.currentLevel} для этапа ${currentStage}: ${questionsForLevel.length}`);
-
         if (questionsForLevel.length === 0) {
             console.error(`Нет вопросов на уровне ${this.currentLevel} для этапа ${currentStage}`);
             this.finishStage();
             return;
         }
 
-        // Перемешаем вопросы для текущего уровня
         const shuffledQuestions = this.shuffleArray([...questionsForLevel]);
         this.currentQuestion = shuffledQuestions[0];
         console.log("Текущий вопрос:", this.currentQuestion);
 
         if (this.currentQuestion) {
-            this.currentQuestionNumber++;
-            document.getElementById('question-number').textContent = this.currentQuestionNumber;
-            this.updateQuestionInfo();
-            this.startTimer();
             this.renderQuestion(this.currentQuestion);
         } else {
             console.error("Не удалось загрузить вопрос");
