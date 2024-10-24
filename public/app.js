@@ -22,7 +22,7 @@ class TestApp {
         this.questions = { reading: [], listening: [] };
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0; // Количество правильных ответ в текущей гр��п
+        this.groupCorrectAnswers = 0; // Количество правильных ответ в текущей грп
         this.groupTotalAnswers = 0; // Количество ответов в текущей группе
         this.groupsAnswered = 0; // Количество завершённых групп
         this.questionsOnCurrentLevel = 0;
@@ -44,11 +44,7 @@ class TestApp {
         this.submitBtn.addEventListener('click', () => this.handleSubmit());
         this.finishBtn.addEventListener('click', () => this.resetProgress());
         this.loadProgressFromLocalStorage();
-        this.checkTestAvailability();
-        this.loadProgressFromAirtable();
-
         this.progressLoaded = false;
-
         this.init();
     }
 
@@ -87,7 +83,7 @@ class TestApp {
                 console.log("Прогресс получен из Airtable:", data.progress);
                 const stageIndex = this.stages.indexOf(data.progress.Stage);
                 this.currentStageIndex = stageIndex !== -1 ? stageIndex : 0;
-                this.currentLevel = data.progress.Level || 1;
+                this.currentLevel = data.progress.currentLevel || 1;
                 this.correctCount = data.progress.CorrectCount || 0;
                 this.incorrectCount = data.progress.IncorrectCount || 0;
                 this.totalQuestions = data.progress.TotalQuestions || 0;
@@ -374,7 +370,7 @@ class TestApp {
                     const stage = (question.fields.Stage || '').toLowerCase();
                     if (stage === 'reading' || stage === 'listening') {
                         const audioUrl = question.fields.Audio ? question.fields.Audio[0].url : null;
-                        console.log(`Вопрос ${question.id}: Audio URL - ${audioUrl}`);
+                        //console.log(`Вопрос ${question.id}: Audio URL - ${audioUrl}`);
                         this.questions[stage].push({
                             id: question.id,
                             stage: stage,
@@ -415,7 +411,7 @@ class TestApp {
         }
         console.log(`Всего вопросов на этапе ${currentStage}: ${questionsForStage.length}`);
 
-        const questionsForLevel = questionsForStage.filter(q => parseInt(q.level, 10) === this.currentLevel);
+        const questionsForLevel = questionsForStage.filter(q => q.level === this.currentLevel);
         console.log(`Найдено вопросов на уровне ${this.currentLevel} для этапа ${currentStage}: ${questionsForLevel.length}`);
 
         if (questionsForLevel.length === 0) {
@@ -1120,7 +1116,7 @@ class TestApp {
             console.log('Результаты успешно отправлены в Airtable:', result);
         })
         .catch(error => {
-            console.error('Ошибка при отправке результатов в Airtable:', error);
+            console.error('Ошибка при отправке реультатов в Airtable:', error);
         });
     }
 
