@@ -379,7 +379,7 @@ class TestApp {
                     console.warn(`Неизвестный этап для вопроса ${question.id}: ${stage}`);
                 }
             });
-            console.log('агруженные вопросы:', this.questions);
+            console.log('а��уженные вопросы:', this.questions);
         } catch (err) {
             console.error("Ошибка при загрузке вопросов:", err);
             throw err;
@@ -406,7 +406,7 @@ class TestApp {
     loadQuestion() {
         console.log("Загрузка вопроса");
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`За��рузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
+        console.log(`Зарузка вопроса для этапа: ${currentStage}, уровня: ${this.currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
         if (!questionsForStage || questionsForStage.length === 0) {
@@ -656,6 +656,8 @@ class TestApp {
         }
 
         const words = question.sentenceWithGaps.split('_');
+        const wordOptions = question.wordOptions.split(',').map(word => word.trim());
+
         let html = `
             <div class="matching-words-question">
                 <h2>${question.question}</h2>
@@ -671,7 +673,7 @@ class TestApp {
                 </div>
                 <div class="word-options">
         `;
-        question.wordOptions.forEach(word => {
+        wordOptions.forEach(word => {
             html += `<div class="word-option" draggable="true">${word}</div>`;
         });
         html += `
@@ -954,7 +956,7 @@ class TestApp {
         })
         .then(data => {
             console.log("Прогресс успешно сброшен:", data);
-            // Оч��стка локального хранилища
+            // Очстка локального хранилища
             localStorage.removeItem('testProgress');
             // Сброс локльных переменных
             this.currentStageIndex = 0;
