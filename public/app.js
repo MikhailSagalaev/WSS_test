@@ -379,7 +379,7 @@ class TestApp {
                     console.warn(`Неизвестный этап для вопроса ${question.id}: ${stage}`);
                 }
             });
-            console.log('Загруженные вопросы:', this.questions);
+            console.log('��агруженные вопросы:', this.questions);
         } catch (err) {
             console.error("Ошибка при загрузке вопросов:", err);
             throw err;
@@ -396,7 +396,9 @@ class TestApp {
             answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
             correct: question.fields.Correct,
             audio: question.fields.Audio ? question.fields.Audio[0].url : null,
-            timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null
+            timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
+            sentenceWithGaps: question.fields.SentenceWithGaps,
+            wordOptions: question.fields.WordOptions ? question.fields.WordOptions.split(',').map(word => word.trim()) : []
         };
     }
 
@@ -655,9 +657,18 @@ class TestApp {
     }
 
     renderMatchingWordsQuestion(question) {
+        console.log("Рендеринг вопроса типа matchingWords:", question);
+        
+        if (!question.sentenceWithGaps || !question.wordOptions) {
+            console.error("Отсутствуют необходимые данные для вопроса типа matchingWords:", question);
+            this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь к администратору.");
+            return;
+        }
+
         const words = question.sentenceWithGaps.split('_');
         let html = `
             <div class="matching-words-question">
+                <h2>${question.question}</h2>
                 <div class="sentence-with-gaps">
         `;
         words.forEach((word, index) => {
@@ -679,7 +690,6 @@ class TestApp {
         `;
         this.questionContainer.innerHTML = html;
         this.initializeWordDragAndDrop();
-        this.checkAllInputsFilled();
     }
 
     initializeWordDragAndDrop() {
@@ -846,7 +856,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Оши��ка при отправке прогресса:", data.error);
+                console.error("Ошика при отправке прогресса:", data.error);
             } else {
                 console.log("Прогресс успешно отправлен", progressData);
             }
