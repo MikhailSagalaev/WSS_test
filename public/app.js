@@ -91,7 +91,7 @@ class TestApp {
         console.log("Проверка доступности теста");
         if (!this.user || !this.user.login) {
             console.error("User or user login is not defined");
-            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, ��дите в систему.");
+            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, дите в систему.");
             return;
         }
     
@@ -1004,11 +1004,20 @@ class TestApp {
         // Формируем финальные данные
         const completionData = {
             userLogin: this.user.login,
-            stagesResults: this.stagesResults,
-            finishDate: new Date().toISOString(),
+            stage: this.stages[this.currentStageIndex],
+            level: this.levels[this.currentLevelIndex],
+            correctCount: this.correctCount,
+            incorrectCount: this.incorrectCount,
+            totalQuestions: this.totalQuestions,
+            correctHigherLevel: this.correctHigherLevel,
+            incorrectLowerLevel: this.incorrectLowerLevel,
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
+            timestamp: new Date().toISOString(),
             finalWss: finalWss,
             finalLevel: finalLevel
         };
+
+        console.log("Отправляемые данные завершения теста:", completionData);
 
         // Отправляем результаты
         fetch('/api/complete', {
@@ -1018,22 +1027,25 @@ class TestApp {
             },
             body: JSON.stringify(completionData)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                console.error("Ошибка при завершении тест:", data.error);
-            } else {
-                console.log("Тест успешно завершён:", data);
-                // Отправляем результаты в Airtable
-                this.sendResultsToAirtable();
-                // Показываем результаты пользователю
-                this.showResults();
-                // Сбрасываем прогресс
-                this.resetProgress();
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
             }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Тест успешно завершён:", data);
+            // Отправляем результаты в Airtable
+            this.sendResultsToAirtable();
+            // Показываем результаты пользователю
+            this.showResults();
+            // Сбрасываем прогресс
+            this.resetProgress();
         })
         .catch(err => {
             console.error("Ошибка при завершении теста:", err);
+            // Показываем пользователю сообщение об ошибке
+            alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
         });
     }
 
