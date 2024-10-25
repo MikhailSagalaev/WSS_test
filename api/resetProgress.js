@@ -1,4 +1,3 @@
-
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
@@ -37,7 +36,7 @@ module.exports = async (req, res) => {
         const updateData = {
             fields: {
                 CurrentStageIndex: 0,
-                CurrentLevel: 1,
+                CurrentLevel: 'pre-A1',
                 CorrectCount: 0,
                 IncorrectCount: 0,
                 TotalQuestions: 0,
@@ -60,6 +59,8 @@ module.exports = async (req, res) => {
         });
 
         if (!updateResponse.ok) {
+            const errorData = await updateResponse.json();
+            console.error('Ошибка при обновлении Airtable:', errorData);
             throw new Error(`Ошибка при обновлении Airtable: ${updateResponse.status} ${updateResponse.statusText}`);
         }
 

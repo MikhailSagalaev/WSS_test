@@ -91,7 +91,7 @@ class TestApp {
         console.log("Проверка доступности теста");
         if (!this.user || !this.user.login) {
             console.error("User or user login is not defined");
-            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, дите в систему.");
+            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, ите в систем.");
             return;
         }
     
@@ -831,8 +831,14 @@ class TestApp {
             this.correctInCurrentSeries++;
             this.correctOnCurrentLevel++;
             this.correctCount++;
+            if (this.currentLevelIndex > this.initialLevelIndex) {
+                this.correctHigherLevel++;
+            }
         } else {
             this.incorrectCount++;
+            if (this.currentLevelIndex < this.initialLevelIndex) {
+                this.incorrectLowerLevel++;
+            }
         }
 
         this.updateQuestionNumber();
@@ -847,13 +853,8 @@ class TestApp {
             this.evaluateSeries();
         }
 
-        if (this.questionsOnCurrentLevel >= 9) {
-            this.targetLevel = this.levels[this.currentLevelIndex];
-            if (this.currentStageIndex < this.stages.length - 1) {
-                this.finishStage();
-            } else {
-                this.finishTest();
-            }
+        if (this.questionsOnCurrentLevel >= 9 || this.totalQuestions >= 30) {
+            this.finishStage();
         } else {
             this.loadQuestion();
         }
@@ -957,12 +958,12 @@ class TestApp {
             // Можно добавить пользовательское уведомление об ошибке здесь
         });
     }
-
+    
     finishStage() {
         console.log(`Завершение этапа: ${this.stages[this.currentStageIndex]}`);
         const stage = this.stages[this.currentStageIndex];
         const targetLevel = this.levels[this.currentLevelIndex];
-
+    
         // Сохранение результатов этапа
         const stageResult = {
             stage: stage,
@@ -970,51 +971,42 @@ class TestApp {
             correctCount: this.correctCount,
             incorrectCount: this.incorrectCount,
             totalQuestions: this.totalQuestions,
+            correctHigherLevel: this.correctHigherLevel,
+            incorrectLowerLevel: this.incorrectLowerLevel,
             timestamp: new Date().toISOString()
         };
-
+    
         this.stagesResults.push(stageResult);
-
+    
         // Очистка счетчиков для следующего этапа
         this.correctCount = 0;
         this.incorrectCount = 0;
         this.totalQuestions = 0;
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
-        this.groupCorrectAnswers = 0;
-        this.groupTotalAnswers = 0;
-        this.groupsAnswered = 0;
         this.questionsOnCurrentLevel = 0;
-
-        // Переход к следующему этапу
-        this.currentStageIndex++;
-        this.currentLevelIndex = 0; // Сбрасываем уровень для нового этапа
-        console.log(`Переход к этапу: ${this.stages[this.currentStageIndex]}`);
-
-        this.saveProgressToLocalStorage();
-        this.sendProgress();
-        this.loadQuestion();
+    
+        // Переход к следующему этапу или завершение теста
+        if (this.currentStageIndex < this.stages.length - 1) {
+            this.currentStageIndex++;
+            this.loadQuestion();
+        } else {
+            this.finishTest();
+        }
     }
 
     finishTest() {
-        // Вычисляем финальный WSS и уровень
+        // Рассчитываем финальный WSS и уровень
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         
         // Формируем финальные данные
         const completionData = {
             userLogin: this.user.login,
-            stage: this.stages[this.currentStageIndex],
-            level: this.levels[this.currentLevelIndex],
-            correctCount: this.correctCount,
-            incorrectCount: this.incorrectCount,
-            totalQuestions: this.totalQuestions,
-            correctHigherLevel: this.correctHigherLevel,
-            incorrectLowerLevel: this.incorrectLowerLevel,
-            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
-            timestamp: new Date().toISOString(),
+            stagesResults: this.stagesResults,
             finalWss: finalWss,
-            finalLevel: finalLevel
+            finalLevel: finalLevel,
+            timestamp: new Date().toISOString()
         };
 
         console.log("Отправляемые данные завершения теста:", completionData);
@@ -1042,7 +1034,6 @@ class TestApp {
         })
         .catch(err => {
             console.error("Ошибка при завершении теста:", err);
-            // Показываем пользователю сообщение об ошибке
             alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
         });
     }
@@ -1063,11 +1054,11 @@ class TestApp {
         })
         .then(data => {
             console.log("Прогресс успешно сброшен:", data);
-            // Очстка локального хранилища
+            // Очистка локального хранилища
             localStorage.removeItem('testProgress');
-            // Сбос локльных переменных
+            // Сброс локальных переменных
             this.currentStageIndex = 0;
-            this.currentLevel = 1;
+            this.currentLevel = 'pre-A1';
             this.correctCount = 0;
             this.incorrectCount = 0;
             this.totalQuestions = 0;
@@ -1080,12 +1071,12 @@ class TestApp {
             this.stagesResults = [];
             this.currentQuestion = null;
             
-            // Перезагрузка страницы или перезапус теста
-            //this.init();
+            // Перезагрузка страницы или перезапуск теста
+            window.location.reload();
         })
         .catch(error => {
             console.error("Ошибка при сбросе прогресса:", error);
-            alert("Произошла ошибка при сброс прогресса. Пожалуйста, попрбуйте ещ аз.");
+            alert("Произошла ошибка при сбросе прогресса. Пожалуйста, попробуйте еще раз.");
         });
     }
 
