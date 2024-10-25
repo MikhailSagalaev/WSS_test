@@ -24,6 +24,11 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Недостаточно данных для завершения теста' });
     }
 
+    const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_USERS_TABLE, AIRTABLE_STORY_TABLE } = process.env;
+
+    const usersUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}`;
+    const storyUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_STORY_TABLE)}`;
+
     try {
         // Шаг 1: Запись результатов в таблицу Story
         console.log("Создание записи в таблицу Story");
@@ -60,11 +65,6 @@ module.exports = async (req, res) => {
         const newStoryRecord = await createStoryResponse.json();
         console.log("Запись успешно создана в Story:", newStoryRecord);
 
-        const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_USERS_TABLE, AIRTABLE_STORY_TABLE } = process.env;
-
-        const usersUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}`;
-        const storyUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_STORY_TABLE)}`;
-
         // Шаг 2: Обновление поля TestAttempts в таблице Users
         const userFilterFormula = `({login} = "${userLogin}")`;
         const userFetchUrl = `${usersUrl}?filterByFormula=${encodeURIComponent(userFilterFormula)}`;
@@ -88,7 +88,7 @@ module.exports = async (req, res) => {
 
         if (userDataResponse.records.length === 0) {
             console.error(`Пользователь с login ${userLogin} не найден в таблице Users`);
-            return res.status(404).json({ error: `Пользователь с login ${userLogin} не на��ден` });
+            return res.status(404).json({ error: `Пользователь с login ${userLogin} не найден` });
         }
 
         const userRecord = userDataResponse.records[0];
