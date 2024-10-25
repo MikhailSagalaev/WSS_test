@@ -21,6 +21,7 @@ class TestApp {
         this.correctOnHigherLevel = 0;
         this.incorrectOnLowerLevel = 0;
         this.targetLevel = null;
+        this.updateQuestionNumber();
     }
 
     initializeElements() {
@@ -377,7 +378,7 @@ class TestApp {
     }
 
     async loadQuestions() {
-        console.log("ачало зарузки вопросов");
+        console.log("ачало зарузк�� вопросов");
         try {
             const response = await fetch('/api/questions');
             const data = await response.json();
@@ -425,7 +426,7 @@ class TestApp {
         console.log(`Загрузка вопроса для этап: ${currentStage}, уровня: ${currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
-        console.log(`Всего вопросов на ��тапе ${currentStage}:`, questionsForStage.length);
+        console.log(`Всего вопросов на тапе ${currentStage}:`, questionsForStage.length);
         
         const questionsForLevel = questionsForStage.filter(q => q.level === this.currentLevelIndex + 1);
         console.log(`Найдено вопросов на уровне ${currentLevel} для этапа ${currentStage}:`, questionsForLevel.length);
@@ -441,6 +442,7 @@ class TestApp {
         console.log("Текущий вопрос:", this.currentQuestion);
 
         this.renderQuestion(this.currentQuestion);
+        this.updateQuestionNumber();
     }
 
     updateQuestionInfo() {
@@ -528,7 +530,7 @@ class TestApp {
                 this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
         }
         this.startTimer();
-        this.submitBtn.disabled = true; // Изначально кнопка неактивна для всех типо�� вопросов
+        this.submitBtn.disabled = true; // Изначально кнопка неактивна для всех типо вопросов
     }
 
     selectAnswer(selectedElement) {
@@ -1257,8 +1259,9 @@ class TestApp {
     }
 
     updateQuestionNumber() {
-        if (this.questionNumberElement) {
-            this.questionNumberElement.textContent = this.totalQuestions + 1;
+        const questionNumberElement = document.getElementById('question-number');
+        if (questionNumberElement) {
+            questionNumberElement.textContent = this.totalQuestions + 1;
         }
     }
 
