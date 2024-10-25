@@ -44,6 +44,8 @@ class TestApp {
         if (this.isInitialized) return;
         this.isInitialized = true;
     
+        this.setUser(); // Initialize user data
+    
         if (this.userNotAuthorized) {
             this.showUnavailableMessage("Пожалуйста, войдите в систему для прохождения теста.");
             return;
@@ -63,7 +65,7 @@ class TestApp {
             this.loadQuestion();
         } catch (error) {
             console.error("Error during initialization:", error);
-            this.showUnavailableMessage("An error occurred while initializing the test.");
+            this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжитесь с администратором.");
         }
     }
     
@@ -153,7 +155,7 @@ class TestApp {
     
         } catch (error) {
             console.error("Ошибка при загрузке прогресса из Airtable:", error);
-            this.loadProgressFromLocalStorage(); // Загружаем из localStorage только если не удалось загрузить из Airtable
+            this.loadProgressFromLocalStorage(); // Загружаем из localStorage только если н удалось загрузить из Airtable
         }
     }
     setProgress(progress) {
@@ -190,7 +192,8 @@ class TestApp {
             groupCorrectAnswers: this.groupCorrectAnswers,
             groupTotalAnswers: this.groupTotalAnswers,
             groupsAnswered: this.groupsAnswered,
-            questionsOnCurrentLevel: this.questionsOnCurrentLevel
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
+            currentLevelIndex: this.currentLevelIndex,
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
         console.log("Пгесс сохранён в localStorage:", progress);
@@ -211,6 +214,7 @@ class TestApp {
             this.groupTotalAnswers = savedProgress.groupTotalAnswers ?? 0;
             this.groupsAnswered = savedProgress.groupsAnswered ?? 0;
             this.questionsOnCurrentLevel = savedProgress.questionsOnCurrentLevel ?? 0;
+            this.currentLevelIndex = savedProgress.currentLevelIndex ?? 0;
             if (!this.stages) {
                 console.error("Stages are not initialized.");
                 this.currentStageIndex = 0; // or handle it as needed
@@ -378,14 +382,14 @@ class TestApp {
     }
 
     async loadQuestions() {
-        console.log("ачало зарузк�� вопросов");
+        console.log("Начало загрузки вопросов");
         try {
             const response = await fetch('/api/questions');
             const data = await response.json();
             if (!Array.isArray(data)) {
                 throw new Error("Некорректная структура данных вопросов");
             }
-            console.log("Вопроы агружены:", data.length);
+            console.log("Вопросы загружены:", data.length);
             this.questions = { reading: [], listening: [] };
             data.forEach(question => {
                 const stage = (question.fields.Stage || '').toLowerCase();
@@ -395,7 +399,7 @@ class TestApp {
                     console.warn(`Неизвестный этап для вопроса ${question.id}: ${stage}`);
                 }
             });
-            console.log('аенные вопросы:', this.questions);
+            console.log('Отформатированные вопросы:', this.questions);
         } catch (err) {
             console.error("Ошибка при загрузке вопросов:", err);
             throw err;
@@ -1067,7 +1071,7 @@ class TestApp {
         });
     }
 
-    // Мето для обновленя уровня на основе результатов группы
+    // Мето для обновленя уровня на основе результатов групп��
     updateLevelBasedOnGroupResults() {
         if (this.groupCorrectAnswers === 1) {
             this.currentLevel = Math.max(1, this.currentLevel - 1);
