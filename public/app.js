@@ -91,7 +91,7 @@ class TestApp {
         console.log("Проверка доступности теста");
         if (!this.user || !this.user.login) {
             console.error("User or user login is not defined");
-            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, войдите в систему.");
+            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, ��йдите в систему.");
             return;
         }
     
@@ -530,7 +530,7 @@ class TestApp {
                 this.renderMatchingWordsQuestion(question);
                 break;
             default:
-                console.error("Неизвестый тип вопроса:", question.questionType);
+                console.error("Неизвестый тип вопр��са:", question.questionType);
                 this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
         }
         this.startTimer();
@@ -938,16 +938,18 @@ class TestApp {
             },
             body: JSON.stringify(progressData)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                console.error("Ошибка при отправке прогресса:", data.error);
-            } else {
-                console.log("Прогресс успешно отправлен", progressData);
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw err; });
             }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Прогресс успешно отправлен", data);
         })
         .catch(error => {
             console.error("Ошибка при отправке прогресса:", error);
+            // Можно добавить пользовательское уведомление об ошибке здесь
         });
     }
 
@@ -1014,7 +1016,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Ошибка при завершении теста:", data.error);
+                console.error("Ошибка при завершении тест��:", data.error);
             } else {
                 console.log("Тест успешно завершён:", data);
                 // Отправляем результаты в Airtable
@@ -1072,7 +1074,7 @@ class TestApp {
         });
     }
 
-    // Мето для обновленя уровня на основе результатов групп��
+    // Мето для обновленя уровня на основе результатов групп
     updateLevelBasedOnGroupResults() {
         if (this.groupCorrectAnswers === 1) {
             this.currentLevel = Math.max(1, this.currentLevel - 1);
