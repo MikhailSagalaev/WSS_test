@@ -14,7 +14,18 @@ module.exports = async (req, res) => {
 
     const progressUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`;
 
-    const { userLogin, stage, level, correctCount, incorrectCount, totalQuestions, correctHigherLevel, incorrectLowerLevel, timestamp } = req.body;
+    const { 
+      userLogin, 
+      stage, 
+      level, 
+      correctCount, 
+      incorrectCount, 
+      totalQuestions, 
+      correctHigherLevel, 
+      incorrectLowerLevel,
+      questionsOnCurrentLevel, // Добавьте это поле здесь
+      timestamp 
+    } = req.body;
 
     try {
         // Проверяем существующую запись прогресса
