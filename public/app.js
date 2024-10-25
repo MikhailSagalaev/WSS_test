@@ -1035,10 +1035,8 @@ class TestApp {
         })
         .then(data => {
             console.log("Тест успешно завершён:", data);
-            // Отправляем результаты в Airtable
-            this.sendResultsToAirtable();
             // Показываем результаты пользователю
-            this.showResults();
+            this.showResults(finalLevel, finalWss);
             // Сбрасываем прогресс
             this.resetProgress();
         })
@@ -1106,20 +1104,17 @@ class TestApp {
 
     // Доплнительно, давайте изменим обработку ошибок в клиентском коде:
 
-    showResults() {
-        const finalResults = this.stagesResults.map(result => {
-            return `
-                <h3>Этап: ${result.stage}</h3>
-                <p>Целевой уровень: ${result.targetLevel}</p>
-                <p>Правильных ответов: ${result.correctCount}</p>
-                <p>Неправильных ответов: ${result.incorrectCount}</p>
-            `;
-        }).join('');
-
-        this.questionContainer.innerHTML = `
+    showResults(finalLevel, finalWss) {
+        const resultMessage = `
             <h2>Результаты теста</h2>
-            ${finalResults}
+            <p>Ваш уровень: ${finalLevel}</p>
+            <p>Ваш WSS балл: ${finalWss}</p>
+            <p>Правильных ответов: ${this.correctCount}</p>
+            <p>Неправильных ответов: ${this.incorrectCount}</p>
+            <p>Всего вопросов: ${this.totalQuestions}</p>
         `;
+        
+        this.questionContainer.innerHTML = resultMessage;
         this.submitBtn.style.display = 'none';
     }
 

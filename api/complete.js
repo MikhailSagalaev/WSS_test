@@ -43,7 +43,9 @@ module.exports = async (req, res) => {
                 CorrectHigherLevel: correctHigherLevel,
                 IncorrectLowerLevel: incorrectLowerLevel,
                 QuestionsOnCurrentLevel: questionsOnCurrentLevel,
-                Timestamp: timestamp
+                Timestamp: timestamp,
+                FinalWSS: finalWss,
+                FinalLevel: finalLevel
             }
         };
 
@@ -132,7 +134,11 @@ module.exports = async (req, res) => {
         console.log("TestAttempts успешно обновлены в Airtable:", updatedUserRecord);
 
         // Ответ успешного выполнения
-        res.status(200).json({ message: 'Тест успешно завершён, результаты сохранены и TestAttempts уменьшены.' });
+        res.status(200).json({ 
+            message: 'Тест успешно завершён, результаты сохранены и TestAttempts уменьшены.',
+            finalLevel: finalLevel,
+            finalWss: finalWss
+        });
 
     } catch (error) {
         console.error("Внутренняя ошибка сервера:", error);
