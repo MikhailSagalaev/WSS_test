@@ -11,15 +11,16 @@ module.exports = async (req, res) => {
     }
 
     const { 
-        userLogin, stage, level, correctCount, incorrectCount, totalQuestions, 
-        correctHigherLevel, incorrectLowerLevel, questionsOnCurrentLevel, timestamp,
-        finalWss, finalLevel
+        userLogin, stagesResults, finalWss, finalLevel, timestamp,
+        stage, level, correctCount, incorrectCount, totalQuestions, 
+        correctHigherLevel, incorrectLowerLevel, questionsOnCurrentLevel
     } = req.body;
 
     // Проверка наличия обязательных полей
-    if (!userLogin || !stage || !level || correctCount === undefined || incorrectCount === undefined || 
+    if (!userLogin || !stagesResults || finalWss === undefined || !finalLevel || !timestamp ||
+        !stage || !level || correctCount === undefined || incorrectCount === undefined || 
         totalQuestions === undefined || correctHigherLevel === undefined || incorrectLowerLevel === undefined || 
-        questionsOnCurrentLevel === undefined || !timestamp || finalWss === undefined || !finalLevel) {
+        questionsOnCurrentLevel === undefined) {
         console.error("Недостаточно данных для завершения теста");
         return res.status(400).json({ error: 'Недостаточно данных для завершения теста' });
     }
@@ -45,7 +46,8 @@ module.exports = async (req, res) => {
                 QuestionsOnCurrentLevel: questionsOnCurrentLevel,
                 Timestamp: timestamp,
                 FinalWSS: finalWss,
-                FinalLevel: finalLevel
+                FinalLevel: finalLevel,
+                StagesResults: JSON.stringify(stagesResults)
             }
         };
 
@@ -131,7 +133,7 @@ module.exports = async (req, res) => {
         }
 
         const updatedUserRecord = await updateUserResponse.json();
-        console.log("TestAttempts успешно обновлены в Airtable:", updatedUserRecord);
+        console.log("TestAttempts ��спешно обновлены в Airtable:", updatedUserRecord);
 
         // Ответ успешного выполнения
         res.status(200).json({ 

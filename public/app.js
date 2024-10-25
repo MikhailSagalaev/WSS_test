@@ -1006,7 +1006,16 @@ class TestApp {
             stagesResults: this.stagesResults,
             finalWss: finalWss,
             finalLevel: finalLevel,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            // Добавляем дополнительные поля, которые могут быть необходимы
+            stage: this.stages[this.currentStageIndex],
+            level: this.levels[this.currentLevelIndex],
+            correctCount: this.correctCount,
+            incorrectCount: this.incorrectCount,
+            totalQuestions: this.totalQuestions,
+            correctHigherLevel: this.correctHigherLevel,
+            incorrectLowerLevel: this.incorrectLowerLevel,
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel
         };
 
         console.log("Отправляемые данные завершения теста:", completionData);
