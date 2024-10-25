@@ -91,7 +91,7 @@ class TestApp {
         console.log("Проверка доступности теста");
         if (!this.user || !this.user.login) {
             console.error("User or user login is not defined");
-            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, ��йдите в систему.");
+            this.showUnavailableMessage("Не удалось получить данные пользователя. Пожалуйста, ��дите в систему.");
             return;
         }
     
@@ -142,7 +142,7 @@ class TestApp {
                 console.error("Ошибка при загрузке прогресса:", data.error);
                 throw new Error(data.error);
             } else if (data.progress) {
-                console.log("Прогрсс получен из Airtable:", data.progress);
+                console.log("Прогресс получен из Airtable:", data.progress);
                 this.setProgress(data.progress);
                 this.saveProgressToLocalStorage(); // Сохраняем прогресс в localStorage после получения из Airtable
             } else {
@@ -155,7 +155,7 @@ class TestApp {
     
         } catch (error) {
             console.error("Ошибка при загрузке прогресса из Airtable:", error);
-            this.loadProgressFromLocalStorage(); // Загружаем из localStorage только если н удалось загрузить из Airtable
+            this.loadProgressFromLocalStorage(); // Загружаем из localStorage только если не удалось загрузить из Airtable
         }
     }
     setProgress(progress) {
@@ -166,6 +166,11 @@ class TestApp {
         this.totalQuestions = progress.totalQuestions || 0;
         this.correctHigherLevel = progress.correctHigherLevel || 0;
         this.incorrectLowerLevel = progress.incorrectLowerLevel || 0;
+        this.questionsOnCurrentLevel = progress.questionsOnCurrentLevel || 0;
+        this.groupCorrectAnswers = progress.groupCorrectAnswers || 0;
+        this.groupTotalAnswers = progress.groupTotalAnswers || 0;
+        this.groupsAnswered = progress.groupsAnswered || 0;
+        this.currentLevelIndex = this.levels.indexOf(progress.currentLevel) !== -1 ? this.levels.indexOf(progress.currentLevel) : 0;
     }
 
     setInitialProgress() {
@@ -224,7 +229,7 @@ class TestApp {
 
             console.log("Прогресс загруен из localStorage:", savedProgress);
         } else {
-            console.log("Не схранённого прогресса в localStorage. Начинаем новый тест.");
+            console.log("Нет сохранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
             this.currentLevel = 1;
         }
@@ -530,7 +535,7 @@ class TestApp {
                 this.renderMatchingWordsQuestion(question);
                 break;
             default:
-                console.error("Неизвестый тип вопр��са:", question.questionType);
+                console.error("Неизвестый тип вопроса:", question.questionType);
                 this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
         }
         this.startTimer();
@@ -1016,7 +1021,7 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Ошибка при завершении тест��:", data.error);
+                console.error("Ошибка при завершении тест:", data.error);
             } else {
                 console.log("Тест успешно завершён:", data);
                 // Отправляем результаты в Airtable
@@ -1070,7 +1075,7 @@ class TestApp {
         })
         .catch(error => {
             console.error("Ошибка при сбросе прогресса:", error);
-            alert("Произошла ошибка при сброс прогресса. Пожалуйста, попробуйте ещ раз.");
+            alert("Произошла ошибка при сброс прогресса. Пожалуйста, попрбуйте ещ аз.");
         });
     }
 
