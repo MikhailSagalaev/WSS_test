@@ -15,19 +15,10 @@ module.exports = async (req, res) => {
 
     const { userLogin, stage, level, correctCount, incorrectCount, totalQuestions, correctHigherLevel, incorrectLowerLevel, timestamp } = req.body;
 
-    // Проверка наличия обязательных полей
-    if (!userLogin) {
-        console.error("Недостаточно данных для сохранения прогресса (userLogin)");
-        return res.status(400).json({ error: 'Недостаточно данных для сохранения прогресса (userLogin)' });
-    }
-
     try {
-        // Шаг 1: Проверка существующей записи прогресса
+        // Проверяем существующую запись прогресса
         const filterFormula = `AND({UserLogin} = "${userLogin}", {Stage} = "${stage}")`;
-        const progressFetchUrl = `${progressUrl}?filterByFormula=${encodeURIComponent(filterFormula)}`;
-        console.log(`Запрос существующего прогресса: ${progressFetchUrl}`);
-
-        const progressResponse = await fetch(progressFetchUrl, {
+        const progressResponse = await fetch(`${progressUrl}?filterByFormula=${encodeURIComponent(filterFormula)}`, {
             headers: {
                 Authorization: `Bearer ${AIRTABLE_PAT}`,
                 'Content-Type': 'application/json'
@@ -35,24 +26,18 @@ module.exports = async (req, res) => {
         });
 
         if (!progressResponse.ok) {
-            const errorData = await progressResponse.json();
-            console.error("Ошибка при получении прогресса из Airtable:", errorData);
-            return res.status(progressResponse.status).json({ error: errorData.error });
+            throw new Error(`HTTP error! status: ${progressResponse.status}`);
         }
 
-        const progressDataResponse = await progressResponse.json();
-        console.log(`Найдено записей прогресса: ${progressDataResponse.records.length}`);
+        const progressData = await progressResponse.json();
 
         let recordId = null;
 
-        if (progressDataResponse.records.length > 0) {
+        if (progressData.records.length > 0) {
             // Запись существует, обновляем её
-            recordId = progressDataResponse.records[0].id;
-            console.log(`Обновление существующей записи прогресса с ID: ${recordId}`);
-
+            recordId = progressData.records[0].id;
             const updateData = {
                 fields: {
-                    Stage: stage, // Убедитесь, что Stage обновляется
                     Level: level,
                     CorrectCount: correctCount,
                     IncorrectCount: incorrectCount,
@@ -73,21 +58,14 @@ module.exports = async (req, res) => {
             });
 
             if (!updateResponse.ok) {
-                const errorData = await updateResponse.json();
-                console.error("Ошибка при обновлении прогресса в Airtable:", errorData);
-                return res.status(updateResponse.status).json({ error: errorData.error });
+                throw new Error(`HTTP error! status: ${updateResponse.status}`);
             }
-
-            const updatedRecord = await updateResponse.json();
-            console.log("Прогресс успешно обновлён в Airtable:", updatedRecord);
         } else {
             // Запись не существует, создаём новую
-            console.log("Создание новой записи прогресса в Airtable");
-
             const createData = {
                 fields: {
                     UserLogin: userLogin,
-                    Stage: stage, // Добавлено поле Stage
+                    Stage: stage,
                     Level: level,
                     CorrectCount: correctCount,
                     IncorrectCount: incorrectCount,
@@ -108,17 +86,10 @@ module.exports = async (req, res) => {
             });
 
             if (!createResponse.ok) {
-                const errorData = await createResponse.json();
-                console.error("Ошибка при создании прогресса в Airtable:", errorData);
-                return res.status(createResponse.status).json({ error: errorData.error });
+                throw new Error(`HTTP error! status: ${createResponse.status}`);
             }
-
-            const newRecord = await createResponse.json();
-            recordId = newRecord.id;
-            console.log("Новая запись прогресса создана в Airtable:", newRecord);
         }
 
-        // Ответ успешного выполнения
         res.status(200).json({ message: 'Прогресс успешно сохранён.' });
 
     } catch (error) {
