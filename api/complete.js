@@ -14,12 +14,15 @@ module.exports = async (req, res) => {
     const usersUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}`;
     const storyUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_STORY_TABLE)}`;
 
-    const { userLogin, stagesResults, finishDate } = req.body;
+    const { 
+        userLogin, stage, level, correctCount, incorrectCount, totalQuestions, 
+        correctHigherLevel, incorrectLowerLevel, questionsOnCurrentLevel, timestamp 
+    } = req.body;
 
     // Проверка наличия обязательных полей
-    if (!userLogin || !stagesResults || !finishDate) {
-        console.error("Недостаточно данных для завершения теста (userLogin, stagesResults, finishDate)");
-        return res.status(400).json({ error: 'Недостаточно данных для завершения теста (userLogin, stagesResults, finishDate)' });
+    if (!userLogin || !stage || !level || !correctCount || !incorrectCount || !totalQuestions || !correctHigherLevel || !incorrectLowerLevel || !questionsOnCurrentLevel || !timestamp) {
+        console.error("Недостаточно данных для завершения теста (userLogin, stage, level, correctCount, incorrectCount, totalQuestions, correctHigherLevel, incorrectLowerLevel, questionsOnCurrentLevel, timestamp)");
+        return res.status(400).json({ error: 'Недостаточно данных для завершения теста (userLogin, stage, level, correctCount, incorrectCount, totalQuestions, correctHigherLevel, incorrectLowerLevel, questionsOnCurrentLevel, timestamp)' });
     }
 
     try {
@@ -28,8 +31,15 @@ module.exports = async (req, res) => {
         const storyData = {
             fields: {
                 UserLogin: userLogin,
-                StagesResults: JSON.stringify(stagesResults), // Убедитесь, что stagesResults содержит информацию о каждом этапе
-                FinishDate: finishDate
+                Stage: stage,
+                Level: level,
+                CorrectCount: correctCount,
+                IncorrectCount: incorrectCount,
+                TotalQuestions: totalQuestions,
+                CorrectHigherLevel: correctHigherLevel,
+                IncorrectLowerLevel: incorrectLowerLevel,
+                QuestionsOnCurrentLevel: questionsOnCurrentLevel,
+                Timestamp: timestamp
             }
         };
 
@@ -125,3 +135,4 @@ module.exports = async (req, res) => {
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 };
+

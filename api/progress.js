@@ -44,7 +44,8 @@ module.exports = async (req, res) => {
                     TotalQuestions: totalQuestions,
                     CorrectHigherLevel: correctHigherLevel,
                     IncorrectLowerLevel: incorrectLowerLevel,
-                    Timestamp: timestamp
+                    Timestamp: timestamp,
+                    QuestionsOnCurrentLevel: questionsOnCurrentLevel
                 }
             };
 
@@ -72,7 +73,8 @@ module.exports = async (req, res) => {
                     TotalQuestions: totalQuestions,
                     CorrectHigherLevel: correctHigherLevel,
                     IncorrectLowerLevel: incorrectLowerLevel,
-                    Timestamp: timestamp
+                    Timestamp: timestamp,
+                    QuestionsOnCurrentLevel: questionsOnCurrentLevel
                 }
             };
 

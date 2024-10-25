@@ -842,7 +842,7 @@ class TestApp {
             this.evaluateSeries();
         }
 
-        if (this.questionsOnCurrentLevel >= 27) {
+        if (this.questionsOnCurrentLevel >= 9) {
             this.targetLevel = this.levels[this.currentLevelIndex];
             if (this.currentStageIndex < this.stages.length - 1) {
                 this.finishStage();
@@ -927,6 +927,7 @@ class TestApp {
             totalQuestions: this.totalQuestions,
             correctHigherLevel: this.correctHigherLevel,
             incorrectLowerLevel: this.incorrectLowerLevel,
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
             timestamp: new Date().toISOString()
         };
 
