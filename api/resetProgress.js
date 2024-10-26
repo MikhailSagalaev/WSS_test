@@ -8,11 +8,13 @@ module.exports = async (req, res) => {
         return res.status(400).json({ error: 'Не указан userLogin' });
     }
 
+    console.log('Начало сброса прогресса для пользователя:', userLogin);
+
     const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`;
     const filterFormula = `({UserLogin} = '${userLogin}')`;
 
     try {
-        // Получаем текущую запись прогресса
+        console.log('Запрос к Airtable для получения текущего прогресса');
         const getResponse = await fetch(`${url}?filterByFormula=${encodeURIComponent(filterFormula)}`, {
             headers: {
                 Authorization: `Bearer ${AIRTABLE_PAT}`,
@@ -25,12 +27,14 @@ module.exports = async (req, res) => {
         }
 
         const getData = await getResponse.json();
+        console.log('Получены данные из Airtable:', getData);
         
         if (getData.records.length === 0) {
             return res.status(404).json({ error: 'Запись прогресса не найдена' });
         }
 
         const record = getData.records[0];
+        console.log('Текущая запись прогресса:', record);
 
         // Сбрасываем прогресс
         const updateData = {
@@ -46,6 +50,7 @@ module.exports = async (req, res) => {
             }
         };
 
+        console.log('Отправка запроса на обновление в Airtable:', updateData);
         const updateResponse = await fetch(`${url}/${record.id}`, {
             method: 'PATCH',
             headers: {
@@ -60,6 +65,9 @@ module.exports = async (req, res) => {
             console.error('Ошибка при обновлении Airtable:', errorData);
             throw new Error(`Ошибка при обновлении Airtable: ${updateResponse.status} ${updateResponse.statusText}`);
         }
+
+        const updatedData = await updateResponse.json();
+        console.log('Прогресс успешно сброшен:', updatedData);
 
         res.status(200).json({ message: 'Прогресс успешно сброшен' });
     } catch (error) {
