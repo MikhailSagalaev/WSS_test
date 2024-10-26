@@ -35,16 +35,13 @@ module.exports = async (req, res) => {
         // Сбрасываем прогресс
         const updateData = {
             fields: {
-                CurrentStageIndex: 0,
+                Stage: 'reading',
                 CurrentLevel: 'pre-A1',
                 CorrectCount: 0,
                 IncorrectCount: 0,
                 TotalQuestions: 0,
                 CorrectHigherLevel: 0,
                 IncorrectLowerLevel: 0,
-                GroupCorrectAnswers: 0,
-                GroupTotalAnswers: 0,
-                GroupsAnswered: 0,
                 QuestionsOnCurrentLevel: 0
             }
         };

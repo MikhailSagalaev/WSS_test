@@ -1073,9 +1073,6 @@ class TestApp {
             this.totalQuestions = 0;
             this.correctHigherLevel = 0;
             this.incorrectLowerLevel = 0;
-            this.groupCorrectAnswers = 0;
-            this.groupTotalAnswers = 0;
-            this.groupsAnswered = 0;
             this.questionsOnCurrentLevel = 0;
             this.stagesResults = [];
             this.currentQuestion = null;
