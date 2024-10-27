@@ -937,6 +937,8 @@ class TestApp {
             timestamp: new Date().toISOString()
         };
 
+        console.log("Отправляемые данные прогресса:", progressData);
+
         fetch('/api/progress', {
             method: 'POST',
             headers: {
