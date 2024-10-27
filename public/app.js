@@ -939,7 +939,7 @@ class TestApp {
         })
         .then(data => {
             console.log("Тест успешно завершён:", data);
-            // Показываем результаты пользователю
+            // Пока��ываем результаты пользователю
             this.showResults(finalLevel, finalWss);
             // Сбрасываем прогресс
             this.resetProgress();
@@ -1038,7 +1038,8 @@ class TestApp {
         if (wss >= wssScale[wssScale.length - 1].minWss) {
             return wssScale[wssScale.length - 1].level;
         }
-        return 'N/A'; // Есл WSS меньше инимального значения в шкале
+        // Если WSS меньше минимального значения в шкале, возвращаем первый уровень
+        return wssScale[0].level;
     }
 
     sendResultsToAirtable() {
