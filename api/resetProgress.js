@@ -40,7 +40,6 @@ module.exports = async (req, res) => {
         const updateData = {
             fields: {
                 Stage: 'reading',
-                CurrentLevel: 'pre-A1',
                 CorrectCount: 0,
                 IncorrectCount: 0,
                 TotalQuestions: 0,
