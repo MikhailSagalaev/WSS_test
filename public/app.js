@@ -60,7 +60,7 @@ class TestApp {
             this.showStartButton();
         } catch (error) {
             console.error("Error during initialization:", error);
-            this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжтесь с администратором.");
+            this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжтесь с администатором.");
         }
     }
     
@@ -134,7 +134,7 @@ class TestApp {
             const data = await response.json();
     
             if (data.error) {
-                console.error("Ошибка при загрузке прогресса:", data.error);
+                console.error("О��ибка при загрузке прогресса:", data.error);
                 throw new Error(data.error);
             } else if (data.progress) {
                 console.log("Прогресс получен из Airtable:", data.progress);
@@ -145,7 +145,7 @@ class TestApp {
                 this.setInitialProgress();
             }
     
-            console.log("Текущий этап:", this.stages[this.currentStageIndex]);
+            console.log("Текущий эта:", this.stages[this.currentStageIndex]);
             console.log("Текущий уровень:", this.currentLevel);
     
         } catch (error) {
@@ -231,181 +231,28 @@ class TestApp {
     }
 
     initializeWssScale() {
-        const scale = [
-            { wss: 180, level: 'C2' },
-            { wss: 179, level: 'C2' },
-            { wss: 178, level: 'C2' },
-            { wss: 177, level: 'C2' },
-            { wss: 176, level: 'C2' },
-            { wss: 175, level: 'C2' },
-            { wss: 174, level: 'C2' },
-            { wss: 173, level: 'C2' },
-            { wss: 172, level: 'C2' },
-            { wss: 171, level: 'C2' },
-            { wss: 170, level: 'C1 High' },
-            { wss: 169, level: 'C1 High' },
-            { wss: 168, level: 'C1 High' },
-            { wss: 167, level: 'C1 High' },
-            { wss: 166, level: 'C1 High' },
-            { wss: 165, level: 'C1 High' },
-            { wss: 164, level: 'C1 High' },
-            { wss: 163, level: 'C1 High' },
-            { wss: 162, level: 'C1 High' },
-            { wss: 161, level: 'C1 High' },
-            { wss: 160, level: 'C1 Mid' },
-            { wss: 159, level: 'C1 Mid' },
-            { wss: 158, level: 'C1 Mid' },
-            { wss: 157, level: 'C1 Mid' },
-            { wss: 156, level: 'C1 Mid' },
-            { wss: 155, level: 'C1 Mid' },
-            { wss: 154, level: 'C1 Mid' },
-            { wss: 153, level: 'C1 Mid' },
-            { wss: 152, level: 'C1 Mid' },
-            { wss: 151, level: 'C1 Mid' },
-            { wss: 150, level: 'C1 Low' },
-            { wss: 149, level: 'C1 Low' },
-            { wss: 148, level: 'C1 Low' },
-            { wss: 147, level: 'C1 Low' },
-            { wss: 146, level: 'C1 Low' },
-            { wss: 145, level: 'C1 Low' },
-            { wss: 144, level: 'C1 Low' },
-            { wss: 143, level: 'C1 Low' },
-            { wss: 142, level: 'C1 Low' },
-            { wss: 141, level: 'C1 Low' },
-            { wss: 140, level: 'B2 High' },
-            { wss: 139, level: 'B2 High' },
-            { wss: 138, level: 'B2 High' },
-            { wss: 137, level: 'B2 High' },
-            { wss: 136, level: 'B2 High' },
-            { wss: 135, level: 'B2 High' },
-            { wss: 134, level: 'B2 High' },
-            { wss: 133, level: 'B2 High' },
-            { wss: 132, level: 'B2 High' },
-            { wss: 131, level: 'B2 High' },
-            { wss: 130, level: 'B2 Mid' },
-            { wss: 129, level: 'B2 Mid' },
-            { wss: 128, level: 'B2 Mid' },
-            { wss: 127, level: 'B2 Mid' },
-            { wss: 126, level: 'B2 Mid' },
-            { wss: 125, level: 'B2 Mid' },
-            { wss: 124, level: 'B2 Mid' },
-            { wss: 123, level: 'B2 Mid' },
-            { wss: 122, level: 'B2 Mid' },
-            { wss: 121, level: 'B2 Mid' },
-            { wss: 120, level: 'B2 Low' },
-            { wss: 119, level: 'B2 Low' },
-            { wss: 118, level: 'B2 Low' },
-            { wss: 117, level: 'B2 Low' },
-            { wss: 116, level: 'B2 Low' },
-            { wss: 115, level: 'B2 Low' },
-            { wss: 114, level: 'B2 Low' },
-            { wss: 113, level: 'B2 Low' },
-            { wss: 112, level: 'B2 Low' },
-            { wss: 111, level: 'B2 Low' },
-            { wss: 110, level: 'B1 High' },
-            { wss: 109, level: 'B1 High' },
-            { wss: 108, level: 'B1 High' },
-            { wss: 107, level: 'B1 High' },
-            { wss: 106, level: 'B1 High' },
-            { wss: 105, level: 'B1 High' },
-            { wss: 104, level: 'B1 High' },
-            { wss: 103, level: 'B1 High' },
-            { wss: 102, level: 'B1 High' },
-            { wss: 101, level: 'B1 High' },
-            { wss: 100, level: 'B1 Mid' },
-            { wss: 99, level: 'B1 Mid' },
-            { wss: 98, level: 'B1 Mid' },
-            { wss: 97, level: 'B1 Mid' },
-            { wss: 96, level: 'B1 Mid' },
-            { wss: 95, level: 'B1 Mid' },
-            { wss: 94, level: 'B1 Mid' },
-            { wss: 93, level: 'B1 Mid' },
-            { wss: 92, level: 'B1 Mid' },
-            { wss: 91, level: 'B1 Mid' },
-            { wss: 90, level: 'B1 Low' },
-            { wss: 89, level: 'B1 Low' },
-            { wss: 88, level: 'B1 Low' },
-            { wss: 87, level: 'B1 Low' },
-            { wss: 86, level: 'B1 Low' },
-            { wss: 85, level: 'B1 Low' },
-            { wss: 84, level: 'B1 Low' },
-            { wss: 83, level: 'B1 Low' },
-            { wss: 82, level: 'B1 Low' },
-            { wss: 81, level: 'B1 Low' },
-            { wss: 80, level: 'A2' },
-            { wss: 79, level: 'A2' },
-            { wss: 78, level: 'A2' },
-            { wss: 77, level: 'A2' },
-            { wss: 76, level: 'A2' },
-            { wss: 75, level: 'A2' },
-            { wss: 74, level: 'A2' },
-            { wss: 73, level: 'A2' },
-            { wss: 72, level: 'A2' },
-            { wss: 71, level: 'A2' },
-            { wss: 70, level: 'A2' },
-            { wss: 69, level: 'A2' },
-            { wss: 68, level: 'A2' },
-            { wss: 67, level: 'A2' },
-            { wss: 66, level: 'A2' },
-            { wss: 65, level: 'A2' },
-            { wss:64, level: 'A1' },
-            { wss:63, level: 'A1' },
-            { wss:62, level: 'A1' },
-            { wss:61, level: 'A1' },
-            { wss:60, level: 'A1' },
-            { wss:59, level: 'A1' },
-            { wss:58, level: 'A1' },
-            { wss:57, level: 'A1' },
-            { wss:56, level: 'A1' },
-            { wss:55, level: 'A1' },
-            { wss:54, level: 'A1' },
-            { wss:53, level: 'A1' },
-            { wss:52, level: 'A1' },
-            { wss:51, level: 'A1' },
-            { wss:50, level: 'A1' },
-            { wss:49, level: 'A1' },
-            { wss:48, level: 'A1' },
-            { wss:47, level: 'A1' },
-            { wss:46, level: 'A1' },
-            { wss:45, level: 'A1' },
-            { wss:44, level: 'A1' },
-            { wss:43, level: 'A1' },
-            { wss:42, level: 'A1' },
-            { wss:41, level: 'A1' },
-            { wss:40, level: 'A1' },
-            { wss:39, level: 'A1' },
-            { wss:38, level: 'A1' },
-            { wss:37, level: 'A1' },
-            { wss:36, level: 'pre-A1' },
-            { wss:35, level: 'pre-A1' },
-            { wss:34, level: 'pre-A1' },
-            { wss:33, level: 'pre-A1' },
-            { wss:32, level: 'pre-A1' },
-            { wss:31, level: 'pre-A1' },
-            { wss:30, level: 'pre-A1' },
-            { wss:29, level: 'pre-A1' },
-            { wss:28, level: 'pre-A1' },
-            { wss:27, level: 'pre-A1' },
-            { wss:26, level: 'pre-A1' },
-            { wss:25, level: 'pre-A1' },
-            { wss:24, level: 'pre-A1' },
-            { wss:23, level: 'pre-A1' },
-            { wss:22, level: 'pre-A1' },
-            { wss:21, level: 'pre-A1' },
-            { wss:20, level: 'pre-A1' },
-            { wss:19, level: 'pre-A1' },
-            { wss:18, level: 'pre-A1' },
-            { wss:17, level: 'pre-A1' },
-            { wss:16, level: 'pre-A1' },
-            { wss:15, level: 'pre-A1' },
-            { wss:14, level: 'pre-A1' },
-            { wss:13, level: 'pre-A1' },
-            { wss:12, level: 'pre-A1' },
-            { wss:11, level: 'pre-A1' },
-            { wss:10, level: 'pre-A1' },
-            { wss: 0, level: 'N/A' }
+        return [
+            { level: 'C2', minWss: 172, maxWss: 180 },
+            { level: 'C1 High', minWss: 163, maxWss: 171 },
+            { level: 'C1 Mid', minWss: 154, maxWss: 162 },
+            { level: 'C1 Low', minWss: 145, maxWss: 153 },
+            { level: 'B2 High', minWss: 136, maxWss: 144 },
+            { level: 'B2 Mid', minWss: 127, maxWss: 135 },
+            { level: 'B2 Low', minWss: 118, maxWss: 126 },
+            { level: 'B1 High', minWss: 109, maxWss: 117 },
+            { level: 'B1 Mid', minWss: 100, maxWss: 108 },
+            { level: 'B1 Low', minWss: 91, maxWss: 99 },
+            { level: 'A2 High', minWss: 82, maxWss: 90 },
+            { level: 'A2 Mid', minWss: 73, maxWss: 81 },
+            { level: 'A2 Low', minWss: 64, maxWss: 72 },
+            { level: 'A1 High', minWss: 55, maxWss: 63 },
+            { level: 'A1 Mid', minWss: 46, maxWss: 54 },
+            { level: 'A1 Low', minWss: 37, maxWss: 45 },
+            { level: 'pre-A1 High', minWss: 28, maxWss: 36 },
+            { level: 'pre-A1 Mid', minWss: 19, maxWss: 27 },
+            { level: 'pre-A1 Low', minWss: 10, maxWss: 18 },
+            { level: 'N/A', minWss: 0, maxWss: 9 }
         ];
-        return scale;
     }
 
     loadProgressOnce() {
@@ -427,7 +274,7 @@ class TestApp {
             const response = await fetch('/api/questions');
             const data = await response.json();
             if (!Array.isArray(data)) {
-                throw new Error("Некорректная структура данных вопросов");
+                throw new Error("Некорректня структура данных вопросов");
             }
             console.log("Вопросы загружены:", data.length);
             this.questions = { reading: [], listening: [] };
@@ -778,6 +625,11 @@ class TestApp {
                 e.preventDefault();
                 const word = e.dataTransfer.getData('text/plain');
                 zone.textContent = word;
+                // Удаляем использованный вариант ответа
+                const usedOption = Array.from(wordOptions).find(option => option.textContent === word);
+                if (usedOption) {
+                    usedOption.remove();
+                }
                 this.checkAllWordsFilled();
             });
         });
@@ -904,7 +756,7 @@ class TestApp {
             incorrectCount: this.incorrectCount,
             totalQuestions: this.totalQuestions,
             correctOnCurrentLevel: this.correctOnCurrentLevel,
-            correctOnHigherLevel: this.correctOnHigherLevel,
+            correctOnHigherLevel: this.correctHigherLevel,
             incorrectOnLowerLevel: this.incorrectLowerLevel
         };
 
@@ -1019,7 +871,7 @@ class TestApp {
     
         this.stagesResults.push(stageResult);
     
-        // Очистка счетчиков для следующего этапа
+        // Очистка счетчиков для сле��ующего этапа
         this.correctCount = 0;
         this.incorrectCount = 0;
         this.totalQuestions = 0;
@@ -1166,10 +1018,10 @@ class TestApp {
         return array;
     }
 
-    // Логика для вычисения итогового уровня на основе WSS
+    // Логика для вычисения иогового уровня на основе WSS
     calculateFinalLevel(wss) {
         const wssScale = this.initializeWssScale();
-        for (let i = 0; i < wssScale.length; i++) {
+        for (let i = wssScale.length - 1; i >= 0; i--) {
             if (wss >= wssScale[i].wss) {
                 return wssScale[i].level;
             }
@@ -1201,7 +1053,7 @@ class TestApp {
             console.log('Результаты успешно отправлены в Airtable:', result);
         })
         .catch(error => {
-            console.error('Ошибка при отправке результатов в Airtable:', error);
+            console.error('Ошибка при отправке результтов в Airtable:', error);
         });
     }
 
@@ -1291,11 +1143,6 @@ class TestApp {
         return Array.from(inputs).map(input => input.value);
     }
 
-    getMatchingWordsAnswer() {
-        const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
-        return Array.from(dropZones).map(zone => zone.textContent);
-    }
-
     checkMultipleChoiceAnswer(userAnswer) {
         return userAnswer.toLowerCase() === this.currentQuestion.correct.toLowerCase();
     }
@@ -1323,16 +1170,31 @@ class TestApp {
     }
 
     computeFinalWss() {
-        const targetLevelIndex = this.levels.indexOf(this.targetLevel);
         const minWss = this.getMinWssForLevel(this.targetLevel);
         const wssShift = this.correctOnCurrentLevel + this.correctHigherLevel - this.incorrectLowerLevel;
-        return minWss + wssShift;
+        const finalWss = minWss + wssShift;
+        
+        console.log('Расчет finalWss:', {
+            targetLevel: this.targetLevel,
+            minWss,
+            correctOnCurrentLevel: this.correctOnCurrentLevel,
+            correctHigherLevel: this.correctHigherLevel,
+            incorrectLowerLevel: this.incorrectLowerLevel,
+            wssShift,
+            finalWss
+        });
+        
+        return finalWss;
     }
 
     getMinWssForLevel(level) {
         const wssScale = this.initializeWssScale();
-        const levelEntry = wssScale.find(entry => entry.level === level);
-        return levelEntry ? levelEntry.wss : 0;
+        const levelEntry = wssScale.find(entry => entry.level.startsWith(level));
+        if (!levelEntry) {
+            console.error(`Уровень ${level} не найден в шкале WSS`);
+            return 0;
+        }
+        return levelEntry.minWss;
     }
 
     showStartButton() {
@@ -1341,6 +1203,8 @@ class TestApp {
     }
 
     startTest() {
+        this.initialLevelIndex = 0; // Начинаем с pre-A1
+        this.currentLevelIndex = this.initialLevelIndex;
         this.loadQuestion();
     }
 }
@@ -1352,3 +1216,4 @@ document.addEventListener('DOMContentLoaded', () => {
         app.init().catch(error => console.error("Error initializing app:", error));
     }
 });
+
