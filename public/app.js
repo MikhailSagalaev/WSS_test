@@ -60,7 +60,7 @@ class TestApp {
             this.showStartButton();
         } catch (error) {
             console.error("Error during initialization:", error);
-            this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжитесь с администратором.");
+            this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжтесь с администратором.");
         }
     }
     
@@ -104,7 +104,7 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Результат проверки доступ��ости:", data);
+            console.log("Результат проверки доступости:", data);
 
             if (!data.available) {
                 this.showUnavailableMessage("Тест в данный момнт неоступен.");
@@ -347,22 +347,62 @@ class TestApp {
             { wss: 68, level: 'A2' },
             { wss: 67, level: 'A2' },
             { wss: 66, level: 'A2' },
-            { wss: 65, level: 'A1' },
-            { wss: 64, level: 'A1' },
-            { wss: 63, level: 'A1' },
-            { wss: 62, level: 'A1' },
-            { wss: 61, level: 'A1' },
-            { wss: 60, level: 'A1' },
-            { wss: 59, level: 'A1' },
-            { wss: 58, level: 'A1' },
-            { wss: 57, level: 'A1' },
-            { wss: 56, level: 'A1' },
-            { wss: 55, level: 'A1' },
-            { wss: 54, level: 'A1' },
-            { wss: 53, level: 'A1' },
-            { wss: 52, level: 'A1' },
-            { wss: 51, level: 'A1' },
-            { wss: 50, level: 'N/A' },
+            { wss: 65, level: 'A2' },
+            { wss:64, level: 'A1' },
+            { wss:63, level: 'A1' },
+            { wss:62, level: 'A1' },
+            { wss:61, level: 'A1' },
+            { wss:60, level: 'A1' },
+            { wss:59, level: 'A1' },
+            { wss:58, level: 'A1' },
+            { wss:57, level: 'A1' },
+            { wss:56, level: 'A1' },
+            { wss:55, level: 'A1' },
+            { wss:54, level: 'A1' },
+            { wss:53, level: 'A1' },
+            { wss:52, level: 'A1' },
+            { wss:51, level: 'A1' },
+            { wss:50, level: 'A1' },
+            { wss:49, level: 'A1' },
+            { wss:48, level: 'A1' },
+            { wss:47, level: 'A1' },
+            { wss:46, level: 'A1' },
+            { wss:45, level: 'A1' },
+            { wss:44, level: 'A1' },
+            { wss:43, level: 'A1' },
+            { wss:42, level: 'A1' },
+            { wss:41, level: 'A1' },
+            { wss:40, level: 'A1' },
+            { wss:39, level: 'A1' },
+            { wss:38, level: 'A1' },
+            { wss:37, level: 'A1' },
+            { wss:36, level: 'pre-A1' },
+            { wss:35, level: 'pre-A1' },
+            { wss:34, level: 'pre-A1' },
+            { wss:33, level: 'pre-A1' },
+            { wss:32, level: 'pre-A1' },
+            { wss:31, level: 'pre-A1' },
+            { wss:30, level: 'pre-A1' },
+            { wss:29, level: 'pre-A1' },
+            { wss:28, level: 'pre-A1' },
+            { wss:27, level: 'pre-A1' },
+            { wss:26, level: 'pre-A1' },
+            { wss:25, level: 'pre-A1' },
+            { wss:24, level: 'pre-A1' },
+            { wss:23, level: 'pre-A1' },
+            { wss:22, level: 'pre-A1' },
+            { wss:21, level: 'pre-A1' },
+            { wss:20, level: 'pre-A1' },
+            { wss:19, level: 'pre-A1' },
+            { wss:18, level: 'pre-A1' },
+            { wss:17, level: 'pre-A1' },
+            { wss:16, level: 'pre-A1' },
+            { wss:15, level: 'pre-A1' },
+            { wss:14, level: 'pre-A1' },
+            { wss:13, level: 'pre-A1' },
+            { wss:12, level: 'pre-A1' },
+            { wss:11, level: 'pre-A1' },
+            { wss:10, level: 'pre-A1' },
             { wss: 0, level: 'N/A' }
         ];
         return scale;
@@ -848,7 +888,7 @@ class TestApp {
             this.evaluateSeries();
         }
 
-        if (this.questionsOnCurrentLevel >= 9 || this.totalQuestions >= 30) {
+        if (this.questionsOnCurrentLevel >= 9) {
             this.finishStage();
         } else {
             this.loadQuestion();
@@ -894,7 +934,7 @@ class TestApp {
         } else if (this.correctInCurrentSeries <= 1) {
             this.moveToPreviousLevel();
         }
-        // Если 2 правильных ответа, остаемся н текущем уровне
+        // Если 2 правильных ответа, остаемся на текущем уровне
 
         this.questionsInCurrentSeries = 0;
         this.correctInCurrentSeries = 0;
@@ -959,17 +999,22 @@ class TestApp {
     finishStage() {
         console.log(`Завершение этапа: ${this.stages[this.currentStageIndex]}`);
         const stage = this.stages[this.currentStageIndex];
-        const targetLevel = this.levels[this.currentLevelIndex];
+        this.targetLevel = this.levels[this.currentLevelIndex];
+    
+        const finalWss = this.computeFinalWss();
+        const finalLevel = this.calculateFinalLevel(finalWss);
     
         // Сохранение результатов этапа
         const stageResult = {
             stage: stage,
-            targetLevel: targetLevel,
+            targetLevel: this.targetLevel,
             correctCount: this.correctCount,
             incorrectCount: this.incorrectCount,
             totalQuestions: this.totalQuestions,
             correctHigherLevel: this.correctHigherLevel,
             incorrectLowerLevel: this.incorrectLowerLevel,
+            finalWss: finalWss,
+            finalLevel: finalLevel,
             timestamp: new Date().toISOString()
         };
     
@@ -986,6 +1031,7 @@ class TestApp {
         // Переход к следующему этапу или завершение теста
         if (this.currentStageIndex < this.stages.length - 1) {
             this.currentStageIndex++;
+            this.currentLevelIndex = 0; // Сбрасываем уровень на начальный для нового этапа
             this.loadQuestion();
         } else {
             this.finishTest();
@@ -1123,14 +1169,13 @@ class TestApp {
 
     // Логика для вычисения итогового уровня на основе WSS
     calculateFinalLevel(wss) {
-        // Здесь должна быть логика определения уровня на основе WSS
-        // Это пример, вам нужно реализовать свою логику в соответствии с требованиями теста
-        if (wss >= 160) return 'C2';
-        if (wss >= 140) return 'C1';
-        if (wss >= 120) return 'B2';
-        if (wss >= 100) return 'B1';
-        if (wss >= 80) return 'A2';
-        return 'A1';
+        const wssScale = this.initializeWssScale();
+        for (let i = 0; i < wssScale.length; i++) {
+            if (wss >= wssScale[i].wss) {
+                return wssScale[i].level;
+            }
+        }
+        return 'N/A'; // Если WSS меньше минимального значения в шкале
     }
 
     sendResultsToAirtable() {
@@ -1286,17 +1331,9 @@ class TestApp {
     }
 
     getMinWssForLevel(level) {
-        // Здесь нужно реализовать логику получения минимального WSS для каждого уровня
-        const wssScale = {
-            'pre-A1': 0,
-            'A1': 50,
-            'A2': 80,
-            'B1': 90,
-            'B2': 120,
-            'C1': 140,
-            'C2': 160
-        };
-        return wssScale[level] || 0;
+        const wssScale = this.initializeWssScale();
+        const levelEntry = wssScale.find(entry => entry.level === level);
+        return levelEntry ? levelEntry.wss : 0;
     }
 
     showStartButton() {
