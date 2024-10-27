@@ -47,7 +47,7 @@ class TestApp {
         this.setUser();
 
         if (this.userNotAuthorized) {
-            this.showUnavailableMessage("Пожалуйста, войдите в систему для прохождения теста.");
+            this.showUnavailableMessage("Пожалуйста, войдите  систему для прохождения теста.");
             return;
         }
 
@@ -540,7 +540,7 @@ class TestApp {
         
         if (this.stages[this.currentStageIndex] === 'listening') {
             if (question.audio) {
-                console.log("Аудио найдено:", question.audio);
+                console.log("Аудио надено:", question.audio);
                 const audioHtml = `
                     <audio controls>
                         <source src="${question.audio}" type="audio/mpeg">
@@ -905,7 +905,7 @@ class TestApp {
             totalQuestions: this.totalQuestions,
             correctOnCurrentLevel: this.correctOnCurrentLevel,
             correctOnHigherLevel: this.correctOnHigherLevel,
-            incorrectOnLowerLevel: this.incorrectOnLowerLevel
+            incorrectOnLowerLevel: this.incorrectLowerLevel
         };
 
         fetch('/api/saveProgress', {
@@ -992,7 +992,6 @@ class TestApp {
         })
         .catch(error => {
             console.error("Ошибка при отправке прогресса:", error);
-            // Можно добавить пользовательское уведомление об ошибке здесь
         });
     }
     
@@ -1326,7 +1325,7 @@ class TestApp {
     computeFinalWss() {
         const targetLevelIndex = this.levels.indexOf(this.targetLevel);
         const minWss = this.getMinWssForLevel(this.targetLevel);
-        const wssShift = this.correctOnCurrentLevel + this.correctOnHigherLevel - this.incorrectOnLowerLevel;
+        const wssShift = this.correctOnCurrentLevel + this.correctHigherLevel - this.incorrectLowerLevel;
         return minWss + wssShift;
     }
 

@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
         !stage || !level || correctCount === undefined || incorrectCount === undefined || 
         totalQuestions === undefined || correctHigherLevel === undefined || incorrectLowerLevel === undefined || 
         questionsOnCurrentLevel === undefined) {
-        console.error("Недостаточно данных для завершения теста");
+        console.error("Недос��аточно данных для завершения теста");
         return res.status(400).json({ error: 'Недостаточно данных для завершения теста' });
     }
 
@@ -133,7 +133,7 @@ module.exports = async (req, res) => {
         }
 
         const updatedUserRecord = await updateUserResponse.json();
-        console.log("TestAttempts ��спешно обновлены в Airtable:", updatedUserRecord);
+        console.log("TestAttempts спешно обновлены в Airtable:", updatedUserRecord);
 
         // Ответ успешного выполнения
         res.status(200).json({ 
