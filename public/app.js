@@ -274,7 +274,7 @@ class TestApp {
             const response = await fetch('/api/questions');
             const data = await response.json();
             if (!Array.isArray(data)) {
-                throw new Error("Некорректня структу��а данных вопросов");
+                throw new Error("Некорректня структуа данных вопросов");
             }
             console.log("Вопросы загружены:", data.length);
             this.questions = { reading: [], listening: [] };
@@ -329,7 +329,9 @@ class TestApp {
         
         const randomIndex = Math.floor(Math.random() * availableQuestions.length);
         this.currentQuestion = availableQuestions[randomIndex];
+        this.currentQuestionType = this.currentQuestion.questionType; // Добавьте эту строку
         console.log("Текущий вопрос:", this.currentQuestion);
+        console.log("Тип текущего вопроса:", this.currentQuestionType); // Добавьте эту строку
         
         this.renderQuestion(this.currentQuestion);
     }
@@ -399,24 +401,25 @@ class TestApp {
         }
         
         switch (question.questionType) {
+            case 'single':
             case 'multiple-choice':
                 this.renderMultipleChoiceQuestion(question);
-                break;
-            case 'matching':
-                this.renderMatchingQuestion(question);
-                break;
-            case 'typeImg':
-                this.renderTypeImgQuestion(question);
                 break;
             case 'typing':
                 this.renderTypingQuestion(question);
                 break;
+            case 'matching':
+                this.renderMatchingQuestion(question);
+                break;
             case 'matchingWords':
                 this.renderMatchingWordsQuestion(question);
                 break;
+            case 'typeImg':
+                this.renderTypeImgQuestion(question);
+                break;
             default:
-                console.error("Неизвестй тип вопроса:", question.questionType);
-                this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
+                console.error('Неизвестный тип вопроса:', question.questionType);
+                this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь к администратору.");
         }
         this.startTimer();
         this.submitBtn.disabled = true; // Изначальн кнопка неактивна для всех типо вопросов
@@ -665,12 +668,11 @@ class TestApp {
     }
 
     getUserAnswer() {
-        console.log('Получение ответа пользователя для вопроса типа:', this.currentQuestion.questionType);
-        switch (this.currentQuestion.questionType) {
+        console.log('Получение ответа пользователя для вопроса типа:', this.currentQuestionType);
+        switch (this.currentQuestionType) {
             case 'single':
-                return this.getSingleAnswer();
-            case 'multiple':
-                return this.getMultipleAnswer();
+            case 'multiple-choice':
+                return this.getMultipleChoiceAnswer();
             case 'typing':
                 return this.getTypingAnswer();
             case 'matching':
@@ -680,15 +682,15 @@ class TestApp {
             case 'typeImg':
                 return this.getTypeImgAnswer();
             default:
-                console.error('Неизвестный тип вопроса:', this.currentQuestion.questionType);
+                console.error('Неизвестный тип вопроса:', this.currentQuestionType);
                 return null;
         }
     }
 
     checkAnswer(userAnswer) {
-        switch (this.currentQuestion.questionType) {
+        switch (this.currentQuestionType) {
             case 'single':
-            case 'multiple':
+            case 'multiple-choice':
                 return this.checkMultipleChoiceAnswer(userAnswer);
             case 'typing':
                 return this.checkTypingAnswer(userAnswer);
@@ -699,7 +701,7 @@ class TestApp {
             case 'typeImg':
                 return this.checkTypeImgAnswer(userAnswer);
             default:
-                console.error('Неизвестный тип вопроса:', this.currentQuestion.questionType);
+                console.error('Неизвестный тип вопроса:', this.currentQuestionType);
                 return false;
         }
     }
@@ -707,7 +709,7 @@ class TestApp {
     handleSubmit() {
         if (this.submitBtn.disabled) return;
 
-        if (!this.currentQuestion || !this.currentQuestion.questionType) {
+        if (!this.currentQuestion || !this.currentQuestionType) {
             console.error('Текущий вопрос не определен или не имеет типа');
             return;
         }
@@ -1036,7 +1038,7 @@ class TestApp {
         if (wss >= wssScale[wssScale.length - 1].minWss) {
             return wssScale[wssScale.length - 1].level;
         }
-        return 'N/A'; // Есл WSS меньше ��инимального значения в шкале
+        return 'N/A'; // Есл WSS меньше инимального значения в шкале
     }
 
     sendResultsToAirtable() {
