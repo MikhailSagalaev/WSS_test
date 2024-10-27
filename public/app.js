@@ -47,7 +47,7 @@ class TestApp {
         this.setUser();
 
         if (this.userNotAuthorized) {
-            this.showUnavailableMessage("Пожалуйста, войдите  систему для проожден��я теста.");
+            this.showUnavailableMessage("Пожалуйста, войдите  систему для прооденя теста.");
             return;
         }
 
@@ -222,7 +222,7 @@ class TestApp {
                 this.currentStageIndex = this.stages.indexOf(savedProgress.stage) !== -1 ? this.stages.indexOf(savedProgress.stage) : 0;
             }
 
-            console.log("Прогресс загруен из localStorage:", savedProgress);
+            console.log("Прогрес загруен из localStorage:", savedProgress);
         } else {
             console.log("Нет сохранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
@@ -274,7 +274,7 @@ class TestApp {
             const response = await fetch('/api/questions');
             const data = await response.json();
             if (!Array.isArray(data)) {
-                throw new Error("Некорректня структура данных вопросов");
+                throw new Error("Некорректня структу��а данных вопросов");
             }
             console.log("Вопросы загружены:", data.length);
             this.questions = { reading: [], listening: [] };
@@ -419,7 +419,7 @@ class TestApp {
                 this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
         }
         this.startTimer();
-        this.submitBtn.disabled = true; // Изначально кнопка неактивна для всех типо вопросов
+        this.submitBtn.disabled = true; // Изначальн кнопка неактивна для всех типо вопросов
     }
 
     selectAnswer(selectedElement) {
@@ -665,7 +665,8 @@ class TestApp {
     }
 
     getUserAnswer() {
-        switch (this.currentQuestion.type) {
+        console.log('Получение ответа пользователя для вопроса типа:', this.currentQuestion.questionType);
+        switch (this.currentQuestion.questionType) {
             case 'single':
                 return this.getSingleAnswer();
             case 'multiple':
@@ -679,7 +680,7 @@ class TestApp {
             case 'typeImg':
                 return this.getTypeImgAnswer();
             default:
-                console.error('Неизвестный тип вопроса:', this.currentQuestion.type);
+                console.error('Неизвестный тип вопроса:', this.currentQuestion.questionType);
                 return null;
         }
     }
@@ -705,6 +706,11 @@ class TestApp {
 
     handleSubmit() {
         if (this.submitBtn.disabled) return;
+
+        if (!this.currentQuestion || !this.currentQuestion.questionType) {
+            console.error('Текущий вопрос не определен или не имеет типа');
+            return;
+        }
 
         const userAnswer = this.getUserAnswer();
         if (userAnswer === null) return;
@@ -777,7 +783,7 @@ class TestApp {
             }
         })
         .catch(error => {
-            console.error("Ошибка при сохранении прогресса в Airtable:", error);
+            console.error("Ошибка при сохраннии прогресса в Airtable:", error);
         });
     }
 
@@ -895,7 +901,7 @@ class TestApp {
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         
-        // Формируем финальные данные
+        // ормируем финальные данные
         const completionData = {
             userLogin: this.user.login,
             stagesResults: this.stagesResults,
@@ -938,7 +944,7 @@ class TestApp {
         })
         .catch(err => {
             console.error("Ошибка при завершении теста:", err);
-            alert("Произошла ошибка при завершени теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
+            alert("Произошла ошибка при завершени теста. Пожалуйста, попробуйте еще раз или свяжитесь с администатором.");
         });
     }
 
@@ -1030,7 +1036,7 @@ class TestApp {
         if (wss >= wssScale[wssScale.length - 1].minWss) {
             return wssScale[wssScale.length - 1].level;
         }
-        return 'N/A'; // Есл WSS меньше минимального значения в шкале
+        return 'N/A'; // Есл WSS меньше ��инимального значения в шкале
     }
 
     sendResultsToAirtable() {
@@ -1162,8 +1168,15 @@ class TestApp {
     }
 
     checkMatchingWordsAnswer(userAnswer) {
-        const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim().toLowerCase());
-        return userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
+        console.log('Проверка ответа для вопроса типа matchingWords');
+        console.log('Ответ пользователя:', userAnswer);
+        console.log('Правильный ответ:', this.currentQuestion.wordOptions);
+        
+        const correctAnswers = this.currentQuestion.wordOptions.split(',').map(word => word.trim().toLowerCase());
+        const isCorrect = userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
+        
+        console.log('Результат проверки:', isCorrect);
+        return isCorrect;
     }
 
     updateQuestionNumber() {
@@ -1223,8 +1236,11 @@ class TestApp {
     }
 
     getMatchingWordsAnswer() {
+        console.log('Получение ответа для вопроса типа matchingWords');
         const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
-        return Array.from(dropZones).map(zone => zone.textContent.trim());
+        const answer = Array.from(dropZones).map(zone => zone.textContent.trim());
+        console.log('Ответ пользователя:', answer);
+        return answer;
     }
 }
 
