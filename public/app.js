@@ -47,7 +47,7 @@ class TestApp {
         this.setUser();
 
         if (this.userNotAuthorized) {
-            this.showUnavailableMessage("Пожалуйста, войдите  систему для проождения теста.");
+            this.showUnavailableMessage("Пожалуйста, войдите  систему для проожден��я теста.");
             return;
         }
 
@@ -312,28 +312,26 @@ class TestApp {
     }
 
     loadQuestion() {
-        const currentLevel = this.levels[this.currentLevelIndex];
+        console.log(`Загрузка вопроса для этап: ${this.stages[this.currentStageIndex]}, урвня: ${this.levels[this.currentLevelIndex]}`);
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Загрузка вопроса для этап: ${currentStage}, урвня: ${currentLevel}`);
+        const currentLevel = this.levels[this.currentLevelIndex];
         
-        const questionsForStage = this.questions[currentStage];
-        console.log(`Всего опросов на тапе ${currentStage}:`, questionsForStage.length);
+        console.log(`Всего опросов на тапе ${currentStage}: ${this.questions[currentStage].length}`);
         
-        const questionsForLevel = questionsForStage.filter(q => q.level === this.currentLevelIndex + 1);
-        console.log(`Найдено вопросов на уровне ${currentLevel} для этапа ${currentStage}:`, questionsForLevel.length);
+        const availableQuestions = this.questions[currentStage].filter(q => q.level === this.currentLevelIndex + 1);
+        console.log(`Найдено вопросов на уровне ${currentLevel} для этапа ${currentStage}: ${availableQuestions.length}`);
         
-        if (questionsForLevel.length === 0) {
-            console.error(`Нет вопросов для уровня ${currentLevel}`);
-            this.finishTest();
+        if (availableQuestions.length === 0) {
+            console.error(`Нет доступных вопросов для этапа ${currentStage} уровня ${currentLevel}`);
+            this.finishStage();
             return;
         }
-
-        const randomIndex = Math.floor(Math.random() * questionsForLevel.length);
-        this.currentQuestion = questionsForLevel[randomIndex];
+        
+        const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+        this.currentQuestion = availableQuestions[randomIndex];
         console.log("Текущий вопрос:", this.currentQuestion);
-
+        
         this.renderQuestion(this.currentQuestion);
-        this.updateQuestionNumber();
     }
 
     updateQuestionInfo() {
@@ -417,7 +415,7 @@ class TestApp {
                 this.renderMatchingWordsQuestion(question);
                 break;
             default:
-                console.error("Неизвест��й тип вопроса:", question.questionType);
+                console.error("Неизвестй тип вопроса:", question.questionType);
                 this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
         }
         this.startTimer();
@@ -687,7 +685,7 @@ class TestApp {
     }
 
     checkAnswer(userAnswer) {
-        switch (this.currentQuestion.type) {
+        switch (this.currentQuestion.questionType) {
             case 'single':
             case 'multiple':
                 return this.checkMultipleChoiceAnswer(userAnswer);
@@ -700,7 +698,7 @@ class TestApp {
             case 'typeImg':
                 return this.checkTypeImgAnswer(userAnswer);
             default:
-                console.error('Неизвестный тип вопроса:', this.currentQuestion.type);
+                console.error('Неизвестный тип вопроса:', this.currentQuestion.questionType);
                 return false;
         }
     }
@@ -1032,7 +1030,7 @@ class TestApp {
         if (wss >= wssScale[wssScale.length - 1].minWss) {
             return wssScale[wssScale.length - 1].level;
         }
-        return 'N/A'; // Если WSS меньше минимального значения в шкале
+        return 'N/A'; // Есл WSS меньше минимального значения в шкале
     }
 
     sendResultsToAirtable() {
