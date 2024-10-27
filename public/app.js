@@ -47,7 +47,7 @@ class TestApp {
         this.setUser();
 
         if (this.userNotAuthorized) {
-            this.showUnavailableMessage("Пожалуйста, войдите  систему для прохождения теста.");
+            this.showUnavailableMessage("Пожалуйста, войдите  систему для проождения теста.");
             return;
         }
 
@@ -111,7 +111,7 @@ class TestApp {
                 throw new Error("Test not available");
             }
         } catch (error) {
-            console.error("Ошибка при проверке дступности теста:", error);
+            console.error("Ошибка при проверке дступности тста:", error);
             this.showUnavailableMessage("Произошла ошибка при проверке доступности теста.");
             throw error;
         }
@@ -134,14 +134,14 @@ class TestApp {
             const data = await response.json();
     
             if (data.error) {
-                console.error("О��ибка при загрузке прогресса:", data.error);
+                console.error("Оибка при загрузке прогресса:", data.error);
                 throw new Error(data.error);
             } else if (data.progress) {
                 console.log("Прогресс получен из Airtable:", data.progress);
                 this.setProgress(data.progress);
                 this.saveProgressToLocalStorage(); // Сохраняем прогресс в localStorage после получения из Airtable
             } else {
-                console.log("Прогресс не найден. Начинаем новый этап.");
+                console.log("Прогресс не найден. Начинаем ноый этап.");
                 this.setInitialProgress();
             }
     
@@ -196,7 +196,7 @@ class TestApp {
             currentLevelIndex: this.currentLevelIndex,
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
-        console.log("Пгесс сохранён в localStorage:", progress);
+        console.log("Пгес сохранён в localStorage:", progress);
     }
 
     // Метод д зарзки прореса з localStorage
@@ -314,10 +314,10 @@ class TestApp {
     loadQuestion() {
         const currentLevel = this.levels[this.currentLevelIndex];
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Загрузка вопроса для этап: ${currentStage}, уровня: ${currentLevel}`);
+        console.log(`Загрузка вопроса для этап: ${currentStage}, ур��вня: ${currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
-        console.log(`Всего вопросов на тапе ${currentStage}:`, questionsForStage.length);
+        console.log(`Всего опросов на тапе ${currentStage}:`, questionsForStage.length);
         
         const questionsForLevel = questionsForStage.filter(q => q.level === this.currentLevelIndex + 1);
         console.log(`Найдено вопросов на уровне ${currentLevel} для этапа ${currentStage}:`, questionsForLevel.length);
@@ -871,7 +871,7 @@ class TestApp {
     
         this.stagesResults.push(stageResult);
     
-        // Очистка счетчиков для сле��ующего этапа
+        // Очистка счетчиков для слеующего этапа
         this.correctCount = 0;
         this.incorrectCount = 0;
         this.totalQuestions = 0;
@@ -1021,10 +1021,14 @@ class TestApp {
     // Логика для вычисения иогового уровня на основе WSS
     calculateFinalLevel(wss) {
         const wssScale = this.initializeWssScale();
-        for (let i = wssScale.length - 1; i >= 0; i--) {
-            if (wss >= wssScale[i].wss) {
+        for (let i = 0; i < wssScale.length - 1; i++) {
+            if (wss >= wssScale[i].minWss && wss < wssScale[i + 1].minWss) {
                 return wssScale[i].level;
             }
+        }
+        // Проверка для последнего уровня
+        if (wss >= wssScale[wssScale.length - 1].minWss) {
+            return wssScale[wssScale.length - 1].level;
         }
         return 'N/A'; // Если WSS меньше минимального значения в шкале
     }
@@ -1198,14 +1202,24 @@ class TestApp {
     }
 
     showStartButton() {
-        this.questionContainer.innerHTML = '<button id="start-test-btn">START</button>';
+        this.questionContainer.innerHTML = '<button id="start-test-btn" class="submit-button">START</button>';
         document.getElementById('start-test-btn').addEventListener('click', () => this.startTest());
+        
+        // Скрываем кнопку NEXT
+        if (this.submitBtn) {
+            this.submitBtn.style.display = 'none';
+        }
     }
 
     startTest() {
         this.initialLevelIndex = 0; // Начинаем с pre-A1
         this.currentLevelIndex = this.initialLevelIndex;
         this.loadQuestion();
+        
+        // Показываем кнопку NEXT
+        if (this.submitBtn) {
+            this.submitBtn.style.display = 'block';
+        }
     }
 }
 

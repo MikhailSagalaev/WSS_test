@@ -473,3 +473,20 @@ audio {
         justify-content: center;
     }
 }
+
+#start-test-btn {
+    display: block;
+    width: 100%;
+    padding: 12px 48px;
+    background-color: #d7f4c8;
+    border: none;
+    border-radius: 6px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+#start-test-btn:hover {
+    background-color: #c0e6a8;
+}
