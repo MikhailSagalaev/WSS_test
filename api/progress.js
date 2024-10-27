@@ -23,13 +23,13 @@ module.exports = async (req, res) => {
       totalQuestions, 
       correctHigherLevel, 
       incorrectLowerLevel,
-      questionsOnCurrentLevel, // Добавьте это поле здесь
+      questionsOnCurrentLevel,
       timestamp 
     } = req.body;
 
     try {
         // Проверяем существующую запись прогресса
-        const filterFormula = `AND({UserLogin} = "${userLogin}", {Stage} = "${stage}")`;
+        const filterFormula = `({UserLogin} = "${userLogin}")`;
         const progressResponse = await fetch(`${progressUrl}?filterByFormula=${encodeURIComponent(filterFormula)}`, {
             headers: {
                 Authorization: `Bearer ${AIRTABLE_PAT}`,
@@ -50,14 +50,15 @@ module.exports = async (req, res) => {
             recordId = progressData.records[0].id;
             const updateData = {
                 fields: {
+                    Stage: stage,
                     Level: level,
                     CorrectCount: correctCount,
                     IncorrectCount: incorrectCount,
                     TotalQuestions: totalQuestions,
                     CorrectHigherLevel: correctHigherLevel,
                     IncorrectLowerLevel: incorrectLowerLevel,
-                    Timestamp: timestamp,
-                    QuestionsOnCurrentLevel: questionsOnCurrentLevel
+                    QuestionsOnCurrentLevel: questionsOnCurrentLevel,
+                    Timestamp: timestamp
                 }
             };
 
@@ -85,8 +86,8 @@ module.exports = async (req, res) => {
                     TotalQuestions: totalQuestions,
                     CorrectHigherLevel: correctHigherLevel,
                     IncorrectLowerLevel: incorrectLowerLevel,
-                    Timestamp: timestamp,
-                    QuestionsOnCurrentLevel: questionsOnCurrentLevel
+                    QuestionsOnCurrentLevel: questionsOnCurrentLevel,
+                    Timestamp: timestamp
                 }
             };
 

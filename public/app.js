@@ -43,26 +43,21 @@ class TestApp {
     async init() {
         if (this.isInitialized) return;
         this.isInitialized = true;
-    
-        this.setUser(); // Initialize user data
-    
+
+        this.setUser();
+
         if (this.userNotAuthorized) {
             this.showUnavailableMessage("Пожалуйста, войдите в систему для прохождения теста.");
             return;
         }
-    
+
         try {
-            // 1. Проверка доступности теста
             await this.checkTestAvailability();
-            
-            // 2. Подгрузка прогресса из Airtable
             await this.loadProgressFromAirtable();
-            
-            // 3. Загрузка вопросов соответствующих этапу
             await this.loadQuestions();
             
-            // 4. Рендеринг вопроса в зависимости от его типа
-            this.loadQuestion();
+            // Показываем кнопку START вместо загрузки вопроса
+            this.showStartButton();
         } catch (error) {
             console.error("Error during initialization:", error);
             this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжитесь с администратором.");
@@ -109,7 +104,7 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Результат проверки доступности:", data);
+            console.log("Результат проверки доступ��ости:", data);
 
             if (!data.available) {
                 this.showUnavailableMessage("Тест в данный момнт неоступен.");
@@ -183,7 +178,7 @@ class TestApp {
         this.incorrectLowerLevel = 0;
     }
 
-    // Метод для сохранения прогресса в localStorage
+    // Метод дя сохранения прогресса в localStorage
     saveProgressToLocalStorage() {
         const progress = {
             stage: this.stages[this.currentStageIndex],
@@ -1079,8 +1074,8 @@ class TestApp {
             this.stagesResults = [];
             this.currentQuestion = null;
             
-            // Перезагрузка страницы или перезапуск теста
-            window.location.reload();
+            // Показываем кнопку START
+            this.showStartButton();
         })
         .catch(error => {
             console.error("Ошибка при сбросе прогресса:", error);
@@ -1302,6 +1297,15 @@ class TestApp {
             'C2': 160
         };
         return wssScale[level] || 0;
+    }
+
+    showStartButton() {
+        this.questionContainer.innerHTML = '<button id="start-test-btn">START</button>';
+        document.getElementById('start-test-btn').addEventListener('click', () => this.startTest());
+    }
+
+    startTest() {
+        this.loadQuestion();
     }
 }
 
