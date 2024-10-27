@@ -286,7 +286,7 @@ class TestApp {
                     console.warn(`Неизвестный этап для вопроса ${question.id}: ${stage}`);
                 }
             });
-            console.log('Отформатированные вопросы:', this.questions);
+            console.log('Оторматированные вопросы:', this.questions);
         } catch (err) {
             console.error("Ошибка при загрузке вопросов:", err);
             throw err;
@@ -314,7 +314,7 @@ class TestApp {
     loadQuestion() {
         const currentLevel = this.levels[this.currentLevelIndex];
         const currentStage = this.stages[this.currentStageIndex];
-        console.log(`Загрузка вопроса для этап: ${currentStage}, ур��вня: ${currentLevel}`);
+        console.log(`Загрузка вопроса для этап: ${currentStage}, урвня: ${currentLevel}`);
         
         const questionsForStage = this.questions[currentStage];
         console.log(`Всего опросов на тапе ${currentStage}:`, questionsForStage.length);
@@ -417,7 +417,7 @@ class TestApp {
                 this.renderMatchingWordsQuestion(question);
                 break;
             default:
-                console.error("Неизвестый тип вопроса:", question.questionType);
+                console.error("Неизвест��й тип вопроса:", question.questionType);
                 this.renderMultipleChoiceQuestion(question); // Fallback to multiple-choice
         }
         this.startTimer();
@@ -667,37 +667,40 @@ class TestApp {
     }
 
     getUserAnswer() {
-        switch (this.currentQuestion.questionType) {
-            case 'multiple-choice':
-                return this.getMultipleChoiceAnswer();
-            case 'matching':
-                return this.getMatchingAnswer();
-            case 'typeImg':
-                return this.getTypeImgAnswer();
+        switch (this.currentQuestion.type) {
+            case 'single':
+                return this.getSingleAnswer();
+            case 'multiple':
+                return this.getMultipleAnswer();
             case 'typing':
                 return this.getTypingAnswer();
+            case 'matching':
+                return this.getMatchingAnswer();
             case 'matchingWords':
                 return this.getMatchingWordsAnswer();
+            case 'typeImg':
+                return this.getTypeImgAnswer();
             default:
-                console.error("Неизвестный тип вопроса:", this.currentQuestion.questionType);
+                console.error('Неизвестный тип вопроса:', this.currentQuestion.type);
                 return null;
         }
     }
 
     checkAnswer(userAnswer) {
-        switch (this.currentQuestion.questionType) {
-            case 'multiple-choice':
+        switch (this.currentQuestion.type) {
+            case 'single':
+            case 'multiple':
                 return this.checkMultipleChoiceAnswer(userAnswer);
-            case 'matching':
-                return this.checkMatchingAnswer(userAnswer);
-            case 'typeImg':
-                return this.checkTypeImgAnswer(userAnswer);
             case 'typing':
                 return this.checkTypingAnswer(userAnswer);
+            case 'matching':
+                return this.checkMatchingAnswer(userAnswer);
             case 'matchingWords':
                 return this.checkMatchingWordsAnswer(userAnswer);
+            case 'typeImg':
+                return this.checkTypeImgAnswer(userAnswer);
             default:
-                console.error("Неизвестный тип вопроса:", this.currentQuestion.questionType);
+                console.error('Неизвестный тип вопроса:', this.currentQuestion.type);
                 return false;
         }
     }
@@ -937,7 +940,7 @@ class TestApp {
         })
         .catch(err => {
             console.error("Ошибка при завершении теста:", err);
-            alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
+            alert("Произошла ошибка при завершени теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
         });
     }
 
@@ -961,7 +964,6 @@ class TestApp {
             localStorage.removeItem('testProgress');
             // Сброс локальных переменных
             this.currentStageIndex = 0;
-            this.currentLevel = 'pre-A1';
             this.correctCount = 0;
             this.incorrectCount = 0;
             this.totalQuestions = 0;
@@ -1220,6 +1222,11 @@ class TestApp {
         if (this.submitBtn) {
             this.submitBtn.style.display = 'block';
         }
+    }
+
+    getMatchingWordsAnswer() {
+        const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
+        return Array.from(dropZones).map(zone => zone.textContent.trim());
     }
 }
 
