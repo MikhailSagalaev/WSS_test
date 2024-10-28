@@ -2,20 +2,20 @@
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-    // Настройка CORS
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-    );
-
-    // Обработка OPTIONS запросов
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-    }
+        // Настройка CORS
+        res.setHeader('Access-Control-Allow-Credentials', true);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+        res.setHeader(
+            'Access-Control-Allow-Headers',
+            'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+        );
+    
+        // Обработка OPTIONS запросов
+        if (req.method === 'OPTIONS') {
+            res.status(200).end();
+            return;
+        }
     console.log("Получен запрос к /api/progress");
     console.log("Тело запроса:", req.body);
 
@@ -86,6 +86,8 @@ module.exports = async (req, res) => {
             });
 
             if (!updateResponse.ok) {
+                const errorData = await updateResponse.json();
+                console.error("Ошибка при обновлении записи в Airtable:", errorData);
                 throw new Error(`HTTP error! status: ${updateResponse.status}`);
             }
         } else {
@@ -115,6 +117,8 @@ module.exports = async (req, res) => {
             });
 
             if (!createResponse.ok) {
+                const errorData = await createResponse.json();
+                console.error("Ошибка при создании записи в Airtable:", errorData);
                 throw new Error(`HTTP error! status: ${createResponse.status}`);
             }
         }
@@ -123,6 +127,10 @@ module.exports = async (req, res) => {
 
     } catch (error) {
         console.error("Ошибка при сохранении прогресса:", error);
-        res.status(500).json({ error: 'Внутренняя ошибка сервера', details: error.message });
+        res.status(500).json({ 
+            error: 'Внутренняя ошибка сервера', 
+            details: error.message,
+            requestBody: req.body 
+        });
     }
 };

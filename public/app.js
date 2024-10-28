@@ -30,6 +30,7 @@ class TestApp {
         this.updateQuestionNumber();
         this.currentQuestion = null;
         this.currentQuestionType = null;
+        this.currentStageElement = document.getElementById('current-stage');
     }
 
     initializeElements() {
@@ -67,7 +68,7 @@ class TestApp {
             this.showStartButton();
         } catch (error) {
             console.error("Error during initialization:", error);
-            this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжитесь с администратором.");
+            this.showUnavailableMessage("Произошла ошибка при инициализации теса. Пожалуйста, попробуйте позже или свяжитесь с администратором.");
         }
     }
     
@@ -143,17 +144,14 @@ class TestApp {
     }
     setProgress(progress) {
         this.currentStageIndex = this.stages.indexOf(progress.stage);
-        this.currentLevel = progress.currentLevel || 1;
+        this.currentLevel = progress.currentLevel;
+        this.currentLevelIndex = this.levels.indexOf(progress.currentLevel);
         this.correctCount = progress.correctCount || 0;
         this.incorrectCount = progress.incorrectCount || 0;
         this.totalQuestions = progress.totalQuestions || 0;
         this.correctHigherLevel = progress.correctHigherLevel || 0;
         this.incorrectLowerLevel = progress.incorrectLowerLevel || 0;
         this.questionsOnCurrentLevel = progress.questionsOnCurrentLevel || 0;
-        this.groupCorrectAnswers = progress.groupCorrectAnswers || 0;
-        this.groupTotalAnswers = progress.groupTotalAnswers || 0;
-        this.groupsAnswered = progress.groupsAnswered || 0;
-        this.currentLevelIndex = this.levels.indexOf(progress.currentLevel) !== -1 ? this.levels.indexOf(progress.currentLevel) : 0;
     }
 
     setInitialProgress() {
@@ -212,7 +210,7 @@ class TestApp {
 
             console.log("Прогрес загруен из localStorage:", savedProgress);
         } else {
-            console.log("Не сохранённого прогресса в localStorage. Начинаем новый тест.");
+            console.log("Не сохранённого прогресса в localStorage. Начинам новый тест.");
             this.currentStageIndex = 0;
             this.currentLevel = 1;
         }
@@ -283,7 +281,6 @@ class TestApp {
                 }
 
                 const formattedQuestion = this.formatQuestion(question);
-                console.log('Форматированный вопрос:', formattedQuestion);
                 this.questions[stage].push(formattedQuestion);
             });
 
@@ -299,7 +296,7 @@ class TestApp {
         const formattedQuestion = {
             id: question.id,
             stage: question.fields.Stage.toLowerCase(),
-            level: parseInt(question.fields.Level, 10),
+            level: question.fields.Level, // Теперь это строка, а не число
             questionType: question.fields["Question Type"],
             question: question.fields.Question,
             answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
@@ -310,19 +307,20 @@ class TestApp {
             wordOptions: question.fields.WordOptions,
             matchPairs: question.fields.MatchPairs,
             task: question.fields.Task || '',
-            designImage: question.fields.DesignImg || '' // Добавляем поле для изображения
+            designImage: question.fields.DesignImg || ''
         };
         return formattedQuestion;
     }
 
     loadQuestion() {
-        console.log(`Загрузка вопроса для этап: ${this.stages[this.currentStageIndex]}, урвня: ${this.levels[this.currentLevelIndex]}`);
+        console.log(`Загрузка вопроса для этапа: ${this.stages[this.currentStageIndex]}, уровня: ${this.levels[this.currentLevelIndex]}`);
         const currentStage = this.stages[this.currentStageIndex];
         const currentLevel = this.levels[this.currentLevelIndex];
         
         console.log(`Всего вопросов на этапе ${currentStage}: ${this.questions[currentStage].length}`);
         
-        const availableQuestions = this.questions[currentStage].filter(q => q.level === this.currentLevelIndex + 1);
+        // Изменяем фильтрацию вопросов
+        const availableQuestions = this.questions[currentStage].filter(q => q.level === currentLevel);
         console.log(`Найдено вопросов на уровне ${currentLevel} для этапа ${currentStage}: ${availableQuestions.length}`);
         
         if (availableQuestions.length === 0) {
@@ -666,7 +664,7 @@ class TestApp {
     }
 
     getUserAnswer() {
-        console.log('Получение ответа пользователя для вопроса типа:', this.currentQuestionType);
+        console.log('Получение ответа поьзователя для в��проса типа:', this.currentQuestionType);
         
         if (!this.currentQuestionType) {
             console.error('Тип вопроса не определен');
@@ -719,7 +717,7 @@ class TestApp {
         if (this.submitBtn.disabled && !timeExpired) return;
 
         if (!this.currentQuestion || !this.currentQuestionType) {
-            console.error('Текущий вопрос или его тип не определены');
+            console.error('Текущий вопрос или его тип не опредлены');
             return;
         }
 
@@ -814,6 +812,7 @@ class TestApp {
             this.currentLevelIndex++;
             this.questionsOnCurrentLevel = 0;
             this.correctOnCurrentLevel = 0;
+            console.log(`Переход на следующий уровень: ${this.levels[this.currentLevelIndex]}`);
         }
     }
 
@@ -823,6 +822,7 @@ class TestApp {
             this.currentLevelIndex--;
             this.questionsOnCurrentLevel = 0;
             this.correctOnCurrentLevel = 0;
+            console.log(`Переход на предыдущий уровень: ${this.levels[this.currentLevelIndex]}`);
         }
     }
 
@@ -859,7 +859,7 @@ class TestApp {
             console.log("Прогресс успешно отправлен", data);
         } catch (error) {
             console.error("Ошибка при отправке прогресса:", error);
-            // Можно добавить повторную попытку отправки или другую обработку ошибки
+            // Можно добавить повторную попытку отправки или другу обработку ошбки
         }
     }
     
@@ -901,18 +901,19 @@ class TestApp {
         if (this.currentStageIndex < this.stages.length - 1) {
             this.currentStageIndex++;
             this.currentLevelIndex = 0; // Сбрасываем уровень на начальный для нового этапа
+            this.updateCurrentStage(); // Обновляем отображение этапа
             this.loadQuestion();
         } else {
             this.finishTest();
         }
     }
 
-    finishTest() {
-        // Рссчитываем финальный WSS и уровень
+    async finishTest() {
+        // Рассчитываем финальный WSS и уровень
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         
-        // ормируем финальные данные
+        // Формируем финальные данные
         const completionData = {
             userLogin: this.user.login,
             stagesResults: this.stagesResults,
@@ -932,53 +933,56 @@ class TestApp {
 
         console.log("Отправляемые данные завершения теста:", completionData);
 
-        // Отправляем результаты
-        fetch('/api/complete', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(completionData)
-        })
-        .then(response => {
+        try {
+            const response = await fetch(`${this.API_BASE_URL}/api/complete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(completionData)
+            });
+
             if (!response.ok) {
-                return response.json().then(err => { throw err; });
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
-        })
-        .then(data => {
+
+            const data = await response.json();
             console.log("Тест успешно завершён:", data);
-            // Покаываем результаы пользователю
+            
+            // Показываем результаты пользователю
             this.showResults(finalLevel, finalWss);
+            
             // Сбрасываем прогресс
-            this.resetProgress();
-        })
-        .catch(err => {
-            console.error("Ошибка при завершении теста:", err);
-            alert("Произошла ошибка при завершени теста. Пожалуйста, попроуйте еще раз или свяжитесь с администатором.");
-        });
+            await this.resetProgress();
+        } catch (error) {
+            console.error("Ошибка при завершении теста:", error);
+            alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
+        }
     }
 
-    resetProgress() {
-        fetch('/api/resetProgress', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ userLogin: this.user.login })
-        })
-        .then(response => {
+    async resetProgress() {
+        try {
+            const response = await fetch(`${this.API_BASE_URL}/api/resetProgress`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userLogin: this.user.login })
+            });
+
             if (!response.ok) {
-                return response.json().then(err => { throw err; });
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
-        })
-        .then(data => {
+
+            const data = await response.json();
             console.log("Прогресс успешно сброшен:", data);
+            
             // Очистка локального хранилища
             localStorage.removeItem('testProgress');
+            
             // Сброс локальных переменных
             this.currentStageIndex = 0;
+            this.currentLevel = this.levels[0]; // Используем первый уровень из массива
             this.correctCount = 0;
             this.incorrectCount = 0;
             this.totalQuestions = 0;
@@ -990,11 +994,10 @@ class TestApp {
             
             // Показываем кнопку START
             this.showStartButton();
-        })
-        .catch(error => {
+        } catch (error) {
             console.error("Ошибка при сбросе прогресса:", error);
             alert("Произошла ошибка при сбросе прогресса. Пожалуйста, попробуйте еще раз.");
-        });
+        }
     }
 
     // Мето для обновленя уровня на основе резуьтатов групп
@@ -1014,12 +1017,14 @@ class TestApp {
 
     showResults(finalLevel, finalWss) {
         const resultMessage = `
-            <h2>Результаты теста</h2>
-            <p>Ваш уровень: ${finalLevel}</p>
-            <p>Ваш WSS балл: ${finalWss}</p>
-            <p>Правильных ответов: ${this.correctCount}</p>
-            <p>Неправильных ответов: ${this.incorrectCount}</p>
-            <p>Всего вопросов: ${this.totalQuestions}</p>
+            <div class="test-results">
+                <h2>Результаты теста</h2>
+                <p>Ваш уровень: ${finalLevel}</p>
+                <p>Ваш WSS балл: ${finalWss}</p>
+                <p>Правильных ответов: ${this.correctCount}</p>
+                <p>Неправильных ответов: ${this.incorrectCount}</p>
+                <p>Всего вопросов: ${this.totalQuestions}</p>
+            </div>
         `;
         
         this.questionContainer.innerHTML = resultMessage;
@@ -1043,7 +1048,7 @@ class TestApp {
                 return wssScale[i].level;
             }
         }
-        // Проверка для последнего уровня
+        // Проверка для оследнего урвня
         if (wss >= wssScale[wssScale.length - 1].minWss) {
             return wssScale[wssScale.length - 1].level;
         }
@@ -1227,10 +1232,13 @@ class TestApp {
     }
 
     showStartButton() {
-        this.questionContainer.innerHTML = '<button id="start-test-btn" class="submit-button">START</button>';
+        this.questionContainer.innerHTML = '<button id="start-test-btn">START</button>';
         document.getElementById('start-test-btn').addEventListener('click', () => this.startTest());
         
-        // Скрываем кнопку NEXT
+        // Показываем начальный этап
+        this.updateCurrentStage();
+        
+        // С��рываем кнопку NEXT
         if (this.submitBtn) {
             this.submitBtn.style.display = 'none';
         }
@@ -1239,9 +1247,11 @@ class TestApp {
     startTest() {
         this.initialLevelIndex = 0; // Начинаем с pre-A1
         this.currentLevelIndex = this.initialLevelIndex;
+        this.currentLevel = this.levels[this.currentLevelIndex];
+        
+        this.updateCurrentStage();
         this.loadQuestion();
         
-        // Показываем кнопку NEXT
         if (this.submitBtn) {
             this.submitBtn.style.display = 'block';
         }
@@ -1306,6 +1316,13 @@ class TestApp {
             }
         } else {
             console.error('Контейнер для описания задачи не найден');
+        }
+    }
+
+    updateCurrentStage() {
+        if (this.currentStageElement) {
+            const stageName = this.stages[this.currentStageIndex];
+            this.currentStageElement.textContent = stageName.charAt(0).toUpperCase() + stageName.slice(1);
         }
     }
 }
