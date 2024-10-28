@@ -1,8 +1,16 @@
 {
     "version": 2,
     "routes": [
-      { "src": "/api/checkTestAvailability", "dest": "/api/checkTestAvailability.js" },
-      { "src": "/api/questions", "dest": "/api/questions.js" },
+      { "src": "/api/checkTestAvailability", "dest": "/api/checkTestAvailability.js", "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        } },
+      { "src": "/api/questions", "dest": "/api/questions.js", "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type"
+        } },
       { "src": "/api/progress", "dest": "/api/progress.js" },
       { "src": "/api/complete", "dest": "/api/complete.js" },
       { "src": "/api/decreaseTestAttempts", "dest": "/api/decreaseTestAttempts.js" },
