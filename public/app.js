@@ -295,20 +295,24 @@ class TestApp {
     formatQuestion(question) {
         const formattedQuestion = {
             id: question.id,
-            stage: question.fields.Stage.toLowerCase(),
-            level: question.fields.Level, // Теперь это строка, а не число
-            questionType: question.fields["Question Type"],
-            question: question.fields.Question,
+            stage: question.fields.Stage?.toLowerCase() || '',
+            level: question.fields.Level || '',
+            questionType: question.fields["Question Type"] || '',
+            question: question.fields.Question || '',
             answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
-            correct: question.fields.Correct,
+            correct: question.fields.Correct || '',
             audio: question.fields.Audio || null,
             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
-            sentenceWithGaps: question.fields.SentenceWithGaps,
-            wordOptions: question.fields.WordOptions,
-            matchPairs: question.fields.MatchPairs,
+            sentenceWithGaps: question.fields.SentenceWithGaps || '',
+            wordOptions: question.fields.WordOptions || '',
+            matchPairs: question.fields.MatchPairs || '',
             task: question.fields.Task || '',
             designImage: question.fields.DesignImg || ''
         };
+
+        // Добавляем логирование для отладки
+        console.log('Форматированный вопрос:', formattedQuestion);
+        
         return formattedQuestion;
     }
 
@@ -554,18 +558,36 @@ class TestApp {
     }
 
     renderTypingQuestion(question) {
-        const words = question.sentenceWithGaps.split('_');
-        let html = `<div class="typing-question">`;
-        words.forEach((word, index) => {
-            html += word;
-            if (index < words.length - 1) {
-                html += `<input type="text" class="gap-answer" data-index="${index}">`;
-            }
-        });
-        html += `</div>`;
-        this.questionContainer.innerHTML = html;
-        this.addInputListeners();
-        this.checkAllInputsFilled();
+        console.log('Рендеринг вопроса typing:', question);
+        
+        if (!question.sentenceWithGaps) {
+            console.error('Отсутствует sentenceWithGaps для вопроса typing:', question);
+            this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь к администратору.");
+            return;
+        }
+
+        try {
+            const words = question.sentenceWithGaps.split('_');
+            let html = `
+                <div class="typing-question">
+                    <h3>${question.question || ''}</h3>
+            `;
+
+            words.forEach((word, index) => {
+                html += word;
+                if (index < words.length - 1) {
+                    html += `<input type="text" class="gap-answer" data-index="${index}">`;
+                }
+            });
+
+            html += `</div>`;
+            this.questionContainer.innerHTML = html;
+            this.addInputListeners();
+            this.checkAllInputsFilled();
+        } catch (error) {
+            console.error('Ошибка при рендеринге вопроса typing:', error);
+            this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь к администратору.");
+        }
     }
 
     renderMatchingWordsQuestion(question) {
@@ -640,12 +662,10 @@ class TestApp {
     }
 
     addInputListeners() {
-        if (this.inputListenersAdded) return;
-        this.inputListenersAdded = true;
-
-        const inputs = this.questionContainer.querySelectorAll('input[type="text"]');
+        const inputs = this.questionContainer.querySelectorAll('.gap-answer');
         inputs.forEach(input => {
             input.addEventListener('input', (e) => {
+                // Разрешаем только латинские буквы
                 if (!this.isLatinInput(e.target.value)) {
                     e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '');
                 }
@@ -659,9 +679,11 @@ class TestApp {
     }
 
     checkAllInputsFilled() {
-        const inputs = this.questionContainer.querySelectorAll('input[type="text"]');
+        const inputs = this.questionContainer.querySelectorAll('.gap-answer');
         const allFilled = Array.from(inputs).every(input => input.value.trim() !== '');
-        this.submitBtn.disabled = !allFilled;
+        if (this.submitBtn) {
+            this.submitBtn.disabled = !allFilled;
+        }
     }
 
     getUserAnswer() {
@@ -1204,7 +1226,7 @@ class TestApp {
 
     getTypingAnswer() {
         const inputs = this.questionContainer.querySelectorAll('.gap-answer');
-        return Array.from(inputs).map(input => input.value);
+        return Array.from(inputs).map(input => input.value.trim());
     }
 
     checkMultipleChoiceAnswer(userAnswer) {
@@ -1217,8 +1239,15 @@ class TestApp {
     }
 
     checkTypingAnswer(userAnswer) {
+        if (!this.currentQuestion.correct) {
+            console.error('Отсутствует correct для вопроса typing:', this.currentQuestion);
+            return false;
+        }
+
         const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim().toLowerCase());
-        return userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
+        return userAnswer.every((answer, index) => 
+            answer.toLowerCase() === correctAnswers[index]
+        );
     }
 
     checkMatchingWordsAnswer(userAnswer) {
