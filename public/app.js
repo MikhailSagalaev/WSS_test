@@ -1,6 +1,6 @@
 const CONFIG = {
     API_BASE_URL: 'https://wss-test-five.vercel.app',
-    STORAGE_KEY: 'tilda_members_profile10011255'
+    STORAGE_KEY: 'tilda_members_profile5854123'
 };
 
 // public/app.js
