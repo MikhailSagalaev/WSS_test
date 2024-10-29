@@ -805,13 +805,17 @@ class TestApp {
             const response = await fetch(`${this.API_BASE_URL}/api/saveAnswer`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
+                mode: 'cors',
+                credentials: 'include',
                 body: JSON.stringify(answerData)
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
 
             console.log('Ответ успешно сохранен в историю');
@@ -1006,7 +1010,7 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Тест успешно завершён:", data);
+            console.log("Тест успешно за��ершён:", data);
             
             // Показываем результаты пользователю
             this.showResults(finalLevel, finalWss);

@@ -1,20 +1,10 @@
 const fetch = require('node-fetch');
+const cors = require('./middleware/cors');
 
 module.exports = async (req, res) => {
-    // Настройка CORS
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader(
-        'Access-Control-Allow-Headers',
-        'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-    );
+    // Проверка CORS
+    if (cors(req, res)) return;
 
-    // Обработка OPTIONS запросов
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-    }
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Метод не разрешен' });
     }
@@ -44,7 +34,7 @@ module.exports = async (req, res) => {
         const data = await response.json();
         
         if (data.records.length === 0) {
-            return res.status(404).json({ error: 'Польз��ватель не найден' });
+            return res.status(404).json({ error: 'Пользователь не найден' });
         }
 
         const testAttempts = data.records[0].fields.TestAttempts || 0;

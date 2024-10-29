@@ -12,14 +12,15 @@
         }
     ],
     "routes": [
-        { "src": "/api/checkTestAvailability", "dest": "/api/checkTestAvailability.js" },
-        { "src": "/api/questions", "dest": "/api/questions.js" },
-        { "src": "/api/progress", "dest": "/api/progress.js" },
-        { "src": "/api/complete", "dest": "/api/complete.js" },
-        { "src": "/api/decreaseTestAttempts", "dest": "/api/decreaseTestAttempts.js" },
-        { "src": "/api/getProgress", "dest": "/api/getProgress.js" },
-        { "src": "/api/resetProgress", "dest": "/api/resetProgress.js" },
-        { "src": "/api/saveAnswer", "dest": "/api/saveAnswer.js", "methods": ["POST", "OPTIONS"] },
-        { "src": "/(.*)", "dest": "/public/$1" }
+        {
+            "src": "/api/saveAnswer",
+            "methods": ["POST", "OPTIONS"],
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            "dest": "/api/saveAnswer.js"
+        }
     ]
 }
