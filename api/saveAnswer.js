@@ -7,7 +7,6 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
-    // Handle preflight request
     if (req.method === 'OPTIONS') {
         res.status(200).end();
         return;
@@ -18,6 +17,16 @@ module.exports = async (req, res) => {
     }
 
     const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_ANSWERS_HISTORY_TABLE } = process.env;
+
+    // Проверяем наличие необходимых переменных окружения
+    if (!AIRTABLE_PAT || !AIRTABLE_BASE_ID || !AIRTABLE_ANSWERS_HISTORY_TABLE) {
+        console.error('Missing environment variables:', {
+            hasAirtablePat: !!AIRTABLE_PAT,
+            hasBaseId: !!AIRTABLE_BASE_ID,
+            hasAnswersTable: !!AIRTABLE_ANSWERS_HISTORY_TABLE
+        });
+        return res.status(500).json({ error: 'Server configuration error' });
+    }
 
     try {
         const {
@@ -32,7 +41,6 @@ module.exports = async (req, res) => {
             timestamp
         } = req.body;
 
-        // Форматируем данные в соответствии со структурой таблицы
         const createData = {
             fields: {
                 "User Login": userLogin,
@@ -47,9 +55,15 @@ module.exports = async (req, res) => {
             }
         };
 
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_ANSWERS_HISTORY_TABLE)}`;
+        // Корректно кодируем имя таблицы для URL
+        const encodedTableName = encodeURIComponent(AIRTABLE_ANSWERS_HISTORY_TABLE);
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodedTableName}`;
         
-        console.log('Отправка данных в Airtable:', createData);
+        console.log('Sending data to Airtable:', {
+            baseId: AIRTABLE_BASE_ID,
+            tableName: AIRTABLE_ANSWERS_HISTORY_TABLE,
+            data: createData
+        });
 
         const response = await fetch(url, {
             method: 'POST',
@@ -62,17 +76,24 @@ module.exports = async (req, res) => {
 
         if (!response.ok) {
             const errorData = await response.json();
-            console.error('Ошибка Airtable:', errorData);
+            console.error('Airtable error:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorData
+            });
             throw new Error(JSON.stringify(errorData));
         }
 
         const result = await response.json();
-        console.log('Успешно сохранено в Airtable:', result);
+        console.log('Successfully saved to Airtable:', result);
 
         res.status(200).json({ success: true });
 
     } catch (error) {
-        console.error('Error saving answer:', error);
+        console.error('Error saving answer:', {
+            message: error.message,
+            stack: error.stack
+        });
         res.status(500).json({ 
             error: 'Internal server error', 
             details: error.message 
