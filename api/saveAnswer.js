@@ -1,32 +1,55 @@
 // api/saveAnswer.js
 const fetch = require('node-fetch');
-const cors = require('./middleware/cors');
 
 module.exports = async (req, res) => {
-    // Проверка CORS
-    if (cors(req, res)) return;
+    // CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Handle preflight request
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
 
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_ANSWERS_HISTORY_TABLE } = process.env;
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_ANSWERS_HISTORY_TABLE)}`;
 
     try {
+        const {
+            userLogin,
+            questionId,
+            stage,
+            level,
+            questionType,
+            userAnswer,
+            isCorrect,
+            timeSpent,
+            timestamp
+        } = req.body;
+
+        // Форматируем данные в соответствии со структурой таблицы
         const createData = {
             fields: {
-                UserLogin: req.body.userLogin,
-                QuestionID: req.body.questionId,
-                Stage: req.body.stage,
-                Level: req.body.level,
-                QuestionType: req.body.questionType,
-                UserAnswer: JSON.stringify(req.body.userAnswer),
-                IsCorrect: req.body.isCorrect,
-                TimeSpent: req.body.timeSpent,
-                Timestamp: req.body.timestamp
+                "User Login": userLogin,
+                "Question ID": questionId,
+                "Stage": stage,
+                "Level": level,
+                "Question Type": questionType,
+                "User Answer": JSON.stringify(userAnswer),
+                "Is Correct": isCorrect,
+                "Time Spent": timeSpent,
+                "Timestamp": timestamp
             }
         };
+
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_ANSWERS_HISTORY_TABLE)}`;
+        
+        console.log('Отправка данных в Airtable:', createData);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -39,11 +62,14 @@ module.exports = async (req, res) => {
 
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('Ошибка Airtable:', errorData);
             throw new Error(JSON.stringify(errorData));
         }
 
         const result = await response.json();
-        res.status(200).json({ success: true, data: result });
+        console.log('Успешно сохранено в Airtable:', result);
+
+        res.status(200).json({ success: true });
 
     } catch (error) {
         console.error('Error saving answer:', error);

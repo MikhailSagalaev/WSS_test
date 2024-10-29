@@ -791,24 +791,27 @@ class TestApp {
     }
 
     async saveAnswerHistory({ userAnswer, isCorrect, timeSpent }) {
-        const answerData = {
-            userLogin: this.user.login,
-            questionId: this.currentQuestion.id,
-            stage: this.stages[this.currentStageIndex],
-            level: this.levels[this.currentLevelIndex],
-            questionType: this.currentQuestionType,
-            userAnswer,
-            isCorrect,
-            timeSpent,
-            timestamp: new Date().toISOString()
-        };
-
         try {
+            const answerData = {
+                userLogin: this.user.login,
+                questionId: this.currentQuestion.id,
+                stage: this.stages[this.currentStageIndex],
+                level: this.levels[this.currentLevelIndex],
+                questionType: this.currentQuestionType,
+                userAnswer: typeof userAnswer === 'object' ? JSON.stringify(userAnswer) : userAnswer,
+                isCorrect,
+                timeSpent: Math.round(timeSpent / 1000), // Конвертируем в секунды
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('Отправка данных ответа:', answerData);
+            
             const response = await fetch(`${this.API_BASE_URL}/api/saveAnswer`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                mode: 'cors',
                 body: JSON.stringify(answerData)
             });
 
