@@ -100,6 +100,8 @@ class TestApp {
             });
 
             if (!response.ok) {
+                const errorData = await response.json();
+                console.error("Ошибка от сервера:", errorData);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
@@ -805,17 +807,14 @@ class TestApp {
             const response = await fetch(`${this.API_BASE_URL}/api/saveAnswer`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Content-Type': 'application/json'
                 },
                 mode: 'cors',
-                credentials: 'include',
                 body: JSON.stringify(answerData)
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             console.log('Ответ успешно сохранен в историю');
@@ -950,7 +949,7 @@ class TestApp {
     
         this.stagesResults.push(stageResult);
     
-        // Очистка счетчиков для следующего этапа
+        // Очиста счетчиков для следующего этапа
         this.correctCount = 0;
         this.incorrectCount = 0;
         this.totalQuestions = 0;
@@ -1010,7 +1009,7 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Тест успешно за��ершён:", data);
+            console.log("Тест успешно заершён:", data);
             
             // Показываем результаты пользователю
             this.showResults(finalLevel, finalWss);
