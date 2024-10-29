@@ -335,6 +335,7 @@ class TestApp {
         console.log("Текущий вопрос:", this.currentQuestion);
         console.log("Тип текущего вопроса:", this.currentQuestionType);
         
+        this.questionStartTime = new Date();
         this.updateDesignImage(this.currentQuestion);
         this.updateTaskDescription(this.currentQuestion);
         this.renderQuestion(this.currentQuestion);
@@ -664,7 +665,7 @@ class TestApp {
     }
 
     getUserAnswer() {
-        console.log('Получение ответа поьзователя для в��проса типа:', this.currentQuestionType);
+        console.log('Получение ответа поьзователя для впроса типа:', this.currentQuestionType);
         
         if (!this.currentQuestionType) {
             console.error('Тип вопроса не определен');
@@ -716,10 +717,8 @@ class TestApp {
     handleSubmit(timeExpired = false) {
         if (this.submitBtn.disabled && !timeExpired) return;
 
-        if (!this.currentQuestion || !this.currentQuestionType) {
-            console.error('Текущий вопрос или его тип не опредлены');
-            return;
-        }
+        const startTime = this.questionStartTime || new Date();
+        const timeSpent = new Date() - startTime;
 
         const userAnswer = timeExpired ? null : this.getUserAnswer();
         if (userAnswer === null && !timeExpired) return;
@@ -758,6 +757,44 @@ class TestApp {
             this.finishStage();
         } else {
             this.loadQuestion();
+        }
+
+        this.saveAnswerHistory({
+            userAnswer,
+            isCorrect,
+            timeSpent
+        });
+    }
+
+    async saveAnswerHistory({ userAnswer, isCorrect, timeSpent }) {
+        const answerData = {
+            userLogin: this.user.login,
+            questionId: this.currentQuestion.id,
+            stage: this.stages[this.currentStageIndex],
+            level: this.levels[this.currentLevelIndex],
+            questionType: this.currentQuestionType,
+            userAnswer,
+            isCorrect,
+            timeSpent,
+            timestamp: new Date().toISOString()
+        };
+
+        try {
+            const response = await fetch(`${this.API_BASE_URL}/api/saveAnswer`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(answerData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            console.log('Ответ успешно сохранен в историю');
+        } catch (error) {
+            console.error('Ошибка при сохранении ответа в историю:', error);
         }
     }
 
@@ -980,7 +1017,7 @@ class TestApp {
             // Очистка локального хранилища
             localStorage.removeItem('testProgress');
             
-            // Сброс локальных переменных
+            // Срос локальных переменных
             this.currentStageIndex = 0;
             this.currentLevel = this.levels[0]; // Используем первый уровень из массива
             this.correctCount = 0;
@@ -1238,7 +1275,7 @@ class TestApp {
         // Показываем начальный этап
         this.updateCurrentStage();
         
-        // С��рываем кнопку NEXT
+        // Срываем кнопку NEXT
         if (this.submitBtn) {
             this.submitBtn.style.display = 'none';
         }
