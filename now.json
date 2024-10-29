@@ -1,0 +1,15 @@
+{
+    "version": 2,
+    "routes": [
+        {
+            "src": "/(.*)",
+            "headers": {
+                "Access-Control-Allow-Origin": "https://mixadev.ru",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept",
+                "Access-Control-Allow-Credentials": "true"
+            },
+            "continue": true
+        }
+    ]
+}
