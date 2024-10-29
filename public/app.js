@@ -809,12 +809,12 @@ class TestApp {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                mode: 'cors',
                 body: JSON.stringify(answerData)
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json();
+                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
 
             console.log('Ответ успешно сохранен в историю');
