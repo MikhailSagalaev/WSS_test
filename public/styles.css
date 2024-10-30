@@ -608,3 +608,9 @@ audio {
 .typing-question input:hover {
     border-color: #9e9e9e;
 }
+
+.logo {
+    width: 150px;
+    height: auto;
+    margin-bottom: 20px;
+}

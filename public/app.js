@@ -31,6 +31,8 @@ class TestApp {
         this.currentQuestion = null;
         this.currentQuestionType = null;
         this.currentStageElement = document.getElementById('current-stage');
+        this.answeredQuestions = new Set();
+        this.currentQuestionId = null;
     }
 
     initializeElements() {
@@ -166,7 +168,7 @@ class TestApp {
         this.incorrectLowerLevel = 0;
     }
 
-    // Метод дя сохранения прогресса в localStorage
+    // Метод дя схранения прогресса в localStorage
     saveProgressToLocalStorage() {
         const progress = {
             stage: this.stages[this.currentStageIndex],
@@ -182,6 +184,8 @@ class TestApp {
             groupsAnswered: this.groupsAnswered,
             questionsOnCurrentLevel: this.questionsOnCurrentLevel,
             currentLevelIndex: this.currentLevelIndex,
+            answeredQuestions: Array.from(this.answeredQuestions),
+            currentQuestionId: this.currentQuestionId
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
         console.log("Пгес сохранё в localStorage:", progress);
@@ -203,6 +207,8 @@ class TestApp {
             this.groupsAnswered = savedProgress.groupsAnswered ?? 0;
             this.questionsOnCurrentLevel = savedProgress.questionsOnCurrentLevel ?? 0;
             this.currentLevelIndex = savedProgress.currentLevelIndex ?? 0;
+            this.answeredQuestions = new Set(savedProgress.answeredQuestions || []);
+            this.currentQuestionId = savedProgress.currentQuestionId;
             if (!this.stages) {
                 console.error("Stages are not initialized.");
                 this.currentStageIndex = 0; // or handle it as needed
@@ -325,18 +331,31 @@ class TestApp {
         
         console.log(`Всего вопросов на этапе ${currentStage}: ${this.questions[currentStage].length}`);
         
-        // Изменяем фильтрацию вопросов
-        const availableQuestions = this.questions[currentStage].filter(q => q.level === currentLevel);
-        console.log(`Найдено вопросов на уровне ${currentLevel} для этапа ${currentStage}: ${availableQuestions.length}`);
-        
+        // Filter questions that haven't been answered yet
+        const availableQuestions = this.questions[currentStage].filter(q => 
+            q.level === currentLevel && !this.answeredQuestions.has(q.id)
+        );
+
         if (availableQuestions.length === 0) {
-            console.error(`Нет доступных вопросов для этапа ${currentStage} уровня ${currentLevel}`);
             this.finishStage();
             return;
         }
-        
-        const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-        this.currentQuestion = availableQuestions[randomIndex];
+
+        // If we have a saved question ID and it's in available questions, use it
+        if (this.currentQuestionId) {
+            const savedQuestion = availableQuestions.find(q => q.id === this.currentQuestionId);
+            if (savedQuestion) {
+                this.currentQuestion = savedQuestion;
+            } else {
+                const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+                this.currentQuestion = availableQuestions[randomIndex];
+            }
+        } else {
+            const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+            this.currentQuestion = availableQuestions[randomIndex];
+        }
+
+        this.currentQuestionId = this.currentQuestion.id;
         this.currentQuestionType = this.currentQuestion.questionType;
         console.log("Текущий вопрос:", this.currentQuestion);
         console.log("Тип текущего вопроса:", this.currentQuestionType);
@@ -564,7 +583,7 @@ class TestApp {
         
         if (!question.sentenceWithGaps) {
             console.error('Отсутствует sentenceWithGaps для вопроса typing:', question);
-            this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь к администратору.");
+            this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь  администратоу.");
             return;
         }
 
@@ -1065,7 +1084,7 @@ class TestApp {
         }
     }
 
-    // Мето для обновленя уровня на основе резуьтатов групп
+    // Мето для обновленя уровня на основе резуьтато групп
     updateLevelBasedOnGroupResults() {
         if (this.groupCorrectAnswers === 1) {
             this.currentLevel = Math.max(1, this.currentLevel - 1);
@@ -1083,12 +1102,13 @@ class TestApp {
     showResults(finalLevel, finalWss) {
         const resultMessage = `
             <div class="test-results">
-                <h2>Результаты теста</h2>
-                <p>Ваш уровень: ${finalLevel}</p>
-                <p>Ваш WSS балл: ${finalWss}</p>
-                <p>Правильных ответов: ${this.correctCount}</p>
-                <p>Неправильных ответов: ${this.incorrectCount}</p>
-                <p>Всего вопросов: ${this.totalQuestions}</p>
+                <h2>Test Completed!</h2>
+                <p>Your level: ${finalLevel}</p>
+                <p>Your WSS score: ${finalWss}</p>
+                <p>Correct answers: ${this.correctCount}</p>
+                <p>Total questions: ${this.totalQuestions}</p>
+                <p>Thank you for completing the test! View your detailed results in your personal account.</p>
+                <a href="https://wiseman-skills.com/lk" class="results-link">Go to Personal Account</a>
             </div>
         `;
         
@@ -1105,7 +1125,7 @@ class TestApp {
         return array;
     }
 
-    // Логика для вычисения иогового уровня на основе WSS
+    // Логика для вычисения иогового уровн на основе WSS
     calculateFinalLevel(wss) {
         const wssScale = this.initializeWssScale();
         for (let i = 0; i < wssScale.length - 1; i++) {
@@ -1304,16 +1324,33 @@ class TestApp {
     }
 
     showStartButton() {
-        this.questionContainer.innerHTML = '<button id="start-test-btn">START</button>';
-        document.getElementById('start-test-btn').addEventListener('click', () => this.startTest());
+        // Hide question number, timer and stage initially
+        document.getElementById('question-number').parentElement.style.display = 'none';
+        document.getElementById('timer').style.display = 'none';
+        document.getElementById('current-stage').style.display = 'none';
+
+        this.questionContainer.innerHTML = `
+            <div class="test-instructions">
+                <h3>Instructions</h3>
+                <p>Welcome to the English Proficiency Test! Here's how it works:</p>
+                <ul>
+                    <li>The test consists of reading and listening sections</li>
+                    <li>Answer questions carefully - your level adjusts based on performance</li>
+                    <li>Some questions have time limits</li>
+                    <li>You can't go back to previous questions</li>
+                    <li>The test takes approximately 30-40 minutes</li>
+                </ul>
+                <button id="start-test-btn" class="start-button">START</button>
+            </div>
+        `;
         
-        // Показываем начальный этап
-        this.updateCurrentStage();
-        
-        // Срываем кнопку NEXT
-        if (this.submitBtn) {
-            this.submitBtn.style.display = 'none';
-        }
+        document.getElementById('start-test-btn').addEventListener('click', () => {
+            // Show elements when test starts
+            document.getElementById('question-number').parentElement.style.display = 'block';
+            document.getElementById('timer').style.display = 'block';
+            document.getElementById('current-stage').style.display = 'block';
+            this.startTest();
+        });
     }
 
     startTest() {
@@ -1378,16 +1415,15 @@ class TestApp {
     updateTaskDescription(question) {
         const taskDescriptionElement = document.getElementById('task-description');
         if (taskDescriptionElement) {
-            if (question.task) {
-                console.log('Загрузка описания задачи:', question.task);
-                taskDescriptionElement.textContent = question.task;
+            if (question.instruction) {
+                taskDescriptionElement.innerHTML = `
+                    <div class="instruction">${question.instruction}</div>
+                    <div class="task">${question.task}</div>
+                `;
                 taskDescriptionElement.style.display = 'block';
             } else {
-                console.log('Описание задачи не найдено');
                 taskDescriptionElement.style.display = 'none';
             }
-        } else {
-            console.error('Контейнер для описания задачи не найден');
         }
     }
 
