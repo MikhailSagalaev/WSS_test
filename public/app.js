@@ -70,7 +70,7 @@ class TestApp {
             this.showStartButton();
         } catch (error) {
             console.error("Error during initialization:", error);
-            this.showUnavailableMessage("Произошла ошибка при инициализации теса. Пожалуйста, попробуйте позже или свяжитесь с администратором.");
+            this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжитесь с администратором.");
         }
     }
     
@@ -188,7 +188,7 @@ class TestApp {
             currentQuestionId: this.currentQuestionId
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
-        console.log("Пгес сохранё в localStorage:", progress);
+        console.log("Прогресс сохранён в localStorage:", progress);
     }
 
     // Метод д зарзи прореса з localStorage
@@ -216,9 +216,9 @@ class TestApp {
                 this.currentStageIndex = this.stages.indexOf(savedProgress.stage) !== -1 ? this.stages.indexOf(savedProgress.stage) : 0;
             }
 
-            console.log("Прогрес загруен из localStorage:", savedProgress);
+            console.log("Прогресс загружен из localStorage:", savedProgress);
         } else {
-            console.log("Не сохранённого прогресса в localStorage. Начинам новый тест.");
+            console.log("Нет сохранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
             this.currentLevel = 1;
         }
@@ -583,7 +583,7 @@ class TestApp {
         
         if (!question.sentenceWithGaps) {
             console.error('Отсутствует sentenceWithGaps для вопроса typing:', question);
-            this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь  администратоу.");
+            this.showUnavailableMessage("Ошибка при загузке вопроса. ожалуйста, обратитесь  администратоу.");
             return;
         }
 
@@ -1064,7 +1064,7 @@ class TestApp {
             // Очистка локального хранилища
             localStorage.removeItem('testProgress');
             
-            // Срос локальных переменных
+            // Срос лкальных переменных
             this.currentStageIndex = 0;
             this.currentLevel = this.levels[0]; // Используем первый уровень из массива
             this.correctCount = 0;
