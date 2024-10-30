@@ -62,6 +62,8 @@ module.exports = async (req, res) => {
                     CorrectHigherLevel: correctHigherLevel,
                     IncorrectLowerLevel: incorrectLowerLevel,
                     QuestionsOnCurrentLevel: questionsOnCurrentLevel,
+                    CurrentQuestionId: req.body.currentQuestionId,
+                    AnsweredQuestions: JSON.stringify(Array.from(req.body.answeredQuestions || [])),
                     Timestamp: timestamp
                 }
             };
@@ -93,6 +95,8 @@ module.exports = async (req, res) => {
                     CorrectHigherLevel: correctHigherLevel,
                     IncorrectLowerLevel: incorrectLowerLevel,
                     QuestionsOnCurrentLevel: questionsOnCurrentLevel,
+                    CurrentQuestionId: req.body.currentQuestionId,
+                    AnsweredQuestions: JSON.stringify(Array.from(req.body.answeredQuestions || [])),
                     Timestamp: timestamp
                 }
             };

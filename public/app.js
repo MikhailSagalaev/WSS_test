@@ -156,6 +156,8 @@ class TestApp {
         this.correctHigherLevel = progress.correctHigherLevel || 0;
         this.incorrectLowerLevel = progress.incorrectLowerLevel || 0;
         this.questionsOnCurrentLevel = progress.questionsOnCurrentLevel || 0;
+        this.currentQuestionId = progress.currentQuestionId;
+        this.answeredQuestions = new Set(progress.answeredQuestions || []);
     }
 
     setInitialProgress() {
@@ -882,7 +884,7 @@ class TestApp {
         } else if (this.correctInCurrentSeries <= 1) {
             this.moveToPreviousLevel();
         }
-        // Если 2 правильных ответа, остаемся на текущем у��овне
+        // Если 2 правильных ответа, остаемся на текущем уовне
 
         this.questionsInCurrentSeries = 0;
         this.correctInCurrentSeries = 0;
@@ -919,6 +921,8 @@ class TestApp {
             correctHigherLevel: this.correctHigherLevel,
             incorrectLowerLevel: this.incorrectLowerLevel,
             questionsOnCurrentLevel: this.questionsOnCurrentLevel,
+            currentQuestionId: this.currentQuestionId,
+            answeredQuestions: Array.from(this.answeredQuestions),
             timestamp: new Date().toISOString()
         };
 
@@ -941,7 +945,6 @@ class TestApp {
             console.log("Прогресс успешно отправлен", data);
         } catch (error) {
             console.error("Ошибка при отправке прогресса:", error);
-            // Можно добавить повторную попытку отправки или другу обработку ошбки
         }
     }
     
