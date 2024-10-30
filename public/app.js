@@ -122,7 +122,7 @@ class TestApp {
 
     async loadProgressFromAirtable() {
         try {
-            const response = await fetch('/api/progress/last');
+            const response = await fetch(`${this.API_BASE_URL}/api/progress`);
             const data = await response.json();
             
             console.log("Прогресс получен из Airtable:", data);
@@ -501,7 +501,7 @@ class TestApp {
         }
 
         if (!Array.isArray(pairs) || pairs.length === 0) {
-            this.questionContainer.innerHTML = `<p>Некорректные данные дл�� сопоставления.</p>`;
+            this.questionContainer.innerHTML = `<p>Некорректные данные дл сопоставления.</p>`;
             return;
         }
 
