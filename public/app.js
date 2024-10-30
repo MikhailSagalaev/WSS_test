@@ -54,14 +54,14 @@ class TestApp {
     async init() {
         if (this.isInitialized) return;
         this.isInitialized = true;
-
+    
         this.setUser();
-
+    
         if (this.userNotAuthorized) {
             this.showUnavailableMessage("Пожалуйста, войдите в систему для прохождения теста.");
             return;
         }
-
+    
         try {
             await this.checkTestAvailability();
             await this.loadProgressFromAirtable();
@@ -211,7 +211,7 @@ class TestApp {
             this.currentQuestionId = savedProgress.currentQuestionId;
             if (!this.stages) {
                 console.error("Stages are not initialized.");
-                this.currentStageIndex = 0; // or handle it as needed
+                this.currentStageIndex = 0; 
             } else {
                 this.currentStageIndex = this.stages.indexOf(savedProgress.stage) !== -1 ? this.stages.indexOf(savedProgress.stage) : 0;
             }
@@ -331,7 +331,6 @@ class TestApp {
         
         console.log(`Всего вопросов на этапе ${currentStage}: ${this.questions[currentStage].length}`);
         
-        // Filter questions that haven't been answered yet
         const availableQuestions = this.questions[currentStage].filter(q => 
             q.level === currentLevel && !this.answeredQuestions.has(q.id)
         );
@@ -340,8 +339,7 @@ class TestApp {
             this.finishStage();
             return;
         }
-
-        // If we have a saved question ID and it's in available questions, use it
+        
         if (this.currentQuestionId) {
             const savedQuestion = availableQuestions.find(q => q.id === this.currentQuestionId);
             if (savedQuestion) {
@@ -884,7 +882,7 @@ class TestApp {
         } else if (this.correctInCurrentSeries <= 1) {
             this.moveToPreviousLevel();
         }
-        // Если 2 правильных ответа, остаемся на текущем уровне
+        // Если 2 правильных ответа, остаемся на текущем у��овне
 
         this.questionsInCurrentSeries = 0;
         this.correctInCurrentSeries = 0;
