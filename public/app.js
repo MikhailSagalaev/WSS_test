@@ -121,31 +121,45 @@ class TestApp {
     }
 
     async loadProgressFromAirtable() {
-        console.log("Загрузка прогресса из Airtable");
         try {
-            const data = await this.fetchWithRetry(`${this.API_BASE_URL}/api/getProgress`, {
-                method: 'POST',
-                body: JSON.stringify({ userLogin: this.user.login })
-            });
-
+            const response = await fetch('/api/progress/last');
+            const data = await response.json();
+            
             console.log("Прогресс получен из Airtable:", data);
 
-            if (data.error) {
-                console.error("Ошибка при загрузке прогресса:", data.error);
-                throw new Error(data.error);
-            } else if (data.progress) {
-                this.setProgress(data.progress);
-                this.saveProgressToLocalStorage();
-            } else {
-                console.log("Прогресс не найден. Начинаем ноый этап.");
-                this.setInitialProgress();
-            }
+            if (data && data.progress) {
+                const progress = data.progress;
+                
+                this.correctCount = progress.correctCount || 0;
+                this.incorrectCount = progress.incorrectCount || 0;
+                this.totalQuestions = progress.totalQuestions || 0;
+                this.correctHigherLevel = progress.correctHigherLevel || 0;
+                this.incorrectLowerLevel = progress.incorrectLowerLevel || 0;
+                this.questionsOnCurrentLevel = progress.questionsOnCurrentLevel || 0;
+                this.currentStageIndex = this.stages.indexOf(progress.stage);
+                this.currentLevelIndex = this.levels.indexOf(progress.level);
+                
+                // Восстанавливаем ID текущего вопроса
+                if (progress.currentQuestionId) {
+                    this.currentQuestionId = progress.currentQuestionId;
+                    console.log("Восстановлен ID вопроса:", this.currentQuestionId);
+                }
+                
+                // Восстанавливаем отвеченные вопросы
+                if (progress.answeredQuestions) {
+                    this.answeredQuestions = new Set(progress.answeredQuestions);
+                    console.log("Восстановлены отвеченные вопросы:", this.answeredQuestions);
+                }
 
+                return true;
+            }
+            return false;
         } catch (error) {
-            console.error("Ошибка при загрузке прогресса из Airtable:", error);
-            this.loadProgressFromLocalStorage();
+            console.error("Ошибка при загрузке прогресса:", error);
+            return false;
         }
     }
+
     setProgress(progress) {
         this.currentStageIndex = this.stages.indexOf(progress.stage);
         this.currentLevel = progress.currentLevel;
@@ -487,7 +501,7 @@ class TestApp {
         }
 
         if (!Array.isArray(pairs) || pairs.length === 0) {
-            this.questionContainer.innerHTML = `<p>Некорректные данные для сопоставления.</p>`;
+            this.questionContainer.innerHTML = `<p>Некорректные данные дл�� сопоставления.</p>`;
             return;
         }
 
