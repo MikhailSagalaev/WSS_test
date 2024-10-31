@@ -15,7 +15,7 @@ class TestApp {
         this.progressLoaded = false;
         this.submitBtn = document.getElementById('submit-btn');
         this.submitBtn.addEventListener('click', () => this.handleSubmit());
-        this.questionNumber = 0;
+        this.questionNumber = 1;
         this.questionNumberElement = document.getElementById('question-number');
         this.stagesResults = [];
         this.levels = ['pre-A1', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
@@ -33,6 +33,7 @@ class TestApp {
         this.currentStageElement = document.getElementById('current-stage');
         this.answeredQuestions = new Set();
         this.currentQuestionId = null;
+        this.hideTestElements();
     }
 
     initializeElements() {
@@ -139,13 +140,15 @@ class TestApp {
                 this.currentStageIndex = this.stages.indexOf(progress.stage);
                 this.currentLevelIndex = this.levels.indexOf(progress.level);
                 
-                // Восстанавливаем ID текущего вопроса
+                // Устанавливаем номер вопроса на основе totalQuestions
+                this.questionNumber = this.totalQuestions + 1;
+                this.updateQuestionNumber();
+                
                 if (progress.currentQuestionId) {
                     this.currentQuestionId = progress.currentQuestionId;
                     console.log("Восстановлен ID вопроса:", this.currentQuestionId);
                 }
                 
-                // Восстанавливаем отвеченные вопросы
                 if (progress.answeredQuestions) {
                     this.answeredQuestions = new Set(progress.answeredQuestions);
                     console.log("Восстановлены отвеченные вопросы:", this.answeredQuestions);
@@ -800,6 +803,7 @@ class TestApp {
             }
         }
 
+        this.questionNumber++;
         this.updateQuestionNumber();
         this.saveProgressToLocalStorage();
         this.sendProgress();
@@ -1306,7 +1310,7 @@ class TestApp {
     updateQuestionNumber() {
         const questionNumberElement = document.getElementById('question-number');
         if (questionNumberElement) {
-            questionNumberElement.textContent = this.totalQuestions + 1;
+            questionNumberElement.textContent = this.questionNumber;
         }
     }
 
@@ -1339,11 +1343,6 @@ class TestApp {
     }
 
     showStartButton() {
-        // Hide question number, timer and stage initially
-        document.getElementById('question-number').parentElement.style.display = 'none';
-        document.getElementById('timer').style.display = 'none';
-        document.getElementById('current-stage').style.display = 'none';
-
         this.questionContainer.innerHTML = `
             <div class="test-instructions">
                 <h3>Instructions</h3>
@@ -1360,19 +1359,24 @@ class TestApp {
         `;
         
         document.getElementById('start-test-btn').addEventListener('click', () => {
-            // Show elements when test starts
-            document.getElementById('question-number').parentElement.style.display = 'block';
-            document.getElementById('timer').style.display = 'block';
-            document.getElementById('current-stage').style.display = 'block';
+            this.showTestElements();
             this.startTest();
         });
     }
 
     startTest() {
-        this.initialLevelIndex = 0; // Начинаем с pre-A1
+        if (!this.totalQuestions) { // Если нет сохраненного прогресса
+            this.questionNumber = 1;
+            this.totalQuestions = 0;
+        } else {
+            this.questionNumber = this.totalQuestions + 1;
+        }
+        
+        this.initialLevelIndex = 0;
         this.currentLevelIndex = this.initialLevelIndex;
         this.currentLevel = this.levels[this.currentLevelIndex];
         
+        this.updateQuestionNumber();
         this.updateCurrentStage();
         this.loadQuestion();
         
@@ -1447,6 +1451,48 @@ class TestApp {
             const stageName = this.stages[this.currentStageIndex];
             this.currentStageElement.textContent = stageName.charAt(0).toUpperCase() + stageName.slice(1);
         }
+    }
+
+    hideTestElements() {
+        // Скрываем элементы при инициализации
+        const elementsToHide = [
+            'question-number',
+            'timer',
+            'current-stage',
+            'task-description'
+        ];
+        
+        elementsToHide.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                if (id === 'question-number') {
+                    element.parentElement.style.display = 'none';
+                } else {
+                    element.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    showTestElements() {
+        // Показываем элементы при начале теста
+        const elementsToShow = [
+            'question-number',
+            'timer',
+            'current-stage',
+            'task-description'
+        ];
+        
+        elementsToShow.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                if (id === 'question-number') {
+                    element.parentElement.style.display = 'block';
+                } else {
+                    element.style.display = 'block';
+                }
+            }
+        });
     }
 }
 

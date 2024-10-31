@@ -11,8 +11,10 @@ module.exports = async (req, res) => {
             const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
             const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`;
             
-            // Получаем последнюю запись прогресса
-            const response = await fetch(`${url}?maxRecords=1&sort%5B0%5D%5Bfield%5D=Timestamp&sort%5B0%5D%5Bdirection%5D=desc`, {
+            const userLogin = req.query.userLogin;
+            const filterFormula = `({UserLogin} = '${userLogin}')`;
+            
+            const response = await fetch(`${url}?filterByFormula=${encodeURIComponent(filterFormula)}&sort%5B0%5D%5Bfield%5D=Timestamp&sort%5B0%5D%5Bdirection%5D=desc`, {
                 headers: {
                     'Authorization': `Bearer ${AIRTABLE_PAT}`,
                     'Content-Type': 'application/json'
