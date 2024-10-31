@@ -131,8 +131,8 @@ class TestApp {
             if (data && data.progress) {
                 const progress = data.progress;
                 
-                // Проверяем, есть ли флаг завершения теста
-                if (progress.isCompleted) {
+                // Проверяем статус теста
+                if (progress.Status === 'Completed') {
                     // Если тест был завершен, начинаем новый
                     this.correctCount = 0;
                     this.incorrectCount = 0;
@@ -149,27 +149,26 @@ class TestApp {
                     return true;
                 }
                 
-                // Если тест не был завершен, восстанавливаем прогресс
-                this.correctCount = progress.correctCount || 0;
-                this.incorrectCount = progress.incorrectCount || 0;
-                this.totalQuestions = progress.totalQuestions || 0;
-                this.correctHigherLevel = progress.correctHigherLevel || 0;
-                this.incorrectLowerLevel = progress.incorrectLowerLevel || 0;
-                this.questionsOnCurrentLevel = progress.questionsOnCurrentLevel || 0;
-                this.currentStageIndex = this.stages.indexOf(progress.stage);
-                this.currentLevelIndex = this.levels.indexOf(progress.level);
+                // Если тест не был завершен (Status = 'In Progress'), восстанавливаем прогресс
+                this.correctCount = progress.CorrectCount || 0;
+                this.incorrectCount = progress.IncorrectCount || 0;
+                this.totalQuestions = progress.TotalQuestions || 0;
+                this.correctHigherLevel = progress.CorrectHigherLevel || 0;
+                this.incorrectLowerLevel = progress.IncorrectLowerLevel || 0;
+                this.questionsOnCurrentLevel = progress.QuestionsOnCurrentLevel || 0;
+                this.currentStageIndex = this.stages.indexOf(progress.Stage);
+                this.currentLevelIndex = this.levels.indexOf(progress.Level);
                 
-                // Устанавливаем номер вопроса на основе totalQuestions
                 this.questionNumber = this.totalQuestions + 1;
                 this.updateQuestionNumber();
                 
-                if (progress.currentQuestionId) {
-                    this.currentQuestionId = progress.currentQuestionId;
+                if (progress.CurrentQuestionId) {
+                    this.currentQuestionId = progress.CurrentQuestionId;
                     console.log("Восстановлен ID вопроса:", this.currentQuestionId);
                 }
                 
-                if (progress.answeredQuestions) {
-                    this.answeredQuestions = new Set(progress.answeredQuestions);
+                if (progress.AnsweredQuestions) {
+                    this.answeredQuestions = new Set(progress.AnsweredQuestions ? JSON.parse(progress.AnsweredQuestions) : []);
                     console.log("Восстановлены отвеченные вопросы:", this.answeredQuestions);
                 }
 
@@ -1031,19 +1030,16 @@ class TestApp {
     }
 
     async finishTest() {
-        // Рассчитываем финальный WSS и уровень
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         
-        // Формируем финальные данные
         const completionData = {
             userLogin: this.user.login,
             stagesResults: this.stagesResults,
             finalWss: finalWss,
             finalLevel: finalLevel,
             timestamp: new Date().toISOString(),
-            isCompleted: true, // Добавляем флаг завершения
-            // Добавляем дополнительные поля, которые могут быть необходимы
+            status: 'Completed', // Используем Status из Airtable
             stage: this.stages[this.currentStageIndex],
             level: this.levels[this.currentLevelIndex],
             correctCount: this.correctCount,
@@ -1072,17 +1068,12 @@ class TestApp {
             const data = await response.json();
             console.log("Тест успешно завершён:", data);
             
-            // Показываем результаты пользователю
             this.showResults(finalLevel, finalWss);
-            
-            // Очищаем прогресс
             await this.resetProgress();
-
-            // Отключаем все обработчики событий и взаимодействия
             this.disableInteractions();
         } catch (error) {
             console.error("Ошибка при завершении теста:", error);
-            alert("Произошла ошибка при ��авершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
+            alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
         }
     }
 
@@ -1471,7 +1462,7 @@ class TestApp {
                 designImageContainer.innerHTML = '';
             }
         } else {
-            console.error('Контейнер для изображения не найден');
+            console.error('Контейнер для и��ображения не найден');
         }
     }
 
