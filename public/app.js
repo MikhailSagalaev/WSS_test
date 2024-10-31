@@ -11,7 +11,6 @@ class TestApp {
         this.isInitialized = false;
         this.stages = ['reading', 'listening'];
         this.initializeElements();
-        this.loadProgressFromLocalStorage();
         this.progressLoaded = false;
         this.submitBtn = document.getElementById('submit-btn');
         this.submitBtn.addEventListener('click', () => this.handleSubmit());
@@ -131,7 +130,7 @@ class TestApp {
             if (data && data.progress) {
                 const progress = data.progress;
                 
-                // Проверяем статус теста
+                // Проверяем ст��тус теста
                 if (progress.status === 'Completed') {
                     // Если тест был завершен, начинаем новый
                     this.correctCount = 0;
@@ -364,7 +363,7 @@ class TestApp {
         const currentLevel = this.levels[this.currentLevelIndex];
         
         console.log(`Всего вопросов на этапе ${currentStage}: ${this.questions[currentStage].length}`);
-        console.log('Отвеченные вопросы:', Array.from(this.answeredQuestions));
+        console.log('Отв��ченные вопросы:', Array.from(this.answeredQuestions));
         
         const availableQuestions = this.questions[currentStage].filter(q => 
             q.level === currentLevel && !this.answeredQuestions.has(q.id)
@@ -593,7 +592,7 @@ class TestApp {
     }
 
     renderTypingQuestion(question) {
-        console.log('Рендеринг вопроса typing:', question);
+        console.log('Рендеринг вопрос�� typing:', question);
         
         try {
             if (!question.sentenceWithGaps) {
@@ -698,24 +697,47 @@ class TestApp {
     }
 
     getUserAnswer() {
-        if (this.currentQuestionType === 'matching') {
-            const answers = [];
-            const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
-            
-            dropZones.forEach(zone => {
-                const option = zone.querySelector('.option');
-                if (option) {
-                    const optionIndex = option.dataset.index;
-                    answers.push({
-                        targetIndex: zone.dataset.index,
-                        optionIndex: optionIndex
-                    });
+        console.log('Получение ответа пользователя для вопроса типа:', this.currentQuestionType);
+        
+        // Приводим тип вопроса к единому формату
+        const questionType = this.currentQuestionType.toLowerCase().replace('-', '_');
+        
+        switch (questionType) {
+            case 'multiple_choice':
+                const selectedOption = this.questionContainer.querySelector('.answer-option.selected');
+                if (!selectedOption) {
+                    console.log('Не выбран вариант ответа');
+                    return null;
                 }
-            });
-            
-            return answers;
+                const answer = selectedOption.textContent.trim();
+                console.log('Выбранный ответ:', answer);
+                return answer;
+                
+            case 'typing':
+                const inputs = this.questionContainer.querySelectorAll('.gap-answer');
+                const answers = Array.from(inputs).map(input => input.value.trim());
+                console.log('Полученные ответы typing:', answers);
+                return answers;
+                
+            case 'matching':
+                const matchingAnswers = [];
+                const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+                dropZones.forEach(zone => {
+                    const option = zone.querySelector('.option');
+                    if (option) {
+                        matchingAnswers.push({
+                            targetIndex: zone.dataset.index,
+                            optionIndex: option.dataset.index
+                        });
+                    }
+                });
+                console.log('Полученные ответы matching:', matchingAnswers);
+                return matchingAnswers;
+                
+            default:
+                console.error('Неизвестный тип вопроса:', this.currentQuestionType);
+                return null;
         }
-        // ... остальные типы вопросов
     }
 
     checkAnswer(userAnswer) {
@@ -904,24 +926,24 @@ class TestApp {
     }
 
     async sendProgress() {
-        const progressData = {
-            userLogin: this.user.login,
-            stage: this.stages[this.currentStageIndex],
-            level: this.levels[this.currentLevelIndex],
-            correctCount: this.correctCount,
-            incorrectCount: this.incorrectCount,
-            totalQuestions: this.totalQuestions,
-            correctHigherLevel: this.correctHigherLevel,
-            incorrectLowerLevel: this.incorrectLowerLevel,
-            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
-            currentQuestionId: this.currentQuestionId,
-            answeredQuestions: Array.from(this.answeredQuestions),
-            timestamp: new Date().toISOString()
-        };
-
-        console.log("Отправляемые данные прогресса:", progressData);
-
         try {
+            const progressData = {
+                userLogin: this.user.login,
+                stage: this.stages[this.currentStageIndex],
+                level: this.levels[this.currentLevelIndex],
+                correctCount: this.correctCount,
+                incorrectCount: this.incorrectCount,
+                totalQuestions: this.totalQuestions,
+                correctHigherLevel: this.correctHigherLevel,
+                incorrectLowerLevel: this.incorrectLowerLevel,
+                questionsOnCurrentLevel: this.questionsOnCurrentLevel,
+                currentQuestionId: this.currentQuestionId,
+                answeredQuestions: Array.from(this.answeredQuestions),
+                timestamp: new Date().toISOString()
+            };
+
+            console.log("Отправляемые данные прогресса:", progressData);
+
             const response = await fetch(`${this.API_BASE_URL}/api/progress`, {
                 method: 'POST',
                 headers: {
@@ -930,14 +952,16 @@ class TestApp {
                 body: JSON.stringify(progressData)
             });
 
+            const data = await response.json();
+
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(`Server error: ${data.error || data.message || 'Unknown error'}`);
             }
 
-            const data = await response.json();
-            console.log("Прогресс успешно отправлен", data);
+            console.log("Прогресс успешно отправлен:", data);
         } catch (error) {
             console.error("Ошибка при отправке прогресса:", error);
+            // Не прерываем выполнение теста при ошибке сохранения
         }
     }
     
@@ -1285,15 +1309,39 @@ class TestApp {
     }
 
     checkTypingAnswer(userAnswer) {
-        if (!this.currentQuestion.correct) {
-            console.error('Отсутствует correct для вопроса typing:', this.currentQuestion);
+        console.log('Проверка ответа typing:', {
+            userAnswer,
+            correctAnswer: this.currentQuestion.correct,
+            answers: this.currentQuestion.answers
+        });
+
+        if (!userAnswer || !Array.isArray(userAnswer)) {
+            console.error('Некорректный формат пользовательского ответа');
             return false;
         }
 
-        const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim().toLowerCase());
-        return userAnswer.every((answer, index) => 
-            answer.toLowerCase() === correctAnswers[index]
-        );
+        if (!this.currentQuestion.answers) {
+            console.error('Отсутствуют правильные ответы для вопроса');
+            return false;
+        }
+
+        // Проверяем каждый введенный ответ
+        return userAnswer.every((answer, index) => {
+            // Приводим ответ пользователя к нижнему регистру и убираем пробелы
+            const cleanUserAnswer = answer.toLowerCase().trim();
+            
+            // Проверяем, есть ли ответ пользователя в списке возможных ответов
+            const isCorrect = this.currentQuestion.answers.some(correctAns => 
+                correctAns.toLowerCase().trim() === cleanUserAnswer
+            );
+
+            console.log(`Проверка ответа ${index}:`, {
+                userAnswer: cleanUserAnswer,
+                isCorrect
+            });
+
+            return isCorrect;
+        });
     }
 
     checkMatchingWordsAnswer(userAnswer) {

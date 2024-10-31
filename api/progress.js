@@ -1,20 +1,26 @@
 // api/progress.js
 const fetch = require('node-fetch');
 const cors = require('./middleware/cors');
+const Airtable = require('airtable');
 
 module.exports = async (req, res) => {
     // Проверка CORS
     if (cors(req, res)) return;
 
+    const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
+
+    // Инициализация Airtable
+    Airtable.configure({
+        apiKey: AIRTABLE_PAT
+    });
+    const base = Airtable.base(AIRTABLE_BASE_ID);
+
     if (req.method === 'GET') {
         try {
-            const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
-            const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`;
-            
             const userLogin = req.query.userLogin;
             const filterFormula = `({UserLogin} = '${userLogin}')`;
             
-            const response = await fetch(`${url}?filterByFormula=${encodeURIComponent(filterFormula)}&sort%5B0%5D%5Bfield%5D=Timestamp&sort%5B0%5D%5Bdirection%5D=desc`, {
+            const response = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}&sort%5B0%5D%5Bfield%5D=Timestamp&sort%5B0%5D%5Bdirection%5D=desc`, {
                 headers: {
                     'Authorization': `Bearer ${AIRTABLE_PAT}`,
                     'Content-Type': 'application/json'
@@ -52,6 +58,8 @@ module.exports = async (req, res) => {
         }
     } else if (req.method === 'POST') {
         try {
+            console.log('Получены данные прогресса:', req.body);
+
             const { 
                 userLogin, 
                 stage, 
@@ -67,48 +75,58 @@ module.exports = async (req, res) => {
                 timestamp 
             } = req.body;
 
+            if (!userLogin) {
+                throw new Error('UserLogin is required');
+            }
+
             const progressData = {
                 fields: {
                     UserLogin: userLogin,
                     Stage: stage,
                     Level: level,
-                    CorrectCount: correctCount,
-                    IncorrectCount: incorrectCount,
-                    TotalQuestions: totalQuestions,
-                    CorrectHigherLevel: correctHigherLevel,
-                    IncorrectLowerLevel: incorrectLowerLevel,
-                    QuestionsOnCurrentLevel: questionsOnCurrentLevel,
-                    CurrentQuestionId: currentQuestionId,
-                    AnsweredQuestions: JSON.stringify(answeredQuestions),
+                    CorrectCount: correctCount || 0,
+                    IncorrectCount: incorrectCount || 0,
+                    TotalQuestions: totalQuestions || 0,
+                    CorrectHigherLevel: correctHigherLevel || 0,
+                    IncorrectLowerLevel: incorrectLowerLevel || 0,
+                    QuestionsOnCurrentLevel: questionsOnCurrentLevel || 0,
+                    CurrentQuestionId: currentQuestionId || '',
+                    AnsweredQuestions: JSON.stringify(answeredQuestions || []),
                     Status: 'In Progress',
-                    Timestamp: timestamp
+                    Timestamp: timestamp || new Date().toISOString()
                 }
             };
 
+            console.log('Подготовленные данные для Airtable:', progressData);
+
             // Проверяем существующую запись
-            const filterFormula = `({UserLogin} = '${userLogin}')`;
-            const existingRecord = await base(AIRTABLE_PROGRESS_TABLE)
-                .select({ filterByFormula: filterFormula })
+            const records = await base(AIRTABLE_PROGRESS_TABLE)
+                .select({
+                    filterByFormula: `{UserLogin} = '${userLogin}'`
+                })
                 .firstPage();
 
             let response;
-            if (existingRecord && existingRecord.length > 0) {
-                // Обновляем существующую запись
+            if (records && records.length > 0) {
                 response = await base(AIRTABLE_PROGRESS_TABLE).update([
                     {
-                        id: existingRecord[0].id,
+                        id: records[0].id,
                         fields: progressData.fields
                     }
                 ]);
             } else {
-                // Создаем новую запись
                 response = await base(AIRTABLE_PROGRESS_TABLE).create([progressData]);
             }
 
+            console.log('Ответ от Airtable:', response);
             res.status(200).json({ message: 'Прогресс успешно сохранён.' });
         } catch (error) {
             console.error("Ошибка при сохранении прогресса:", error);
-            res.status(500).json({ error: 'Internal Server Error', details: error.message });
+            res.status(500).json({ 
+                error: 'Internal Server Error', 
+                message: error.message,
+                stack: error.stack 
+            });
         }
     } else {
         res.status(405).json({ error: 'Method not allowed' });
