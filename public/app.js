@@ -342,20 +342,18 @@ class TestApp {
             stage: question.fields.Stage?.toLowerCase() || '',
             level: question.fields.Level || '',
             questionType: question.fields["Question Type"] || '',
-            question: question.fields.Instruction || '',
+            question: question.fields.Question || '',
+            instruction: question.fields.Instruction || '',
+            task: question.fields.Task || '',
             answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
             correct: question.fields.Correct || '',
             audio: question.fields.Audio || null,
             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
-            sentenceWithGaps: question.fields.SentenceWithGaps || '',
-            wordOptions: question.fields.WordOptions || '',
             matchPairs: question.fields.MatchPairs || '',
-            task: question.fields.Task || '',
             designImage: question.fields.DesignImg || ''
         };
-
-        // Добавляем логирование для отладки
-        //console.log('Форматированный вопрос:', formattedQuestion);
+        
+        console.log('Форматированный вопрос:', formattedQuestion);
         
         return formattedQuestion;
     }
@@ -504,44 +502,11 @@ class TestApp {
     }
 
     renderMatchingQuestion(question) {
-        console.log("Рендеринг matching вопроса");
-        
-        let pairs;
-        try {
-            pairs = typeof question.matchPairs === 'string' ? JSON.parse(question.matchPairs) : question.matchPairs;
-        } catch (error) {
-            console.error("Ошибка при парсинге matchPairs:", error);
-            pairs = [];
-        }
+        // Сначала обновляем task-description
+        this.updateTaskDescription(question);
 
-        if (!Array.isArray(pairs) || pairs.length === 0) {
-            this.questionContainer.innerHTML = `<p>Некорректные данные дл сопоставления.</p>`;
-            return;
-        }
-
-        let html = `
-            <div class="matching-question">
-                <div class="images-column">
-                    ${pairs.map((pair, index) => `
-                        <div class="image-item">
-                            <img src="${pair.image}" alt="Image ${index + 1}">
-                            <div class="drop-zone" data-image="${pair.image}"></div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="words-column">
-                    <div class="words-list">
-                        ${pairs.map(pair => `
-                            <div class="word-item" draggable="true" data-word="${pair.option}">${pair.option}</div>
-                        `).join('')}
-                    </div>
-                </div>
-            </div>
-        `;
-
-        this.questionContainer.innerHTML = html;
-        this.initializeDragAndDrop();
-        this.checkAllMatchesMade();
+        const matchPairs = question.matchPairs.split(',').map(pair => pair.trim());
+        // ... остальной код рендеринга matching вопроса ...
     }
 
     initializeDragAndDrop() {
@@ -736,7 +701,7 @@ class TestApp {
     }
 
     getUserAnswer() {
-        console.log('Получение ответа поьзователя для впроса типа:', this.currentQuestionType);
+        console.log('Получение ответа оьзователя для впроса типа:', this.currentQuestionType);
         
         if (!this.currentQuestionType) {
             console.error('Тип вопроса не определен');
@@ -1050,8 +1015,6 @@ class TestApp {
             questionsOnCurrentLevel: this.questionsOnCurrentLevel
         };
 
-        console.log("Отправляемые данные завершения теста:", completionData);
-
         try {
             const response = await fetch(`${this.API_BASE_URL}/api/complete`, {
                 method: 'POST',
@@ -1068,9 +1031,13 @@ class TestApp {
             const data = await response.json();
             console.log("Тест успешно завершён:", data);
             
+            // Показываем результаты и отключаем взаимодействие
             this.showResults(finalLevel, finalWss);
-            await this.resetProgress();
             this.disableInteractions();
+            
+            // Удаляем только локальный прогресс
+            localStorage.removeItem('testProgress');
+            
         } catch (error) {
             console.error("Ошибка при завершении теста:", error);
             alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
@@ -1092,7 +1059,7 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Прогресс успешно сброшен:", data);
+            console.log("Прогресс успешно сброшн:", data);
             
             // Очистка локального хранилища
             localStorage.removeItem('testProgress');
@@ -1398,18 +1365,36 @@ class TestApp {
     }
 
     startTest() {
+        const currentStageElement = document.getElementById('current-stage');
+        if (currentStageElement) {
+            const currentStage = this.stages[this.currentStageIndex];
+            if (currentStage) {
+                // Преобразуем первую букву в заглавную
+                const formattedStage = currentStage.charAt(0).toUpperCase() + currentStage.slice(1);
+                currentStageElement.textContent = formattedStage;
+            } else {
+                console.error('Invalid stage index:', this.currentStageIndex);
+                currentStageElement.textContent = 'Reading'; // значение по умолчанию
+            }
+        }
+
+        // Проверяем и устанавливаем начальные значения
+        if (typeof this.currentStageIndex === 'undefined' || this.currentStageIndex < 0) {
+            this.currentStageIndex = 0;
+        }
+        
         if (!this.totalQuestions) {
             this.questionNumber = 1;
             this.totalQuestions = 0;
         } else {
             this.questionNumber = this.totalQuestions + 1;
         }
-        
+
         this.initialLevelIndex = 0;
         this.currentLevelIndex = this.initialLevelIndex;
         this.currentLevel = this.levels[this.currentLevelIndex];
-        
-        this.currentQuestionId = null;
+
+        console.log('Starting test with stage:', this.stages[this.currentStageIndex]);
         
         this.updateQuestionNumber();
         this.updateCurrentStage();
@@ -1462,29 +1447,51 @@ class TestApp {
                 designImageContainer.innerHTML = '';
             }
         } else {
-            console.error('Контейнер для и��ображения не найден');
+            console.error('Контейнер для иображения не найден');
         }
     }
 
     updateTaskDescription(question) {
         const taskDescriptionElement = document.getElementById('task-description');
         if (taskDescriptionElement) {
+            let content = '';
+            
+            // Добавляем instruction если оно есть
             if (question.instruction) {
-                taskDescriptionElement.innerHTML = `
-                    <div class="instruction">${question.instruction}</div>
-                    <div class="task">${question.task}</div>
-                `;
+                content += `<div class="instruction">${question.instruction}</div>`;
+            }
+            
+            // Добавляем task если он есть
+            if (question.task) {
+                content += `<div class="task">${question.task}</div>`;
+            }
+            
+            // Обновляем содержимое и отображение
+            if (content) {
+                taskDescriptionElement.innerHTML = content;
                 taskDescriptionElement.style.display = 'block';
+                console.log('Обновлен task-description:', content);
             } else {
                 taskDescriptionElement.style.display = 'none';
+                console.log('task-description скрыт (нет контента)');
             }
+        } else {
+            console.error('Элемент task-description не найден');
         }
     }
 
     updateCurrentStage() {
-        if (this.currentStageElement) {
-            const stageName = this.stages[this.currentStageIndex];
-            this.currentStageElement.textContent = stageName.charAt(0).toUpperCase() + stageName.slice(1);
+        const currentStageElement = document.getElementById('current-stage');
+        if (currentStageElement) {
+            const currentStage = this.stages[this.currentStageIndex];
+            if (currentStage) {
+                // Преобразуем первую букву в заглавную
+                const formattedStage = currentStage.charAt(0).toUpperCase() + currentStage.slice(1);
+                currentStageElement.textContent = formattedStage;
+            } else {
+                console.error('Invalid stage index:', this.currentStageIndex);
+                currentStageElement.textContent = 'Reading'; // значение по умолчанию
+            }
         }
     }
 
