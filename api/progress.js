@@ -109,6 +109,7 @@ module.exports = async (req, res) => {
                         QuestionsOnCurrentLevel: questionsOnCurrentLevel,
                         CurrentQuestionId: req.body.currentQuestionId,
                         AnsweredQuestions: JSON.stringify(Array.from(req.body.answeredQuestions || [])),
+                        IsCompleted: req.body.isCompleted || false,
                         Timestamp: timestamp
                     }
                 };
@@ -142,6 +143,7 @@ module.exports = async (req, res) => {
                         QuestionsOnCurrentLevel: questionsOnCurrentLevel,
                         CurrentQuestionId: req.body.currentQuestionId,
                         AnsweredQuestions: JSON.stringify(Array.from(req.body.answeredQuestions || [])),
+                        IsCompleted: req.body.isCompleted || false,
                         Timestamp: timestamp
                     }
                 };

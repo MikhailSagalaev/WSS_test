@@ -123,7 +123,7 @@ class TestApp {
 
     async loadProgressFromAirtable() {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/api/progress`);
+            const response = await fetch(`${this.API_BASE_URL}/api/progress?userLogin=${encodeURIComponent(this.user.login)}`);
             const data = await response.json();
             
             console.log("Прогресс получен из Airtable:", data);
@@ -131,6 +131,25 @@ class TestApp {
             if (data && data.progress) {
                 const progress = data.progress;
                 
+                // Проверяем, есть ли флаг завершения теста
+                if (progress.isCompleted) {
+                    // Если тест был завершен, начинаем новый
+                    this.correctCount = 0;
+                    this.incorrectCount = 0;
+                    this.totalQuestions = 0;
+                    this.correctHigherLevel = 0;
+                    this.incorrectLowerLevel = 0;
+                    this.questionsOnCurrentLevel = 0;
+                    this.currentStageIndex = 0;
+                    this.currentLevelIndex = 0;
+                    this.answeredQuestions = new Set();
+                    this.currentQuestionId = null;
+                    
+                    console.log("Предыдущий тест был завершен, начинаем новый");
+                    return true;
+                }
+                
+                // Если тест не был завершен, восстанавливаем прогресс
                 this.correctCount = progress.correctCount || 0;
                 this.incorrectCount = progress.incorrectCount || 0;
                 this.totalQuestions = progress.totalQuestions || 0;
@@ -210,7 +229,6 @@ class TestApp {
         console.log("Прогресс сохранён в localStorage:", progress);
     }
 
-    // Метод д зарзи прореса з localStorage
     loadProgressFromLocalStorage() {
         const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
         if (savedProgress) {
@@ -276,7 +294,7 @@ class TestApp {
     }
 
     loadProgress() {
-        console.log("Загрузка прогеса");
+        console.log("грузка прогеса");
         this.loadProgressFromLocalStorage();
         this.checkTestAvailability();
     }
@@ -325,7 +343,7 @@ class TestApp {
             stage: question.fields.Stage?.toLowerCase() || '',
             level: question.fields.Level || '',
             questionType: question.fields["Question Type"] || '',
-            question: question.fields.Question || '',
+            question: question.fields.Instruction || '',
             answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
             correct: question.fields.Correct || '',
             audio: question.fields.Audio || null,
@@ -338,7 +356,7 @@ class TestApp {
         };
 
         // Добавляем логирование для отладки
-        console.log('Форматированный вопрос:', formattedQuestion);
+        //console.log('Форматированный вопрос:', formattedQuestion);
         
         return formattedQuestion;
     }
@@ -349,31 +367,25 @@ class TestApp {
         const currentLevel = this.levels[this.currentLevelIndex];
         
         console.log(`Всего вопросов на этапе ${currentStage}: ${this.questions[currentStage].length}`);
+        console.log('Отвеченные вопросы:', Array.from(this.answeredQuestions));
         
         const availableQuestions = this.questions[currentStage].filter(q => 
             q.level === currentLevel && !this.answeredQuestions.has(q.id)
         );
 
+        console.log('Доступные вопросы:', availableQuestions.length);
+
         if (availableQuestions.length === 0) {
             this.finishStage();
             return;
         }
-        
-        if (this.currentQuestionId) {
-            const savedQuestion = availableQuestions.find(q => q.id === this.currentQuestionId);
-            if (savedQuestion) {
-                this.currentQuestion = savedQuestion;
-            } else {
-                const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-                this.currentQuestion = availableQuestions[randomIndex];
-            }
-        } else {
-            const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-            this.currentQuestion = availableQuestions[randomIndex];
-        }
 
+        // Выбираем случайный вопрос из доступных
+        const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+        this.currentQuestion = availableQuestions[randomIndex];
         this.currentQuestionId = this.currentQuestion.id;
         this.currentQuestionType = this.currentQuestion.questionType;
+
         console.log("Текущий вопрос:", this.currentQuestion);
         console.log("Тип текущего вопроса:", this.currentQuestionType);
         
@@ -785,9 +797,13 @@ class TestApp {
 
         const isCorrect = timeExpired ? false : this.checkAnswer(userAnswer);
 
+        // Добавляем текущий вопрос в отвеченные ПЕРЕД обновлением статистики
+        console.log('Добавляем вопрос в отвеченные:', this.currentQuestionId);
+        this.answeredQuestions.add(this.currentQuestionId);
+
         this.questionsInCurrentSeries++;
         this.totalQuestions++;
-        this.questionsOnCurrentLevel++; // Общее количество вопросов на текущем уровне
+        this.questionsOnCurrentLevel++;
 
         if (isCorrect) {
             this.correctInCurrentSeries++;
@@ -805,8 +821,17 @@ class TestApp {
 
         this.questionNumber++;
         this.updateQuestionNumber();
+        
+        // Сохраняем прогресс
         this.saveProgressToLocalStorage();
         this.sendProgress();
+
+        // Сохраняем историю ответа
+        this.saveAnswerHistory({
+            userAnswer,
+            isCorrect,
+            timeSpent
+        });
 
         // Проверяем серию из трех вопросов
         if (this.questionsInCurrentSeries === 3) {
@@ -819,12 +844,6 @@ class TestApp {
         } else {
             this.loadQuestion();
         }
-
-        this.saveAnswerHistory({
-            userAnswer,
-            isCorrect,
-            timeSpent
-        });
     }
 
     async saveAnswerHistory({ userAnswer, isCorrect, timeSpent }) {
@@ -1023,6 +1042,7 @@ class TestApp {
             finalWss: finalWss,
             finalLevel: finalLevel,
             timestamp: new Date().toISOString(),
+            isCompleted: true, // Добавляем флаг завершения
             // Добавляем дополнительные поля, которые могут быть необходимы
             stage: this.stages[this.currentStageIndex],
             level: this.levels[this.currentLevelIndex],
@@ -1050,16 +1070,19 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Тест успешно заершён:", data);
+            console.log("Тест успешно завершён:", data);
             
             // Показываем результаты пользователю
             this.showResults(finalLevel, finalWss);
             
-            // Сбрасываем прогресс
+            // Очищаем прогресс
             await this.resetProgress();
+
+            // Отключаем все обработчики событий и взаимодействия
+            this.disableInteractions();
         } catch (error) {
             console.error("Ошибка при завершении теста:", error);
-            alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
+            alert("Произошла ошибка при ��авершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
         }
     }
 
@@ -1107,7 +1130,7 @@ class TestApp {
     updateLevelBasedOnGroupResults() {
         if (this.groupCorrectAnswers === 1) {
             this.currentLevel = Math.max(1, this.currentLevel - 1);
-            console.log(`Переход на уровень ниже: ${this.currentLevel}`);
+            console.log(`Пеход на уровень ниже: ${this.currentLevel}`);
         } else if (this.groupCorrectAnswers === 2) {
             console.log(`Оставляем уровень неизменным: ${this.currentLevel}`);
         } else if (this.groupCorrectAnswers === 3) {
@@ -1133,6 +1156,25 @@ class TestApp {
         
         this.questionContainer.innerHTML = resultMessage;
         this.submitBtn.style.display = 'none';
+
+        // Скрываем ненужные элементы
+        const elementsToHide = [
+            'timer',
+            'current-stage',
+            'task-description',
+            'question-number'
+        ];
+        
+        elementsToHide.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                if (id === 'question-number') {
+                    element.parentElement.style.display = 'none';
+                } else {
+                    element.style.display = 'none';
+                }
+            }
+        });
     }
 
     shuffleArray(array) {
@@ -1365,7 +1407,7 @@ class TestApp {
     }
 
     startTest() {
-        if (!this.totalQuestions) { // Если нет сохраненного прогресса
+        if (!this.totalQuestions) {
             this.questionNumber = 1;
             this.totalQuestions = 0;
         } else {
@@ -1375,6 +1417,8 @@ class TestApp {
         this.initialLevelIndex = 0;
         this.currentLevelIndex = this.initialLevelIndex;
         this.currentLevel = this.levels[this.currentLevelIndex];
+        
+        this.currentQuestionId = null;
         
         this.updateQuestionNumber();
         this.updateCurrentStage();
@@ -1492,6 +1536,33 @@ class TestApp {
                     element.style.display = 'block';
                 }
             }
+        });
+    }
+
+    // Добавим новый метод для отключения взаимодействий
+    disableInteractions() {
+        // Удаляем обработчики событий с кнопки submit
+        if (this.submitBtn) {
+            this.submitBtn.style.display = 'none';
+        }
+
+        // Очищаем таймер если он есть
+        if (this.timer) {
+            clearInterval(this.timer);
+        }
+
+        // Удаляем все интерактивные элементы
+        const interactiveElements = document.querySelectorAll('.answer-option, .word-item, input');
+        interactiveElements.forEach(element => {
+            element.disabled = true;
+            element.style.pointerEvents = 'none';
+        });
+
+        // Отключаем обработчики drag and drop если они есть
+        const draggableElements = document.querySelectorAll('[draggable]');
+        draggableElements.forEach(elem => {
+            elem.draggable = false;
+            elem.style.cursor = 'default';
         });
     }
 }

@@ -581,6 +581,21 @@ audio {
     line-height: 1.5;
 }
 
+.results-link {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.results-link:hover {
+    background-color: #45a049;
+}
+
 .typing-question {
     margin: 20px 0;
 }
