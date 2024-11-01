@@ -1,12 +1,16 @@
 // api/progress.js
 const fetch = require('node-fetch');
 const cors = require('./middleware/cors');
+const Airtable = require('airtable');
 
 module.exports = async (req, res) => {
     // Проверка CORS
     if (cors(req, res)) return;
 
     const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
+
+    // Инициализация Airtable
+    const base = new Airtable({ apiKey: AIRTABLE_PAT }).base(AIRTABLE_BASE_ID);
 
     if (req.method === 'GET') {
         try {
@@ -15,24 +19,16 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'UserLogin is required' });
             }
 
-            const filterFormula = `({UserLogin} = '${userLogin}')`;
-            const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`;
-            
-            const response = await fetch(url, {
-                headers: {
-                    'Authorization': `Bearer ${AIRTABLE_PAT}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const records = await base(AIRTABLE_PROGRESS_TABLE)
+                .select({
+                    filterByFormula: `{UserLogin} = '${userLogin}'`,
+                    sort: [{ field: 'Timestamp', direction: 'desc' }],
+                    maxRecords: 1
+                })
+                .firstPage();
 
-            if (!response.ok) {
-                throw new Error(`Airtable API error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            
-            if (data.records && data.records.length > 0) {
-                const record = data.records[0].fields;
+            if (records && records.length > 0) {
+                const record = records[0].fields;
                 const progress = {
                     correctCount: record.CorrectCount || 0,
                     incorrectCount: record.IncorrectCount || 0,
