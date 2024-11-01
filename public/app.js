@@ -122,15 +122,24 @@ class TestApp {
 
     async loadProgressFromAirtable() {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/api/progress?userLogin=${encodeURIComponent(this.user.login)}`);
+            const response = await fetch(`${this.API_BASE_URL}/api/progress?userLogin=${encodeURIComponent(this.user.login)}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             const data = await response.json();
-            
             console.log("Прогресс получен из Airtable:", data);
 
             if (data && data.progress) {
                 const progress = data.progress;
                 
-                // Проверяем ст��тус теста
+                // Проверяем сттус теста
                 if (progress.status === 'Completed') {
                     // Если тест был завершен, начинаем новый
                     this.correctCount = 0;
@@ -176,6 +185,13 @@ class TestApp {
             return false;
         } catch (error) {
             console.error("Ошибка при загрузке прогресса:", error);
+            // Если не удалось загрузить прогресс, начинаем с начала
+            this.correctCount = 0;
+            this.incorrectCount = 0;
+            this.totalQuestions = 0;
+            this.currentStageIndex = 0;
+            this.currentLevelIndex = 0;
+            this.answeredQuestions = new Set();
             return false;
         }
     }
@@ -363,7 +379,7 @@ class TestApp {
         const currentLevel = this.levels[this.currentLevelIndex];
         
         console.log(`Всего вопросов на этапе ${currentStage}: ${this.questions[currentStage].length}`);
-        console.log('Отв��ченные вопросы:', Array.from(this.answeredQuestions));
+        console.log('Отвченные вопросы:', Array.from(this.answeredQuestions));
         
         const availableQuestions = this.questions[currentStage].filter(q => 
             q.level === currentLevel && !this.answeredQuestions.has(q.id)
@@ -592,7 +608,7 @@ class TestApp {
     }
 
     renderTypingQuestion(question) {
-        console.log('Рендеринг вопрос�� typing:', question);
+        console.log('Рендеринг вопрос typing:', question);
         
         try {
             if (!question.sentenceWithGaps) {

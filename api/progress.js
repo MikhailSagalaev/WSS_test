@@ -1,7 +1,6 @@
 // api/progress.js
 const fetch = require('node-fetch');
 const cors = require('./middleware/cors');
-const Airtable = require('airtable');
 
 module.exports = async (req, res) => {
     // Проверка CORS
@@ -9,18 +8,17 @@ module.exports = async (req, res) => {
 
     const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
 
-    // Инициализация Airtable
-    Airtable.configure({
-        apiKey: AIRTABLE_PAT
-    });
-    const base = Airtable.base(AIRTABLE_BASE_ID);
-
     if (req.method === 'GET') {
         try {
             const userLogin = req.query.userLogin;
+            if (!userLogin) {
+                return res.status(400).json({ error: 'UserLogin is required' });
+            }
+
             const filterFormula = `({UserLogin} = '${userLogin}')`;
+            const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`;
             
-            const response = await fetch(`https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}&sort%5B0%5D%5Bfield%5D=Timestamp&sort%5B0%5D%5Bdirection%5D=desc`, {
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${AIRTABLE_PAT}`,
                     'Content-Type': 'application/json'
@@ -28,7 +26,7 @@ module.exports = async (req, res) => {
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(`Airtable API error: ${response.status}`);
             }
 
             const data = await response.json();
