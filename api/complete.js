@@ -50,22 +50,21 @@ module.exports = async (req, res) => {
 
         const recordId = data.records[0].id;
 
-        // Подготавливаем данные для обновления с учетом типов полей Airtable
+        // Подготавливаем данные для обновления только с существующими полями
         const progressData = {
             fields: {
-                UserLogin: userLogin, // Single line text
-                Status: 'Completed', // Single select
-                Stage: 'reading', // Single select
-                Level: 'pre-A1', // Single select
-                CorrectCount: Number(correctCount || 0), // Number
-                IncorrectCount: Number(incorrectCount || 0), // Number
-                TotalQuestions: Number(totalQuestions || 0), // Number
-                CurrentQuestionId: '', // Single line text
-                AnsweredQuestions: '[]', // Long text
-                TimeSpent: 0, // Number
-                FinalLevel: String(finalLevel || 'N/A'), // Single line text
-                FinalWSS: Number(finalWss || 0), // Number
-                CompletedAt: new Date(timestamp || Date.now()).toISOString() // Date
+                UserLogin: userLogin,
+                Status: 'Completed',
+                Stage: 'reading',
+                Level: 'pre-A1',
+                CorrectCount: Number(correctCount || 0),
+                IncorrectCount: Number(incorrectCount || 0),
+                TotalQuestions: Number(totalQuestions || 0),
+                CurrentQuestionId: '',
+                AnsweredQuestions: '[]',
+                FinalLevel: String(finalLevel || 'N/A'),
+                FinalWSS: Number(finalWss || 0),
+                CompletedAt: new Date(timestamp || Date.now()).toISOString()
             }
         };
 
