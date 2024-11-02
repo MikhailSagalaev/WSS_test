@@ -122,6 +122,31 @@ module.exports = async (req, res) => {
             );
         }
 
+        // После успешного обновления прогресса
+        // Сохраняем результаты в Story таблицу
+        const { AIRTABLE_STORY_TABLE } = process.env;
+        await fetch(
+            `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_STORY_TABLE)}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${AIRTABLE_PAT}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    fields: {
+                        UserLogin: userLogin,
+                        FinalLevel: String(finalLevel || 'N/A'),
+                        FinalWSS: Number(finalWss || 0),
+                        CorrectCount: Number(correctCount || 0),
+                        IncorrectCount: Number(incorrectCount || 0),
+                        TotalQuestions: Number(totalQuestions || 0),
+                        CompletedAt: timestamp || new Date().toISOString()
+                    }
+                })
+            }
+        );
+
         res.status(200).json({
             message: 'Тест успешно завершён, результаты сохранены и TestAttempts уменьшены.',
             finalLevel,

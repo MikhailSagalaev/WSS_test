@@ -47,6 +47,10 @@ class TestApp {
         // Добавить debounce для обработчиков событий
         this.debouncedHandleSubmit = this.debounce(this.handleSubmit.bind(this), 300);
         this.loadingOverlay = document.getElementById('loading-overlay');
+
+        this.reloadCount = parseInt(localStorage.getItem('reloadCount') || '0');
+        this.maxReloads = 3; // максимальное количество перезагрузок
+        this.checkReloads();
     }
 
     initializeElements() {
@@ -754,22 +758,28 @@ class TestApp {
         const inputs = this.questionContainer.querySelectorAll('.gap-answer');
         inputs.forEach(input => {
             input.addEventListener('input', (e) => {
-                // Разрешаем только латинские буквы
-                if (!this.isLatinInput(e.target.value)) {
-                    e.target.value = e.target.value.replace(/[^a-zA-Z]/g, '');
+                if (!this.isValidInput(e.target.value)) {
+                    e.target.value = e.target.value.replace(/[^a-zA-Zа-яА-ЯёЁ]/g, '');
                 }
                 this.checkAllInputsFilled();
             });
+
+            // Добавим подсказку для пользователя
+            input.setAttribute('placeholder', 'Введите ответ');
+            input.setAttribute('title', 'Используйте русские или английские буквы');
         });
     }
 
-    isLatinInput(input) {
-        return /^[a-zA-Z]*$/.test(input);
+    isValidInput(input) {
+        return /^[a-zA-Zа-яА-ЯёЁ]*$/.test(input);
     }
 
     checkAllInputsFilled() {
         const inputs = this.questionContainer.querySelectorAll('.gap-answer');
-        const allFilled = Array.from(inputs).every(input => input.value.trim() !== '');
+        const allFilled = Array.from(inputs).every(input => {
+            const value = input.value.trim();
+            return value !== '' && this.isValidInput(value);
+        });
         if (this.submitBtn) {
             this.submitBtn.disabled = !allFilled;
         }
@@ -879,7 +889,7 @@ class TestApp {
         this.questionNumber++;
         this.updateQuestionNumber();
         
-        // Сохраняем прогресс
+        // Сохраняем погресс
         this.saveProgressToLocalStorage();
         this.sendProgress();
 
@@ -962,13 +972,13 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Ошибка при сохранении прогресса в Airtable:", data.error);
+                console.error("Оибка при сохранении прогресса в Airtable:", data.error);
             } else {
                 console.log("Прогресс успешно сохранен в Airtable");
             }
         })
         .catch(error => {
-            console.error("Ошибка при сохраннии прогресса в Airtable:", error);
+            console.error("Ошибка при сораннии прогресса в Airtable:", error);
         });
     }
 
@@ -1093,46 +1103,51 @@ class TestApp {
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         
-        const completionData = {
-            userLogin: this.user.login,
-            stagesResults: this.stagesResults,
-            finalWss: finalWss,
-            finalLevel: finalLevel,
-            timestamp: new Date().toISOString(),
-            status: 'Completed', // Используем Status из Airtable
-            stage: this.stages[this.currentStageIndex],
-            level: this.levels[this.currentLevelIndex],
-            correctCount: this.correctCount,
-            incorrectCount: this.incorrectCount,
-            totalQuestions: this.totalQuestions,
-            correctHigherLevel: this.correctHigherLevel,
-            incorrectLowerLevel: this.incorrectLowerLevel,
-            questionsOnCurrentLevel: this.questionsOnCurrentLevel
-        };
-
         try {
-            const response = await fetch(`${this.API_BASE_URL}/api/complete`, {
+            // Сначала завершаем тест
+            const completeResponse = await fetch(`${this.API_BASE_URL}/api/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(completionData)
+                body: JSON.stringify({
+                    userLogin: this.user.login,
+                    finalLevel,
+                    finalWss,
+                    correctCount: this.correctCount,
+                    incorrectCount: this.incorrectCount,
+                    totalQuestions: this.totalQuestions,
+                    timestamp: new Date().toISOString()
+                })
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (!completeResponse.ok) {
+                throw new Error(`HTTP error! status: ${completeResponse.status}`);
             }
 
-            const data = await response.json();
-            console.log("Тест успешно завершён:", data);
-            
-            // Показываем результаты и отключаем взаимодействие
+            // Затем сохраняем результаты в Story
+            await fetch(`${this.API_BASE_URL}/api/sendResults`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    UserLogin: this.user.login,
+                    FinalLevel: finalLevel,
+                    FinalWSS: finalWss,
+                    CorrectCount: this.correctCount,
+                    IncorrectCount: this.incorrectCount,
+                    TotalQuestions: this.totalQuestions,
+                    CompletedAt: new Date().toISOString()
+                })
+            });
+
+            // Показываем результаты
             this.showResults(finalLevel, finalWss);
             this.disableInteractions();
             
-            // Удаляем только локальный прогресс
+            // Очищаем локальный прогресс
             localStorage.removeItem('testProgress');
-            
         } catch (error) {
             console.error("Ошибка при завершении теста:", error);
             alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
@@ -1396,37 +1411,31 @@ class TestApp {
         });
 
         if (!userAnswer || !Array.isArray(userAnswer)) {
-            console.error('Некорректный формат польовательского ответа');
+            console.error('Некорректный формат пользовательского ответа');
             return false;
         }
 
-        if (!this.currentQuestion.answers) {
-            console.error('Отсутствуют правильные ответы для вопроса');
-            return false;
-        }
+        // Получаем массив правильных ответов
+        const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim());
 
         // Проверяем каждый введенный ответ
         return userAnswer.every((answer, index) => {
-            // Приводим ответ пользователя к нижнему регистру и убираем пробелы
-            const cleanUserAnswer = answer.toLowerCase().trim();
+            const userAns = answer.trim().toLowerCase();
+            const correctAns = correctAnswers[index]?.toLowerCase();
             
-            // Проверяем, есть ли ответ пользователя в списке возможных ответов
-            const isCorrect = this.currentQuestion.answers.some(correctAns => 
-                correctAns.toLowerCase().trim() === cleanUserAnswer
-            );
-
             console.log(`Проверка ответа ${index}:`, {
-                userAnswer: cleanUserAnswer,
-                isCorrect
+                userAnswer: userAns,
+                correctAnswer: correctAns,
+                isCorrect: userAns === correctAns
             });
 
-            return isCorrect;
+            return userAns === correctAns;
         });
     }
 
     checkMatchingWordsAnswer(userAnswer) {
         console.log('Проверка ответа для вопроса типа matchingWords');
-        console.log('Ответ пользователя:', userAnswer);
+        console.log('Ответ польователя:', userAnswer);
         console.log('Правильный ответ:', this.currentQuestion.wordOptions);
         
         const correctAnswers = this.currentQuestion.wordOptions.split(',').map(word => word.trim().toLowerCase());
@@ -1708,6 +1717,16 @@ class TestApp {
         
         if (this.submitBtn) {
             this.submitBtn.disabled = !allFilled;
+        }
+    }
+
+    checkReloads() {
+        this.reloadCount++;
+        localStorage.setItem('reloadCount', this.reloadCount.toString());
+
+        if (this.reloadCount > this.maxReloads) {
+            this.finishTest(true); // завершаем тест принудительно
+            return;
         }
     }
 }
