@@ -65,7 +65,8 @@ module.exports = async (req, res) => {
                 AnsweredQuestions: '[]',
                 FinalLevel: String(finalLevel || 'N/A'),
                 FinalWSS: Number(finalWss || 0),
-                CompletedAt: new Date(timestamp || Date.now()).toISOString()
+                CompletedAt: new Date(timestamp || Date.now()).toISOString(),
+                QuestionsOnCurrentLevel: 0
             }
         };
 
@@ -140,8 +141,30 @@ module.exports = async (req, res) => {
         }
 
         // После успешного обновления прогресса
-        // Сохраняем результаты в Story таблицу
+        console.log('Сохраняем результаты в Story таблицу');
         const { AIRTABLE_STORY_TABLE } = process.env;
+
+        // Проверяем наличие переменной окружения
+        if (!AIRTABLE_STORY_TABLE) {
+            console.error('AIRTABLE_STORY_TABLE не определена');
+            throw new Error('AIRTABLE_STORY_TABLE not configured');
+        }
+
+        const storyData = {
+            fields: {
+                UserLogin: userLogin,
+                FinalLevel: String(finalLevel || 'N/A'),
+                FinalWSS: Number(finalWss || 0),
+                CorrectCount: Number(correctCount || 0),
+                IncorrectCount: Number(incorrectCount || 0),
+                TotalQuestions: Number(totalQuestions || 0),
+                CompletedAt: new Date(timestamp || Date.now()).toISOString(),
+                ForcedCompletion: Boolean(forcedCompletion)
+            }
+        };
+
+        console.log('Данные для Story:', storyData);
+
         const storyResponse = await fetch(
             `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_STORY_TABLE)}`,
             {
@@ -151,24 +174,18 @@ module.exports = async (req, res) => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    fields: {
-                        UserLogin: userLogin,
-                        FinalLevel: finalLevel || 'N/A',
-                        FinalWSS: finalWss || 0,
-                        CorrectCount: correctCount || 0,
-                        IncorrectCount: incorrectCount || 0,
-                        TotalQuestions: totalQuestions || 0,
-                        CompletedAt: timestamp || new Date().toISOString(),
-                        ForcedCompletion: forcedCompletion || false
-                    }
+                    records: [{ fields: storyData.fields }] // Исправляем формат данных для Airtable
                 })
             }
         );
 
         if (!storyResponse.ok) {
-            console.error('Ошибка при сохранении в Story:', await storyResponse.json());
+            const errorData = await storyResponse.json();
+            console.error('Ошибка при сохранении в Story:', errorData);
+            throw new Error(`Failed to save to Story: ${storyResponse.status}. Details: ${JSON.stringify(errorData)}`);
         } else {
-            console.log('Результаты успешно сохранены в Story');
+            const storyResult = await storyResponse.json();
+            console.log('Результаты успешно сохранены в Story:', storyResult);
         }
 
         res.status(200).json({

@@ -362,7 +362,7 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Вопросы загружены:", data.length);
+            console.log("Вопросы загр��жены:", data.length);
 
             this.questions = { reading: [], listening: [] };
 
@@ -661,7 +661,7 @@ class TestApp {
                     optionsContainer.appendChild(existingOption);
                 }
 
-                // Перемещаем новый элемент в drop zone
+                // Пер��мещаем новый элемент в drop zone
                 zone.appendChild(option);
                 option.setAttribute('draggable', 'false');
                 
@@ -1111,7 +1111,7 @@ class TestApp {
         const finalLevel = this.calculateFinalLevel(finalWss);
         
         try {
-            // Сначала завершаем тест
+            // Сн��чала завершаем тест
             const completeResponse = await fetch(`${this.API_BASE_URL}/api/complete`, {
                 method: 'POST',
                 headers: {
@@ -1733,11 +1733,7 @@ class TestApp {
                 throw new Error('User not initialized');
             }
 
-            // Показываем загрузку
             this.showLoading();
-
-            const finalWss = 28;
-            const finalLevel = 'N/A';
 
             const completeResponse = await fetch(`${this.API_BASE_URL}/api/complete`, {
                 method: 'POST',
@@ -1746,8 +1742,8 @@ class TestApp {
                 },
                 body: JSON.stringify({
                     userLogin: this.user.login,
-                    finalLevel,
-                    finalWss,
+                    finalLevel: 'N/A',
+                    finalWss: 28,
                     correctCount: 0,
                     incorrectCount: 0,
                     totalQuestions: 0,
@@ -1760,14 +1756,15 @@ class TestApp {
                 throw new Error(`HTTP error! status: ${completeResponse.status}`);
             }
 
-            // Скрываем загрузку перед показом сообщения
             this.hideLoading();
             this.showForcedCompletionMessage();
-            localStorage.removeItem('reloadCount');
-            localStorage.removeItem('testProgress');
+
+            // Очищаем все данные
+            console.log('Очищаем все данные из localStorage');
+            localStorage.clear(); // Очищаем весь localStorage
+
             this.disableInteractions();
         } catch (error) {
-            // Скрываем загрузку в случае ошибки
             this.hideLoading();
             console.error("Ошибка при принудительном завершении теста:", error);
             this.showUnavailableMessage("Произошла ошибка. Пожалуйста, обратитесь к администратору.");
