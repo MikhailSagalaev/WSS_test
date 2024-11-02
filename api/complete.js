@@ -20,7 +20,8 @@ module.exports = async (req, res) => {
             correctCount, 
             incorrectCount, 
             totalQuestions, 
-            timestamp 
+            timestamp,
+            forcedCompletion 
         } = req.body;
 
         if (!userLogin) {
