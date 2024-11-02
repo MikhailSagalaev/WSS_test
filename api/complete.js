@@ -96,7 +96,7 @@ module.exports = async (req, res) => {
         console.log('Получаем данные пользователя:', userLogin);
         const { AIRTABLE_USERS_TABLE } = process.env;
         const userResponse = await fetch(
-            `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}?filterByFormula=${encodeURIComponent(`{Email} = '${userLogin}'`)}`,
+            `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}?filterByFormula=${encodeURIComponent(`{login} = '${userLogin}'`)}`,
             {
                 headers: {
                     'Authorization': `Bearer ${AIRTABLE_PAT}`,
