@@ -20,8 +20,7 @@ module.exports = async (req, res) => {
             correctCount, 
             incorrectCount, 
             totalQuestions, 
-            timestamp,
-            forcedCompletion 
+            timestamp 
         } = req.body;
 
         if (!userLogin) {
@@ -51,26 +50,26 @@ module.exports = async (req, res) => {
 
         const recordId = data.records[0].id;
 
-        // Подготавливаем данные для обновления
+        // Подготавливаем данные для обновления с учетом типов полей Airtable
         const progressData = {
             fields: {
-                Status: 'Completed',
-                FinalLevel: finalLevel || 'N/A',
-                FinalWSS: finalWss || 0,
-                CorrectCount: correctCount || 0,
-                IncorrectCount: incorrectCount || 0,
-                TotalQuestions: totalQuestions || 0,
-                CompletedAt: timestamp || new Date().toISOString(),
-                // Обнуляем прогресс
-                CurrentQuestionId: '',
-                AnsweredQuestions: '[]',
-                Stage: 'reading',
-                Level: 'pre-A1',
-                TimeSpent: 0
+                UserLogin: userLogin, // Single line text
+                Status: 'Completed', // Single select
+                Stage: 'reading', // Single select
+                Level: 'pre-A1', // Single select
+                CorrectCount: Number(correctCount || 0), // Number
+                IncorrectCount: Number(incorrectCount || 0), // Number
+                TotalQuestions: Number(totalQuestions || 0), // Number
+                CurrentQuestionId: '', // Single line text
+                AnsweredQuestions: '[]', // Long text
+                TimeSpent: 0, // Number
+                FinalLevel: String(finalLevel || 'N/A'), // Single line text
+                FinalWSS: Number(finalWss || 0), // Number
+                CompletedAt: new Date(timestamp || Date.now()).toISOString() // Date
             }
         };
 
-        console.log('Update fields:', progressData);
+        console.log('Updating progress with data:', progressData);
 
         // Обновляем запись
         const progressResponse = await fetch(
@@ -86,12 +85,19 @@ module.exports = async (req, res) => {
         );
 
         if (!progressResponse.ok) {
-            throw new Error(`Failed to update progress: ${progressResponse.status}`);
+            const errorData = await progressResponse.json();
+            console.error('Airtable error response:', errorData);
+            throw new Error(`Failed to update progress: ${progressResponse.status}. Details: ${JSON.stringify(errorData)}`);
         }
 
-        // Уменьшаем количество попыток в таблице Users
+        const progressResult = await progressResponse.json();
+        console.log('Progress update result:', progressResult);
+
+        // Логируем процесс обновления попыток
+        console.log('Получаем данные пользователя:', userLogin);
+        const { AIRTABLE_USERS_TABLE } = process.env;
         const userResponse = await fetch(
-            `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}?filterByFormula=${encodeURIComponent(`{login} = '${userLogin}'`)}`,
+            `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}?filterByFormula=${encodeURIComponent(`{Email} = '${userLogin}'`)}`,
             {
                 headers: {
                     'Authorization': `Bearer ${AIRTABLE_PAT}`,
@@ -136,7 +142,7 @@ module.exports = async (req, res) => {
         // После успешного обновления прогресса
         // Сохраняем результаты в Story таблицу
         const { AIRTABLE_STORY_TABLE } = process.env;
-        await fetch(
+        const storyResponse = await fetch(
             `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_STORY_TABLE)}`,
             {
                 method: 'POST',
@@ -147,16 +153,23 @@ module.exports = async (req, res) => {
                 body: JSON.stringify({
                     fields: {
                         UserLogin: userLogin,
-                        FinalLevel: String(finalLevel || 'N/A'),
-                        FinalWSS: Number(finalWss || 0),
-                        CorrectCount: Number(correctCount || 0),
-                        IncorrectCount: Number(incorrectCount || 0),
-                        TotalQuestions: Number(totalQuestions || 0),
-                        CompletedAt: timestamp || new Date().toISOString()
+                        FinalLevel: finalLevel || 'N/A',
+                        FinalWSS: finalWss || 0,
+                        CorrectCount: correctCount || 0,
+                        IncorrectCount: incorrectCount || 0,
+                        TotalQuestions: totalQuestions || 0,
+                        CompletedAt: timestamp || new Date().toISOString(),
+                        ForcedCompletion: forcedCompletion || false
                     }
                 })
             }
         );
+
+        if (!storyResponse.ok) {
+            console.error('Ошибка при сохранении в Story:', await storyResponse.json());
+        } else {
+            console.log('Результаты успешно сохранены в Story');
+        }
 
         res.status(200).json({
             message: 'Тест успешно завершён, результаты сохранены и TestAttempts уменьшены.',
