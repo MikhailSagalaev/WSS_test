@@ -1,34 +1,43 @@
 // api/progress.js
 const fetch = require('node-fetch');
-const cors = require('./middleware/cors');
-const Airtable = require('airtable');
 
 module.exports = async (req, res) => {
-    // Проверка CORS
-    if (cors(req, res)) return;
+    // Устанавливаем CORS заголовки
+    res.setHeader('Access-Control-Allow-Origin', 'https://wiseman-skills.com');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Обработка preflight запросов
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
 
     const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
-
-    // Инициализация Airtable
-    const base = new Airtable({ apiKey: AIRTABLE_PAT }).base(AIRTABLE_BASE_ID);
 
     if (req.method === 'GET') {
         try {
             const userLogin = req.query.userLogin;
-            if (!userLogin) {
-                return res.status(400).json({ error: 'UserLogin is required' });
+            const filterFormula = `({UserLogin} = '${userLogin}')`;
+            
+            const response = await fetch(
+                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${AIRTABLE_PAT}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const records = await base(AIRTABLE_PROGRESS_TABLE)
-                .select({
-                    filterByFormula: `{UserLogin} = '${userLogin}'`,
-                    sort: [{ field: 'Timestamp', direction: 'desc' }],
-                    maxRecords: 1
-                })
-                .firstPage();
-
-            if (records && records.length > 0) {
-                const record = records[0].fields;
+            const data = await response.json();
+            
+            if (data.records && data.records.length > 0) {
+                const record = data.records[0].fields;
                 const progress = {
                     correctCount: record.CorrectCount || 0,
                     incorrectCount: record.IncorrectCount || 0,
@@ -52,8 +61,6 @@ module.exports = async (req, res) => {
         }
     } else if (req.method === 'POST') {
         try {
-            console.log('Получены данные прогресса:', req.body);
-
             const { 
                 userLogin, 
                 stage, 
@@ -69,58 +76,76 @@ module.exports = async (req, res) => {
                 timestamp 
             } = req.body;
 
-            if (!userLogin) {
-                throw new Error('UserLogin is required');
-            }
-
             const progressData = {
-                fields: {
-                    UserLogin: userLogin,
-                    Stage: stage,
-                    Level: level,
-                    CorrectCount: correctCount || 0,
-                    IncorrectCount: incorrectCount || 0,
-                    TotalQuestions: totalQuestions || 0,
-                    CorrectHigherLevel: correctHigherLevel || 0,
-                    IncorrectLowerLevel: incorrectLowerLevel || 0,
-                    QuestionsOnCurrentLevel: questionsOnCurrentLevel || 0,
-                    CurrentQuestionId: currentQuestionId || '',
-                    AnsweredQuestions: JSON.stringify(answeredQuestions || []),
-                    Status: 'In Progress',
-                    Timestamp: timestamp || new Date().toISOString()
-                }
+                records: [{
+                    fields: {
+                        UserLogin: userLogin,
+                        Stage: stage,
+                        Level: level,
+                        CorrectCount: correctCount,
+                        IncorrectCount: incorrectCount,
+                        TotalQuestions: totalQuestions,
+                        CorrectHigherLevel: correctHigherLevel,
+                        IncorrectLowerLevel: incorrectLowerLevel,
+                        QuestionsOnCurrentLevel: questionsOnCurrentLevel,
+                        CurrentQuestionId: currentQuestionId,
+                        AnsweredQuestions: JSON.stringify(answeredQuestions),
+                        Status: 'In Progress',
+                        Timestamp: timestamp
+                    }
+                }]
             };
 
-            console.log('Подготовленные данные для Airtable:', progressData);
-
             // Проверяем существующую запись
-            const records = await base(AIRTABLE_PROGRESS_TABLE)
-                .select({
-                    filterByFormula: `{UserLogin} = '${userLogin}'`
-                })
-                .firstPage();
+            const existingResponse = await fetch(
+                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(`{UserLogin} = '${userLogin}'`)}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${AIRTABLE_PAT}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            const existingData = await existingResponse.json();
 
             let response;
-            if (records && records.length > 0) {
-                response = await base(AIRTABLE_PROGRESS_TABLE).update([
+            if (existingData.records && existingData.records.length > 0) {
+                // Обновляем существующую запись
+                response = await fetch(
+                    `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}/${existingData.records[0].id}`,
                     {
-                        id: records[0].id,
-                        fields: progressData.fields
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `Bearer ${AIRTABLE_PAT}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ fields: progressData.records[0].fields })
                     }
-                ]);
+                );
             } else {
-                response = await base(AIRTABLE_PROGRESS_TABLE).create([progressData]);
+                // Создаем новую запись
+                response = await fetch(
+                    `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${AIRTABLE_PAT}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(progressData)
+                    }
+                );
             }
 
-            console.log('Ответ от Airtable:', response);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
             res.status(200).json({ message: 'Прогресс успешно сохранён.' });
         } catch (error) {
-            console.error("Ошибка при сохранении прогресса:", error);
-            res.status(500).json({ 
-                error: 'Internal Server Error', 
-                message: error.message,
-                stack: error.stack 
-            });
+            console.error('Error:', error);
+            res.status(500).json({ error: 'Internal Server Error', details: error.message });
         }
     } else {
         res.status(405).json({ error: 'Method not allowed' });
