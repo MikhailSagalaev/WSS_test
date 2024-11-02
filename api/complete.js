@@ -6,22 +6,31 @@ module.exports = async (req, res) => {
     // Проверка CORS
     if (cors(req, res)) return;
 
-    console.log("Получен запрос к /api/complete");
-    console.log("Тело запроса:", req.body);
-
     if (req.method !== 'POST') {
-        console.warn(`Метод ${req.method} не разрешён`);
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}`;
+        const { 
+            userLogin, 
+            finalLevel, 
+            finalWss, 
+            correctCount, 
+            incorrectCount, 
+            totalQuestions, 
+            timestamp 
+        } = req.body;
 
-        // Получаем текущую запись прогресса пользователя
-        const filterFormula = `({UserLogin} = '${req.body.userLogin}')`;
-        const progressResponse = await fetch(
-            `${url}?filterByFormula=${encodeURIComponent(filterFormula)}`,
+        if (!userLogin) {
+            return res.status(400).json({ error: 'UserLogin is required' });
+        }
+
+        const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
+
+        // Сначала получаем существующую запись
+        const filterFormula = `({UserLogin} = '${userLogin}')`;
+        const getResponse = await fetch(
+            `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`,
             {
                 headers: {
                     'Authorization': `Bearer ${AIRTABLE_PAT}`,
@@ -30,13 +39,22 @@ module.exports = async (req, res) => {
             }
         );
 
-        const progressData = await progressResponse.json();
+        if (!getResponse.ok) {
+            throw new Error(`Failed to get record: ${getResponse.status}`);
+        }
 
-        if (progressData.records && progressData.records.length > 0) {
-            const recordId = progressData.records[0].id;
+        const data = await getResponse.json();
+        
+        if (!data.records || data.records.length === 0) {
+            throw new Error('No progress record found');
+        }
 
-            // Обновляем запись, устанавливая Status = 'Completed' и очищая AnsweredQuestions
-            const updateResponse = await fetch(`${url}/${recordId}`, {
+        const recordId = data.records[0].id;
+
+        // Обновляем запись с результатами теста
+        const updateResponse = await fetch(
+            `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}/${recordId}`,
+            {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${AIRTABLE_PAT}`,
@@ -45,41 +63,46 @@ module.exports = async (req, res) => {
                 body: JSON.stringify({
                     fields: {
                         Status: 'Completed',
-                        AnsweredQuestions: '[]', // Очищаем список отвеченных вопросов
-                        FinalLevel: req.body.finalLevel,
-                        FinalWSS: req.body.finalWss,
-                        CorrectCount: req.body.correctCount,
-                        IncorrectCount: req.body.incorrectCount,
-                        TotalQuestions: req.body.totalQuestions,
-                        CompletedAt: new Date().toISOString()
+                        FinalLevel: finalLevel || 'N/A',
+                        FinalWSS: finalWss || 0,
+                        CorrectCount: correctCount || 0,
+                        IncorrectCount: incorrectCount || 0,
+                        TotalQuestions: totalQuestions || 0,
+                        CompletedAt: timestamp || new Date().toISOString(),
+                        AnsweredQuestions: '[]' // Очищаем список отвеченных вопросов
                     }
                 })
-            });
-
-            if (!updateResponse.ok) {
-                throw new Error(`HTTP error! status: ${updateResponse.status}`);
             }
+        );
 
-            // Уменьшаем количество доступных попыток
-            const { AIRTABLE_USERS_TABLE } = process.env;
-            const usersUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}`;
-            
-            const userResponse = await fetch(
-                `${usersUrl}?filterByFormula=${encodeURIComponent(`{Email} = '${req.body.userLogin}'`)}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${AIRTABLE_PAT}`,
-                        'Content-Type': 'application/json'
-                    }
+        if (!updateResponse.ok) {
+            throw new Error(`Failed to update record: ${updateResponse.status}`);
+        }
+
+        // Обновляем количество попыток в таблице пользователей
+        const { AIRTABLE_USERS_TABLE } = process.env;
+        const userResponse = await fetch(
+            `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}?filterByFormula=${encodeURIComponent(`{Email} = '${userLogin}'`)}`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${AIRTABLE_PAT}`,
+                    'Content-Type': 'application/json'
                 }
-            );
+            }
+        );
 
-            const userData = await userResponse.json();
-            if (userData.records && userData.records.length > 0) {
-                const userRecord = userData.records[0];
-                const currentAttempts = userRecord.fields.TestAttempts || 0;
-                
-                await fetch(`${usersUrl}/${userRecord.id}`, {
+        if (!userResponse.ok) {
+            throw new Error(`Failed to get user: ${userResponse.status}`);
+        }
+
+        const userData = await userResponse.json();
+        if (userData.records && userData.records.length > 0) {
+            const userRecord = userData.records[0];
+            const currentAttempts = userRecord.fields.TestAttempts || 0;
+
+            await fetch(
+                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}/${userRecord.id}`,
+                {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${AIRTABLE_PAT}`,
@@ -90,19 +113,20 @@ module.exports = async (req, res) => {
                             TestAttempts: Math.max(0, currentAttempts - 1)
                         }
                     })
-                });
-            }
-
-            res.status(200).json({
-                message: 'Тест успешно завершён, результаты сохранены и TestAttempts уменьшены.',
-                finalLevel: req.body.finalLevel,
-                finalWss: req.body.finalWss
-            });
-        } else {
-            throw new Error('Progress record not found');
+                }
+            );
         }
+
+        res.status(200).json({
+            message: 'Тест успешно завершён, результаты сохранены и TestAttempts уменьшены.',
+            finalLevel,
+            finalWss
+        });
     } catch (error) {
         console.error('Error in /api/complete:', error);
-        res.status(500).json({ error: 'Internal Server Error', details: error.message });
+        res.status(500).json({ 
+            error: 'Internal Server Error', 
+            message: error.message 
+        });
     }
 };

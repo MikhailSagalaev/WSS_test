@@ -33,6 +33,20 @@ class TestApp {
         this.answeredQuestions = new Set();
         this.currentQuestionId = null;
         this.hideTestElements();
+
+        // Кэширование DOM элементов
+        this.elements = {
+            questionContainer: document.getElementById('question-container'),
+            submitBtn: document.getElementById('submit-btn'),
+            timer: document.getElementById('timer'),
+            currentStage: document.getElementById('current-stage'),
+            taskDescription: document.getElementById('task-description'),
+            questionNumber: document.getElementById('question-number')
+        };
+
+        // Добавить debounce для обработчиков событий
+        this.debouncedHandleSubmit = this.debounce(this.handleSubmit.bind(this), 300);
+        this.loadingOverlay = document.getElementById('loading-overlay');
     }
 
     initializeElements() {
@@ -63,12 +77,16 @@ class TestApp {
         }
     
         try {
+            this.showLoading();
+            
             await this.checkTestAvailability();
             await this.loadProgressFromAirtable();
             await this.loadQuestions();
             
+            this.hideLoading();
             this.showStartButton();
         } catch (error) {
+            this.hideLoading();
             console.error("Error during initialization:", error);
             this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжитесь с администратором.");
         }
@@ -120,6 +138,15 @@ class TestApp {
         }
     }
 
+    addLeaveConfirmation() {
+        window.addEventListener('beforeunload', (e) => {
+            if (this.state.isTestStarted && !this.state.isTestCompleted) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    }
+
     async loadProgressFromAirtable() {
         try {
             const response = await fetch(`${this.API_BASE_URL}/api/progress?userLogin=${encodeURIComponent(this.user.login)}`, {
@@ -139,7 +166,7 @@ class TestApp {
             if (data && data.progress) {
                 const progress = data.progress;
                 
-                // Проверяем сттус теста
+                // Поверяем сттус теста
                 if (progress.status === 'Completed') {
                     // Если тест был завершен, начинаем новый
                     this.correctCount = 0;
@@ -314,8 +341,9 @@ class TestApp {
     }
 
     async loadQuestions() {
-        console.log("Начало загрузки вопросов");
         try {
+            this.showLoading();
+            console.log("Начало загрузки вопросов");
             const response = await fetch(`${this.API_BASE_URL}/api/questions`);
             
             if (!response.ok) {
@@ -344,8 +372,9 @@ class TestApp {
             });
 
             console.log("Отформатированные вопросы:", this.questions);
-
+            this.hideLoading();
         } catch (error) {
+            this.hideLoading();
             console.error("Ошибка при загрузке вопросов:", error);
             throw error;
         }
@@ -374,13 +403,15 @@ class TestApp {
     }
 
     loadQuestion() {
-        console.log(`Загузка вопроса для этапа: ${this.stages[this.currentStageIndex]}, уровня: ${this.levels[this.currentLevelIndex]}`);
+        console.log(`Загрузка вопроса для этапа: ${this.stages[this.currentStageIndex]}, уровня: ${this.levels[this.currentLevelIndex]}`);
         const currentStage = this.stages[this.currentStageIndex];
         const currentLevel = this.levels[this.currentLevelIndex];
         
         console.log(`Всего вопросов на этапе ${currentStage}: ${this.questions[currentStage].length}`);
-        console.log('Отвченные вопросы:', Array.from(this.answeredQuestions));
+        console.log('Текущий ID вопроса:', this.currentQuestionId);
+        console.log('Отвеченные вопросы:', Array.from(this.answeredQuestions));
         
+        // Фильтруем вопросы, которые еще не были отвечены
         const availableQuestions = this.questions[currentStage].filter(q => 
             q.level === currentLevel && !this.answeredQuestions.has(q.id)
         );
@@ -392,14 +423,29 @@ class TestApp {
             return;
         }
 
-        // Выбираем случайный вопрос из доступных
-        const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-        this.currentQuestion = availableQuestions[randomIndex];
+        // Проверяем наличие сохраненного вопроса и что он еще не отвечен
+        if (this.currentQuestionId && !this.answeredQuestions.has(this.currentQuestionId)) {
+            const savedQuestion = this.questions[currentStage].find(q => 
+                q.id === this.currentQuestionId && 
+                q.level === currentLevel
+            );
+            
+            if (savedQuestion) {
+                console.log("Восстановлен сохраненный вопрос:", savedQuestion);
+                this.currentQuestion = savedQuestion;
+            } else {
+                const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+                this.currentQuestion = availableQuestions[randomIndex];
+                console.log("Выбран случайный вопрос (сохраненный не подходит):", this.currentQuestion);
+            }
+        } else {
+            const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+            this.currentQuestion = availableQuestions[randomIndex];
+            console.log("Выбран случайный вопрос:", this.currentQuestion);
+        }
+
         this.currentQuestionId = this.currentQuestion.id;
         this.currentQuestionType = this.currentQuestion.questionType;
-
-        console.log("Текущий вопрос:", this.currentQuestion);
-        console.log("Тип текущего вопроса:", this.currentQuestionType);
         
         this.questionStartTime = new Date();
         this.updateDesignImage(this.currentQuestion);
@@ -523,22 +569,32 @@ class TestApp {
                 throw new Error('matchPairs должен быть массивом');
             }
 
+            // Сохраняем оригинальный порядок для проверки ответов
+            this.originalMatchPairs = [...matchPairs];
+            
+            // Перемешиваем варианты ответов
+            const shuffledOptions = this.shuffleArray([...matchPairs]);
+
             let html = `
                 <div class="matching-question">
                     <div class="task">${question.task}</div>
                     <div class="matching-container">
-                        <div class="options-container">
-                            ${matchPairs.map((pair, index) => `
-                                <div class="option" draggable="true" data-index="${index}">
-                                    ${pair.option}
-                                </div>
-                            `).join('')}
-                        </div>
                         <div class="targets-container">
                             ${matchPairs.map((pair, index) => `
                                 <div class="target" data-index="${index}">
                                     <img src="${pair.image}" alt="Target ${index + 1}">
-                                    <div class="drop-zone" data-index="${index}"></div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="drop-zones-container">
+                            ${matchPairs.map((pair, index) => `
+                                <div class="drop-zone" data-index="${index}"></div>
+                            `).join('')}
+                        </div>
+                        <div class="options-container">
+                            ${shuffledOptions.map((pair, index) => `
+                                <div class="option" draggable="true" data-index="${index}" data-original-index="${matchPairs.findIndex(p => p.option === pair.option)}">
+                                    ${pair.option}
                                 </div>
                             `).join('')}
                         </div>
@@ -566,6 +622,7 @@ class TestApp {
 
             option.addEventListener('dragend', () => {
                 option.classList.remove('dragging');
+                this.checkAllMatchingAnswersFilled();
             });
         });
 
@@ -585,14 +642,20 @@ class TestApp {
                 const optionIndex = e.dataTransfer.getData('text/plain');
                 const option = this.questionContainer.querySelector(`.option[data-index="${optionIndex}"]`);
                 
-                // Очищаем предыдущую drop-zone если была
-                const previousZone = this.questionContainer.querySelector(`.drop-zone .option`);
-                if (previousZone) {
-                    previousZone.parentElement.removeChild(previousZone);
+                // Если в зоне уже есть элемент, возвращаем его в контейнер options
+                const existingOption = zone.querySelector('.option');
+                if (existingOption) {
+                    const optionsContainer = this.questionContainer.querySelector('.options-container');
+                    existingOption.setAttribute('draggable', 'true');
+                    optionsContainer.appendChild(existingOption);
                 }
 
+                // Перемещаем новый элемент в drop zone
                 zone.appendChild(option);
                 option.setAttribute('draggable', 'false');
+                
+                // Проверяем заполнение всех зон
+                this.checkAllMatchingAnswersFilled();
             });
         });
     }
@@ -739,11 +802,11 @@ class TestApp {
                 const matchingAnswers = [];
                 const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
                 dropZones.forEach(zone => {
-                    const option = zone.querySelector('.option');
-                    if (option) {
+                    const wordItem = zone.querySelector('.word-item');
+                    if (wordItem) {
                         matchingAnswers.push({
                             targetIndex: zone.dataset.index,
-                            optionIndex: option.dataset.index
+                            optionIndex: wordItem.getAttribute('data-index')
                         });
                     }
                 });
@@ -1168,7 +1231,6 @@ class TestApp {
     }
 
     shuffleArray(array) {
-        // Фунция для перемешивания массива
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [array[i], array[j]] = [array[j], array[i]];
@@ -1221,11 +1283,15 @@ class TestApp {
     }
 
     showLoading() {
-        document.getElementById('loading-indicator').style.display = 'block';
+        if (this.loadingOverlay) {
+            this.loadingOverlay.classList.remove('hidden');
+        }
     }
 
     hideLoading() {
-        document.getElementById('loading-indicator').style.display = 'none';
+        if (this.loadingOverlay) {
+            this.loadingOverlay.classList.add('hidden');
+        }
     }
 
     updateProgress(isCorrect) {
@@ -1286,13 +1352,11 @@ class TestApp {
 
     checkMatchingAnswer(userAnswer) {
         try {
-            const matchPairs = JSON.parse(this.currentQuestion.matchPairs);
-            
-            // Проверяем, что все пары совпадают
+            // Проверяем, что все пары совпадают с оригинальным порядком
             return userAnswer.every(answer => {
-                const targetPair = matchPairs[answer.targetIndex];
-                const selectedOption = matchPairs[answer.optionIndex];
-                return targetPair && selectedOption && targetPair.option === selectedOption.option;
+                const dropZoneIndex = parseInt(answer.targetIndex);
+                const optionOriginalIndex = parseInt(answer.optionIndex);
+                return dropZoneIndex === optionOriginalIndex;
             });
         } catch (error) {
             console.error('Ошибка при проверке ответа matching:', error);
@@ -1332,7 +1396,7 @@ class TestApp {
         });
 
         if (!userAnswer || !Array.isArray(userAnswer)) {
-            console.error('Некорректный формат пользовательского ответа');
+            console.error('Некорректный формат польовательского ответа');
             return false;
         }
 
@@ -1434,7 +1498,7 @@ class TestApp {
         if (currentStageElement) {
             const currentStage = this.stages[this.currentStageIndex];
             if (currentStage) {
-                // Преобразуем первую букву в заглавную
+                // Преобазуем первую букву в заглавную
                 const formattedStage = currentStage.charAt(0).toUpperCase() + currentStage.slice(1);
                 currentStageElement.textContent = formattedStage;
             } else {
@@ -1599,7 +1663,7 @@ class TestApp {
 
     // Добавим новый метод для отключения взаимодействий
     disableInteractions() {
-        // Удаляем обработчики событий с кнопки submit
+        // Удаляем обработчики соытий с кнопки submit
         if (this.submitBtn) {
             this.submitBtn.style.display = 'none';
         }
@@ -1622,6 +1686,29 @@ class TestApp {
             elem.draggable = false;
             elem.style.cursor = 'default';
         });
+    }
+
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    checkAllMatchingAnswersFilled() {
+        const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+        const allFilled = Array.from(dropZones).every(zone => zone.querySelector('.option'));
+        
+        console.log('Проверка заполнения matching вопроса:', allFilled);
+        
+        if (this.submitBtn) {
+            this.submitBtn.disabled = !allFilled;
+        }
     }
 }
 
