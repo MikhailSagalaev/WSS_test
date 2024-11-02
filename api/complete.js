@@ -88,7 +88,8 @@ module.exports = async (req, res) => {
         const updateResult = await updateResponse.json();
         console.log('Update result:', updateResult);
 
-        // Обновляем количество попыток
+        // Логируем процесс обновления попыток
+        console.log('Получаем данные пользователя:', userLogin);
         const { AIRTABLE_USERS_TABLE } = process.env;
         const userResponse = await fetch(
             `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}?filterByFormula=${encodeURIComponent(`{Email} = '${userLogin}'`)}`,
@@ -101,11 +102,14 @@ module.exports = async (req, res) => {
         );
 
         const userData = await userResponse.json();
+        console.log('Данные пользователя:', userData);
+
         if (userData.records && userData.records.length > 0) {
             const userRecord = userData.records[0];
             const currentAttempts = Number(userRecord.fields.TestAttempts || 0);
+            console.log('Текущее количество попыток:', currentAttempts);
 
-            await fetch(
+            const updateResponse = await fetch(
                 `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_USERS_TABLE)}/${userRecord.id}`,
                 {
                     method: 'PATCH',
@@ -120,6 +124,14 @@ module.exports = async (req, res) => {
                     })
                 }
             );
+
+            if (!updateResponse.ok) {
+                console.error('Ошибка при обновлении попыток:', await updateResponse.json());
+            } else {
+                console.log('Попытки успешно обновлены');
+            }
+        } else {
+            console.error('Пользователь не найден:', userLogin);
         }
 
         // После успешного обновления прогресса

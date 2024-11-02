@@ -782,3 +782,36 @@ audio {
 .loading-overlay.hidden {
     display: none;
 }
+
+.forced-completion {
+    background-color: #fff3f3;
+    border: 1px solid #ffcdd2;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.forced-completion h2 {
+    color: #d32f2f;
+    margin-bottom: 15px;
+}
+
+.forced-completion p {
+    margin: 10px 0;
+    color: #555;
+}
+
+.forced-completion .results-link {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #2196F3;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.forced-completion .results-link:hover {
+    background-color: #1976D2;
+}

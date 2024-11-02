@@ -50,7 +50,6 @@ class TestApp {
 
         this.reloadCount = parseInt(localStorage.getItem('reloadCount') || '0');
         this.maxReloads = 3; // максимальное количество перезагрузок
-        this.checkReloads();
     }
 
     initializeElements() {
@@ -77,6 +76,14 @@ class TestApp {
     
         if (this.userNotAuthorized) {
             this.showUnavailableMessage("Пожалуйста, войдите в систему для прохождения теста.");
+            return;
+        }
+    
+        this.reloadCount++;
+        localStorage.setItem('reloadCount', this.reloadCount.toString());
+    
+        if (this.reloadCount > this.maxReloads) {
+            await this.handleForcedCompletion();
             return;
         }
     
@@ -361,7 +368,7 @@ class TestApp {
 
             data.forEach(question => {
                 if (!question.fields) {
-                    console.warn('Пропущен вопрос без полей:', question);
+                    console.warn('ропущен вопрос без полей:', question);
                     return;
                 }
 
@@ -786,7 +793,7 @@ class TestApp {
     }
 
     getUserAnswer() {
-        console.log('Получение ответа пользователя для вопроса типа:', this.currentQuestionType);
+        console.log('Получение ответа польователя для вопроса типа:', this.currentQuestionType);
         
         // Приводим тип вопроса к единому формату
         const questionType = this.currentQuestionType.toLowerCase().replace('-', '_');
@@ -1720,14 +1727,84 @@ class TestApp {
         }
     }
 
-    checkReloads() {
-        this.reloadCount++;
-        localStorage.setItem('reloadCount', this.reloadCount.toString());
+    async handleForcedCompletion() {
+        try {
+            if (!this.user || !this.user.login) {
+                throw new Error('User not initialized');
+            }
 
-        if (this.reloadCount > this.maxReloads) {
-            this.finishTest(true); // завершаем тест принудительно
-            return;
+            // Показываем загрузку
+            this.showLoading();
+
+            const finalWss = 28;
+            const finalLevel = 'N/A';
+
+            const completeResponse = await fetch(`${this.API_BASE_URL}/api/complete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userLogin: this.user.login,
+                    finalLevel,
+                    finalWss,
+                    correctCount: 0,
+                    incorrectCount: 0,
+                    totalQuestions: 0,
+                    timestamp: new Date().toISOString(),
+                    forcedCompletion: true
+                })
+            });
+
+            if (!completeResponse.ok) {
+                throw new Error(`HTTP error! status: ${completeResponse.status}`);
+            }
+
+            // Скрываем загрузку перед показом сообщения
+            this.hideLoading();
+            this.showForcedCompletionMessage();
+            localStorage.removeItem('reloadCount');
+            localStorage.removeItem('testProgress');
+            this.disableInteractions();
+        } catch (error) {
+            // Скрываем загрузку в случае ошибки
+            this.hideLoading();
+            console.error("Ошибка при принудительном завершении теста:", error);
+            this.showUnavailableMessage("Произошла ошибка. Пожалуйста, обратитесь к администратору.");
         }
+    }
+
+    showForcedCompletionMessage() {
+        const message = `
+            <div class="test-results forced-completion">
+                <h2>Тест завершен</h2>
+                <p>Тест был автоматически завершен из-за превышения допустимого количества перезагрузок страницы.</p>
+                <p>Результат: Не засчитан</p>
+                <p>Пожалуйста, свяжитесь с администратором для получения новой попытки.</p>
+                <a href="https://wiseman-skills.com/lk" class="results-link">Перейти в личный кабинет</a>
+            </div>
+        `;
+        
+        this.questionContainer.innerHTML = message;
+        
+        // Скрываем ненужные элементы
+        const elementsToHide = [
+            'timer',
+            'current-stage',
+            'task-description',
+            'question-number'
+        ];
+        
+        elementsToHide.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                if (id === 'question-number') {
+                    element.parentElement.style.display = 'none';
+                } else {
+                    element.style.display = 'none';
+                }
+            }
+        });
     }
 }
 
