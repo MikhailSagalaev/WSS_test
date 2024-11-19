@@ -1,5 +1,11 @@
 // api/progress.js
 const fetch = require('node-fetch');
+const Airtable = require('airtable');
+
+// Инициализация Airtable с API ключом
+const base = new Airtable({
+    apiKey: process.env.AIRTABLE_API_KEY
+}).base(process.env.AIRTABLE_BASE_ID);
 
 module.exports = async (req, res) => {
     // Устанавливаем CORS заголовки
