@@ -21,7 +21,16 @@ module.exports = async (req, res) => {
             incorrectCount, 
             totalQuestions, 
             timestamp,
-            forcedCompletion 
+            forcedCompletion,
+            readingCorrectCount,
+            readingIncorrectCount,
+            readingLevel,
+            readingWss,
+            listeningCorrectCount,
+            listeningIncorrectCount,
+            listeningLevel,
+            listeningWss,
+            stagesResults
         } = req.body;
 
         if (!userLogin) {
@@ -30,7 +39,7 @@ module.exports = async (req, res) => {
 
         const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
 
-        // Получаем существующую запись
+        // Получа��м существующую запись
         const filterFormula = `({UserLogin} = '${userLogin}')`;
         const getResponse = await fetch(
             `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`,
@@ -94,7 +103,7 @@ module.exports = async (req, res) => {
         const progressResult = await progressResponse.json();
         console.log('Progress update result:', progressResult);
 
-        // Логируем процесс обновления попыток
+        // Логируем процесс обновле��ия попыток
         console.log('Получаем данные пользователя:', userLogin);
         const { AIRTABLE_USERS_TABLE } = process.env;
         const userResponse = await fetch(
@@ -159,7 +168,16 @@ module.exports = async (req, res) => {
                 IncorrectCount: Number(incorrectCount || 0),
                 TotalQuestions: Number(totalQuestions || 0),
                 CompletedAt: new Date(timestamp || Date.now()).toISOString(),
-                ForcedCompletion: Boolean(forcedCompletion)
+                ForcedCompletion: Boolean(forcedCompletion),
+                ReadingLevel: String(readingLevel || 'N/A'),
+                ReadingWSS: Number(readingWss || 0),
+                ReadingCorrectCount: Number(readingCorrectCount || 0),
+                ReadingIncorrectCount: Number(readingIncorrectCount || 0),
+                ListeningLevel: String(listeningLevel || 'N/A'),
+                ListeningWSS: Number(listeningWss || 0),
+                ListeningCorrectCount: Number(listeningCorrectCount || 0),
+                ListeningIncorrectCount: Number(listeningIncorrectCount || 0),
+                StagesResults: JSON.stringify(stagesResults || [])
             }
         };
 
@@ -174,7 +192,7 @@ module.exports = async (req, res) => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    records: [{ fields: storyData.fields }] // Исправляем формат данных для Airtable
+                    records: [{ fields: storyData.fields }]
                 })
             }
         );

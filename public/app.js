@@ -422,9 +422,9 @@ class TestApp {
             questionType: question.fields["Question Type"] || '',
             task: question.fields.Task || '',
             instruction: question.fields.Instruction || '',
-            answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
+            answers: question.fields.Answers ? question.fields.Answers.split(';').map(ans => ans.trim()) : [],
             correct: question.fields.Correct || '',
-            gapAnswers: question.fields.GapAnswers ? question.fields.GapAnswers.split(',').map(ans => ans.trim()) : [],
+            gapAnswers: question.fields.GapAnswers ? question.fields.GapAnswers.split(';').map(ans => ans.trim()) : [],
             sentenceWithGaps: question.fields.SentenceWithGaps || '',
             audio: question.fields.Audio || null,
             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
@@ -433,6 +433,17 @@ class TestApp {
         };
         
         console.log('Форматированный вопрос:', formattedQuestion);
+        
+        if (question.fields.MatchPairs) {
+            const pairs = question.fields.MatchPairs.split(';').map(pair => {
+                const [option, image] = pair.split('=');
+                return {
+                    option: option.trim(),
+                    image: image.trim()
+                };
+            });
+            formattedQuestion.matchPairs = pairs;
+        }
         
         return formattedQuestion;
     }
@@ -1183,14 +1194,14 @@ class TestApp {
                     totalQuestions: this.totalQuestions,
                     timestamp: new Date().toISOString(),
                     // Добавляем данные по этапам
-                    readingCorrectCount: readingResults.correctCount,
-                    readingIncorrectCount: readingResults.incorrectCount,
                     readingLevel: readingResults.finalLevel,
                     readingWss: readingResults.finalWss,
-                    listeningCorrectCount: listeningResults.correctCount,
-                    listeningIncorrectCount: listeningResults.incorrectCount,
+                    readingCorrectCount: readingResults.correctCount,
+                    readingIncorrectCount: readingResults.incorrectCount,
                     listeningLevel: listeningResults.finalLevel,
                     listeningWss: listeningResults.finalWss,
+                    listeningCorrectCount: listeningResults.correctCount,
+                    listeningIncorrectCount: listeningResults.incorrectCount,
                     stagesResults: this.stagesResults
                 })
             });
@@ -1199,25 +1210,8 @@ class TestApp {
                 throw new Error(`HTTP error! status: ${completeResponse.status}`);
             }
 
-            // Затем сохраням результаты в Story
-            await fetch(`${this.API_BASE_URL}/api/sendResults`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    UserLogin: this.user.login,
-                    FinalLevel: finalLevel,
-                    FinalWSS: finalWss,
-                    CorrectCount: this.correctCount,
-                    IncorrectCount: this.incorrectCount,
-                    TotalQuestions: this.totalQuestions,
-                    CompletedAt: new Date().toISOString()
-                })
-            });
-
             // Показываем результаты
-            this.showResults(finalLevel, finalWss);
+            this.showResults();
             this.disableInteractions();
             
             // Очищаем локальный прогресс
@@ -1512,7 +1506,7 @@ class TestApp {
     }
 
     checkTypeImgAnswer(userAnswer) {
-        const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim().toLowerCase());
+        const correctAnswers = this.currentQuestion.correct.split(';').map(ans => ans.trim().toLowerCase());
         return userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
     }
 
@@ -1560,7 +1554,7 @@ class TestApp {
         console.log('Ответ польователя:', userAnswer);
         console.log('Правильный ответ:', this.currentQuestion.wordOptions);
         
-        const correctAnswers = this.currentQuestion.wordOptions.split(',').map(word => word.trim().toLowerCase());
+        const correctAnswers = this.currentQuestion.wordOptions.split(';').map(word => word.trim().toLowerCase());
         const isCorrect = userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
         
         console.log('Результат проверки:', isCorrect);
