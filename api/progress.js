@@ -1,11 +1,6 @@
 // api/progress.js
 const fetch = require('node-fetch');
-const Airtable = require('airtable');
-
-// Инициализация Airtable с API ключом
-const base = new Airtable({
-    apiKey: process.env.AIRTABLE_API_KEY
-}).base(process.env.AIRTABLE_BASE_ID);
+const cors = require('./middleware/cors');
 
 module.exports = async (req, res) => {
     // Устанавливаем CORS заголовки
@@ -26,20 +21,26 @@ module.exports = async (req, res) => {
             const userLogin = req.query.userLogin;
             console.log('Запрос прогресса для пользователя:', userLogin);
             
-            const records = await base(AIRTABLE_PROGRESS_TABLE)
-                .select({
-                    filterByFormula: `{UserLogin} = '${userLogin}'`,
-                    sort: [{ field: 'Timestamp', direction: 'desc' }],
-                    maxRecords: 1
-                })
-                .firstPage();
+            const filterFormula = `({UserLogin} = '${userLogin}')`;
+            const response = await fetch(
+                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${AIRTABLE_PAT}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
 
-            console.log('Полученные записи:', records);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-            if (records && records.length > 0) {
-                const record = records[0].fields;
-                console.log('Поля записи:', record);
-                
+            const data = await response.json();
+            console.log('Полученные записи:', data);
+
+            if (data.records && data.records.length > 0) {
+                const record = data.records[0].fields;
                 const progress = {
                     Stage: record.Stage,
                     Level: record.Level,
@@ -53,10 +54,8 @@ module.exports = async (req, res) => {
                     AnsweredQuestions: record.AnsweredQuestions
                 };
                 
-                console.log('Отправляемый прогресс:', progress);
                 res.status(200).json({ progress });
             } else {
-                console.log('Записи не найдены');
                 res.status(200).json({ progress: null });
             }
         } catch (error) {
@@ -80,29 +79,10 @@ module.exports = async (req, res) => {
                 timestamp 
             } = req.body;
 
-            const progressData = {
-                records: [{
-                    fields: {
-                        UserLogin: userLogin,
-                        Stage: stage,
-                        Level: level,
-                        CorrectCount: correctCount,
-                        IncorrectCount: incorrectCount,
-                        TotalQuestions: totalQuestions,
-                        CorrectHigherLevel: correctHigherLevel,
-                        IncorrectLowerLevel: incorrectLowerLevel,
-                        QuestionsOnCurrentLevel: questionsOnCurrentLevel,
-                        CurrentQuestionId: currentQuestionId,
-                        AnsweredQuestions: JSON.stringify(answeredQuestions),
-                        Status: 'In Progress',
-                        Timestamp: timestamp
-                    }
-                }]
-            };
-
             // Проверяем существующую запись
+            const filterFormula = `({UserLogin} = '${userLogin}')`;
             const existingResponse = await fetch(
-                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(`{UserLogin} = '${userLogin}'`)}`,
+                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${AIRTABLE_PAT}`,
@@ -112,6 +92,24 @@ module.exports = async (req, res) => {
             );
 
             const existingData = await existingResponse.json();
+
+            const progressData = {
+                fields: {
+                    UserLogin: userLogin,
+                    Stage: stage,
+                    Level: level,
+                    CorrectCount: correctCount,
+                    IncorrectCount: incorrectCount,
+                    TotalQuestions: totalQuestions,
+                    CorrectHigherLevel: correctHigherLevel,
+                    IncorrectLowerLevel: incorrectLowerLevel,
+                    QuestionsOnCurrentLevel: questionsOnCurrentLevel,
+                    CurrentQuestionId: currentQuestionId,
+                    AnsweredQuestions: JSON.stringify(answeredQuestions),
+                    Status: 'In Progress',
+                    Timestamp: timestamp
+                }
+            };
 
             let response;
             if (existingData.records && existingData.records.length > 0) {
@@ -124,7 +122,7 @@ module.exports = async (req, res) => {
                             'Authorization': `Bearer ${AIRTABLE_PAT}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ fields: progressData.records[0].fields })
+                        body: JSON.stringify({ fields: progressData.fields })
                     }
                 );
             } else {
@@ -137,7 +135,7 @@ module.exports = async (req, res) => {
                             'Authorization': `Bearer ${AIRTABLE_PAT}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(progressData)
+                        body: JSON.stringify({ records: [progressData] })
                     }
                 );
             }
