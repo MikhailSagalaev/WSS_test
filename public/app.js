@@ -50,6 +50,21 @@ class TestApp {
 
         this.reloadCount = parseInt(localStorage.getItem('reloadCount') || '0');
         this.maxReloads = 3; // максимальное количество перезагрузок
+
+        // Добавляем обработку видимости страниы
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Страница скрыта - останавливаем таймер
+                if (this.timer) {
+                    clearInterval(this.timer);
+                }
+            } else {
+                // Страница снова видима - возобновляем таймер
+                if (this.currentQuestion && this.currentQuestion.timeLimit) {
+                    this.startTimer();
+                }
+            }
+        });
     }
 
     initializeElements() {
@@ -70,39 +85,59 @@ class TestApp {
 
     async init() {
         if (this.isInitialized) return;
-        this.isInitialized = true;
-    
-        this.setUser();
-    
-        if (this.userNotAuthorized) {
-            this.showUnavailableMessage("Пожалуйста, войдите в систему для прохождения теста.");
-            return;
-        }
-    
-        this.reloadCount++;
-        localStorage.setItem('reloadCount', this.reloadCount.toString());
-    
-        if (this.reloadCount > this.maxReloads) {
-            await this.handleForcedCompletion();
-            return;
-        }
-    
+        
         try {
             this.showLoading();
             
-            await this.checkTestAvailability();
-            await this.loadProgressFromAirtable();
-            await this.loadQuestions();
+            // Add timeout
+            const timeout = 30000; // 30 seconds
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
             
+            // Set user with proper error handling
+            await this.setUser();
+            
+            if (this.userNotAuthorized) {
+                this.showUnavailableMessage("Please login to take the test.");
+                return;
+            }
+            
+            // Handle reload count
+            this.reloadCount++;
+            localStorage.setItem('reloadCount', this.reloadCount.toString());
+            
+            if (this.reloadCount > this.maxReloads) {
+                await this.handleForcedCompletion();
+                return;
+            }
+            
+            // Initialize with retry mechanism
+            await this.initializeWithRetry();
+            
+            this.isInitialized = true;
             this.hideLoading();
             this.showStartButton();
+            
         } catch (error) {
+            console.error("Initialization error:", error);
             this.hideLoading();
-            console.error("Error during initialization:", error);
-            this.showUnavailableMessage("Произошла ошибка при инициализации теста. Пожалуйста, попробуйте позже или свяжитесь с администратором.");
+            this.showUnavailableMessage("Test initialization failed. Please try again or contact support.");
         }
     }
-    
+
+    async initializeWithRetry(retries = 3) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                await this.checkTestAvailability();
+                await this.loadProgressFromAirtable();
+                await this.loadQuestions();
+                return;
+            } catch (error) {
+                if (i === retries - 1) throw error;
+                await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
+            }
+        }
+    }
 
     showUnavailableMessage(message) {
         if (this.questionContainer) {
@@ -160,76 +195,64 @@ class TestApp {
 
     async loadProgressFromAirtable() {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/api/progress?userLogin=${encodeURIComponent(this.user.login)}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
+            const response = await fetch(`${this.API_BASE_URL}/api/progress?userLogin=${encodeURIComponent(this.user.login)}`);
             const data = await response.json();
+            
             console.log("Прогресс получен из Airtable:", data);
-
+    
             if (data && data.progress) {
                 const progress = data.progress;
                 
-                // Поверяем сттус теста
-                if (progress.status === 'Completed') {
-                    // Если тест был завершен, начинаем новый
-                    this.correctCount = 0;
-                    this.incorrectCount = 0;
-                    this.totalQuestions = 0;
-                    this.correctHigherLevel = 0;
-                    this.incorrectLowerLevel = 0;
-                    this.questionsOnCurrentLevel = 0;
-                    this.currentStageIndex = 0;
-                    this.currentLevelIndex = 0;
-                    this.answeredQuestions = new Set();
-                    this.currentQuestionId = null;
-                    
-                    console.log("Предыдущий тест был завершен, начинаем новый");
-                    return true;
-                }
+                // Приводим значения к нижнему регистру для равнения
+                this.currentStageIndex = this.stages.indexOf(progress.Stage?.toLowerCase());
+                if (this.currentStageIndex === -1) this.currentStageIndex = 0;
                 
-                // Если тест не был завершен (Status = 'In Progress'), восстанавливаем прогресс
-                this.correctCount = progress.correctCount || 0;
-                this.incorrectCount = progress.incorrectCount || 0;
-                this.totalQuestions = progress.totalQuestions || 0;
-                this.correctHigherLevel = progress.correctHigherLevel || 0;
-                this.incorrectLowerLevel = progress.incorrectLowerLevel || 0;
-                this.questionsOnCurrentLevel = progress.questionsOnCurrentLevel || 0;
-                this.currentStageIndex = this.stages.indexOf(progress.stage);
-                this.currentLevelIndex = this.levels.indexOf(progress.level);
+                // Используем точное значение из таблицы для уровня
+                this.currentLevel = progress.Level;
+                this.currentLevelIndex = this.levels.indexOf(this.currentLevel);
+                if (this.currentLevelIndex === -1) this.currentLevelIndex = 0;
+
+                console.log('Восстановлен этап и уровень:', {
+                    stage: this.stages[this.currentStageIndex],
+                    stageIndex: this.currentStageIndex,
+                    level: this.currentLevel,
+                    levelIndex: this.currentLevelIndex,
+                    originalStage: progress.Stage,
+                    originalLevel: progress.Level
+                });
                 
-                this.questionNumber = this.totalQuestions + 1;
-                this.updateQuestionNumber();
+                // Используем точные имена полей из Airtable
+                this.correctCount = progress.CorrectCount || 0;
+                this.incorrectCount = progress.IncorrectCount || 0;
+                this.totalQuestions = progress.TotalQuestions || 0;
+                this.correctHigherLevel = progress.CorrectHigherLevel || 0;
+                this.incorrectLowerLevel = progress.IncorrectLowerLevel || 0;
+                this.questionsOnCurrentLevel = progress.QuestionsOnCurrentLevel || 0;
                 
-                if (progress.currentQuestionId) {
-                    this.currentQuestionId = progress.currentQuestionId;
+                if (progress.CurrentQuestionId) {
+                    this.currentQuestionId = progress.CurrentQuestionId;
                     console.log("Восстановлен ID вопроса:", this.currentQuestionId);
                 }
                 
-                if (progress.answeredQuestions) {
-                    this.answeredQuestions = new Set(progress.answeredQuestions);
-                    console.log("Восстановлены отвеченные вопросы:", this.answeredQuestions);
+                if (progress.AnsweredQuestions) {
+                    try {
+                        const answeredQuestions = JSON.parse(progress.AnsweredQuestions);
+                        this.answeredQuestions = new Set(answeredQuestions);
+                        console.log("Восстановлены отвеченные вопросы:", this.answeredQuestions);
+                    } catch (e) {
+                        console.error("Ошибка при парсинге отвеченных вопросов:", e);
+                        this.answeredQuestions = new Set();
+                    }
                 }
+
+                this.questionNumber = this.totalQuestions + 1;
+                this.updateQuestionNumber();
 
                 return true;
             }
             return false;
         } catch (error) {
             console.error("Ошибка при загрузке прогресса:", error);
-            // Если не удалось загрузить прогресс, начинаем с начала
-            this.correctCount = 0;
-            this.incorrectCount = 0;
-            this.totalQuestions = 0;
-            this.currentStageIndex = 0;
-            this.currentLevelIndex = 0;
-            this.answeredQuestions = new Set();
             return false;
         }
     }
@@ -305,7 +328,7 @@ class TestApp {
                 this.currentStageIndex = this.stages.indexOf(savedProgress.stage) !== -1 ? this.stages.indexOf(savedProgress.stage) : 0;
             }
 
-            console.log("Прогресс загружен из localStorage:", savedProgress);
+            console.log("Прогресс загужен из localStorage:", savedProgress);
         } else {
             console.log("ет сохранённого прогресса в localStorage. Начинаем новый тест.");
             this.currentStageIndex = 0;
@@ -354,7 +377,7 @@ class TestApp {
     async loadQuestions() {
         try {
             this.showLoading();
-            console.log("Начало загрузки вопросов");
+            console.log("Начало загрузи вопросов");
             const response = await fetch(`${this.API_BASE_URL}/api/questions`);
             
             if (!response.ok) {
@@ -362,19 +385,19 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Вопросы загр��жены:", data.length);
+            console.log("Вопросы агржены:", data.length);
 
             this.questions = { reading: [], listening: [] };
 
             data.forEach(question => {
                 if (!question.fields) {
-                    console.warn('ропущен вопрос без полей:', question);
+                    console.warn('ропущен вопрс без полей:', question);
                     return;
                 }
 
                 const stage = question.fields.Stage?.toLowerCase();
                 if (!stage || !this.questions[stage]) {
-                    console.warn('Пропущен вопрос с неверным этапом:', question);
+                    console.warn('Пропущен опрос с неверным этапом:', question);
                     return;
                 }
 
@@ -386,7 +409,7 @@ class TestApp {
             this.hideLoading();
         } catch (error) {
             this.hideLoading();
-            console.error("Ошибка при загрузке вопросов:", error);
+            console.error("Ошибка при заузке вопросов:", error);
             throw error;
         }
     }
@@ -401,11 +424,12 @@ class TestApp {
             instruction: question.fields.Instruction || '',
             answers: question.fields.Answers ? question.fields.Answers.split(',').map(ans => ans.trim()) : [],
             correct: question.fields.Correct || '',
+            gapAnswers: question.fields.GapAnswers ? question.fields.GapAnswers.split(',').map(ans => ans.trim()) : [],
+            sentenceWithGaps: question.fields.SentenceWithGaps || '',
             audio: question.fields.Audio || null,
             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
             matchPairs: question.fields.MatchPairs || '',
-            designImage: question.fields.DesignImg || '',
-            sentenceWithGaps: question.fields.SentenceWithGaps || ''
+            designImage: question.fields.DesignImg || ''
         };
         
         console.log('Форматированный вопрос:', formattedQuestion);
@@ -418,27 +442,26 @@ class TestApp {
         const currentStage = this.stages[this.currentStageIndex];
         const currentLevel = this.levels[this.currentLevelIndex];
         
-        console.log(`Всего вопросов на этапе ${currentStage}: ${this.questions[currentStage].length}`);
-        console.log('Текущий ID вопроса:', this.currentQuestionId);
-        console.log('Отвеченные вопросы:', Array.from(this.answeredQuestions));
-        
-        // Фильтруем вопросы, которые еще не были отвечены
+        // Фильтруем вопросы текущего уровня
         const availableQuestions = this.questions[currentStage].filter(q => 
             q.level === currentLevel && !this.answeredQuestions.has(q.id)
         );
 
         console.log('Доступные вопросы:', availableQuestions.length);
+        console.log('Текущий ID вопроса:', this.currentQuestionId);
+        console.log('Текущий уровень:', currentLevel);
 
         if (availableQuestions.length === 0) {
             this.finishStage();
             return;
         }
 
-        // Проверяем наличие сохраненного вопроса и что он еще не отвечен
-        if (this.currentQuestionId && !this.answeredQuestions.has(this.currentQuestionId)) {
+        // Проверяем наличие сохраненного вопроса при первой загрузке
+        if (this.currentQuestionId && this.totalQuestions === 0) {
             const savedQuestion = this.questions[currentStage].find(q => 
                 q.id === this.currentQuestionId && 
-                q.level === currentLevel
+                q.level === currentLevel &&
+                !this.answeredQuestions.has(q.id)
             );
             
             if (savedQuestion) {
@@ -515,8 +538,8 @@ class TestApp {
         console.log("Рендеринг вопроса типа:", question.questionType);
         
         if (!question.questionType) {
-            console.error('Тип вопроса не определен:', question);
-            this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь к администратору.");
+            console.error('Тп вопроса не определен:', question);
+            this.showUnavailableMessage("Ошибка при загрузке вопрос. Пожалуйста, обратитесь к администратору.");
             return;
         }
 
@@ -539,17 +562,24 @@ class TestApp {
                 break;
             default:
                 console.error('Неизвестный тип вопроса:', question.questionType);
-                this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь к администратору.");
+                this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, братитесь к администратору.");
         }
         this.startTimer();
         this.submitBtn.disabled = true; // Изначальн кнопка неактивна для всех типо вопросов
     }
 
-    selectAnswer(selectedElement) {
-        const answerOptions = this.questionContainer.querySelectorAll('.answer-option');
-        answerOptions.forEach(option => option.classList.remove('selected'));
-        selectedElement.classList.add('selected');
-        this.submitBtn.disabled = false;
+    selectAnswer(option) {
+        // Убираем выделение со всех опций
+        const options = this.questionContainer.querySelectorAll('.answer-option');
+        options.forEach(opt => opt.classList.remove('selected'));
+        
+        // Добавляем выделение выбранной опции
+        option.classList.add('selected');
+        
+        // Активируем кнопку submit
+        if (this.submitBtn) {
+            this.submitBtn.disabled = false;
+        }
     }
 
     renderMultipleChoiceQuestion(question) {
@@ -580,10 +610,9 @@ class TestApp {
                 throw new Error('matchPairs должен быть массивом');
             }
 
-            // Сохраняем оригинальный порядок для проверки ответов
-            this.originalMatchPairs = [...matchPairs];
+            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
             
-            // Перемешиваем варианты ответов
+            // Создаем перемешанную копию вариантов ответов
             const shuffledOptions = this.shuffleArray([...matchPairs]);
 
             let html = `
@@ -599,12 +628,16 @@ class TestApp {
                         </div>
                         <div class="drop-zones-container">
                             ${matchPairs.map((pair, index) => `
-                                <div class="drop-zone" data-index="${index}"></div>
+                                <div class="drop-zone" data-index="${index}">
+                                    <span class="drop-zone-letter">${letters[index]}</span>
+                                </div>
                             `).join('')}
                         </div>
                         <div class="options-container">
-                            ${shuffledOptions.map((pair, index) => `
-                                <div class="option" draggable="true" data-index="${index}" data-original-index="${matchPairs.findIndex(p => p.option === pair.option)}">
+                            ${shuffledOptions.map((pair, shuffledIndex) => `
+                                <div class="option" draggable="true" 
+                                    data-index="${shuffledIndex}" 
+                                    data-original-index="${matchPairs.findIndex(p => p.option === pair.option)}">
                                     ${pair.option}
                                 </div>
                             `).join('')}
@@ -653,18 +686,27 @@ class TestApp {
                 const optionIndex = e.dataTransfer.getData('text/plain');
                 const option = this.questionContainer.querySelector(`.option[data-index="${optionIndex}"]`);
                 
-                // Если в зоне уже есть элемент, возвращаем его в контейнер options
+                // Если в текущей зоне уже есть элемент
                 const existingOption = zone.querySelector('.option');
                 if (existingOption) {
-                    const optionsContainer = this.questionContainer.querySelector('.options-container');
-                    existingOption.setAttribute('draggable', 'true');
-                    optionsContainer.appendChild(existingOption);
+                    // Если перетаскиваем из другой зоны
+                    const sourceZone = option.parentElement;
+                    if (sourceZone && sourceZone.classList.contains('drop-zone')) {
+                        // Меняем элементы местами
+                        sourceZone.appendChild(existingOption);
+                        existingOption.setAttribute('draggable', 'true');
+                    } else {
+                        // Возвращаем существующий элемент в контейнер options
+                        const optionsContainer = this.questionContainer.querySelector('.options-container');
+                        existingOption.setAttribute('draggable', 'true');
+                        optionsContainer.appendChild(existingOption);
+                    }
                 }
 
-                // Пер��мещаем новый элемент в drop zone
+                // Перемещаем новый элемент в drop zone
                 zone.appendChild(option);
-                option.setAttribute('draggable', 'false');
-                
+                option.setAttribute('draggable', 'true'); // Оставляем возможность перетаскивать
+
                 // Проверяем заполнение всех зон
                 this.checkAllMatchingAnswersFilled();
             });
@@ -678,15 +720,15 @@ class TestApp {
                 <!-- Остальной код для type-img -->
             </div>
         `;
-        // ... остальной код ...
+        // ... осальной код ...
     }
 
     renderTypingQuestion(question) {
-        console.log('Рендеринг вопрос typing:', question);
+        console.log('Рендеринг вопроса typing:', question);
         
         try {
             if (!question.sentenceWithGaps) {
-                console.error('Отсутствует sentenceWithGaps для вопроса typing:', question);
+                console.error('Отсуствует sentenceWithGaps для вопроса typing:', question);
                 this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь к администратору.");
                 return;
             }
@@ -764,16 +806,16 @@ class TestApp {
     addInputListeners() {
         const inputs = this.questionContainer.querySelectorAll('.gap-answer');
         inputs.forEach(input => {
+            // Убираем placeholder
+            input.removeAttribute('placeholder');
+            
             input.addEventListener('input', (e) => {
-                if (!this.isValidInput(e.target.value)) {
+                // Разрешаем латинские и русские буквы
+                if (!/^[a-zA-Zа-яА-ЯёЁ]*$/.test(e.target.value)) {
                     e.target.value = e.target.value.replace(/[^a-zA-Zа-яА-ЯёЁ]/g, '');
                 }
                 this.checkAllInputsFilled();
             });
-
-            // Добавим подсказку для пользователя
-            input.setAttribute('placeholder', 'Введите ответ');
-            input.setAttribute('title', 'Используйте русские или английские буквы');
         });
     }
 
@@ -793,13 +835,10 @@ class TestApp {
     }
 
     getUserAnswer() {
-        console.log('Получение ответа польователя для вопроса типа:', this.currentQuestionType);
+        console.log('Получение ответа пользователя для вопроса типа:', this.currentQuestionType);
         
-        // Приводим тип вопроса к единому формату
-        const questionType = this.currentQuestionType.toLowerCase().replace('-', '_');
-        
-        switch (questionType) {
-            case 'multiple_choice':
+        switch (this.currentQuestionType.toLowerCase()) {
+            case 'multiple-choice':
                 const selectedOption = this.questionContainer.querySelector('.answer-option.selected');
                 if (!selectedOption) {
                     console.log('Не выбран вариант ответа');
@@ -811,28 +850,39 @@ class TestApp {
                 
             case 'typing':
                 const inputs = this.questionContainer.querySelectorAll('.gap-answer');
+                if (!inputs || inputs.length === 0) {
+                    console.log('Не найдены поля для ввода');
+                    return null;
+                }
                 const answers = Array.from(inputs).map(input => input.value.trim());
+                if (answers.some(answer => !answer)) {
+                    console.log('Не все поля заполнены');
+                    return null;
+                }
                 console.log('Полученные ответы typing:', answers);
                 return answers;
                 
             case 'matching':
                 const matchingAnswers = [];
                 const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+                
                 dropZones.forEach(zone => {
-                    const wordItem = zone.querySelector('.word-item');
-                    if (wordItem) {
+                    const option = zone.querySelector('.option');
+                    if (option) {
                         matchingAnswers.push({
-                            targetIndex: zone.dataset.index,
-                            optionIndex: wordItem.getAttribute('data-index')
+                            targetIndex: parseInt(zone.dataset.index),
+                            optionIndex: parseInt(option.dataset.originalIndex)
                         });
                     }
                 });
+
+                if (matchingAnswers.length !== dropZones.length) {
+                    console.log('Не все зоны заполнены');
+                    return null;
+                }
+
                 console.log('Полученные ответы matching:', matchingAnswers);
                 return matchingAnswers;
-                
-            default:
-                console.error('Неизвестный тип вопроса:', this.currentQuestionType);
-                return null;
         }
     }
 
@@ -860,7 +910,7 @@ class TestApp {
         }
     }
 
-    handleSubmit(timeExpired = false) {
+    async handleSubmit(timeExpired = false) {
         if (this.submitBtn.disabled && !timeExpired) return;
 
         const startTime = this.questionStartTime || new Date();
@@ -871,41 +921,20 @@ class TestApp {
 
         const isCorrect = timeExpired ? false : this.checkAnswer(userAnswer);
 
-        // Добавляем текущий вопрос в отвеченные ПЕРЕД обновлением статистики
-        console.log('Добавляем вопрос в отвеченные:', this.currentQuestionId);
-        this.answeredQuestions.add(this.currentQuestionId);
-
-        this.questionsInCurrentSeries++;
-        this.totalQuestions++;
-        this.questionsOnCurrentLevel++;
-
-        if (isCorrect) {
-            this.correctInCurrentSeries++;
-            this.correctOnCurrentLevel++;
-            this.correctCount++;
-            if (this.currentLevelIndex > this.initialLevelIndex) {
-                this.correctHigherLevel++;
-            }
-        } else {
-            this.incorrectCount++;
-            if (this.currentLevelIndex < this.initialLevelIndex) {
-                this.incorrectLowerLevel++;
-            }
-        }
-
-        this.questionNumber++;
-        this.updateQuestionNumber();
-        
-        // Сохраняем погресс
-        this.saveProgressToLocalStorage();
-        this.sendProgress();
-
-        // Сохрняем историю ответа
-        this.saveAnswerHistory({
+        // Сохраняем ответ в историю только один раз
+        await this.saveAnswerHistory({
             userAnswer,
             isCorrect,
             timeSpent
         });
+
+        // Добавляем текущий вопрос в отвеченные
+        this.answeredQuestions.add(this.currentQuestion.id);
+
+        // Обновляем счетчики
+        this.totalQuestions++;
+        this.questionNumber = this.totalQuestions + 1;
+        this.updateQuestionNumber();
 
         // Проверяем серию из трех вопросов
         if (this.questionsInCurrentSeries === 3) {
@@ -915,11 +944,15 @@ class TestApp {
         // Проверяем общее количество вопросов на уровне
         if (this.questionsOnCurrentLevel >= 27) {
             this.finishStage();
-        } else {
-            this.loadQuestion();
         }
-    }
 
+        // Загружаем следующий вопрос
+        await this.loadQuestion();
+
+        // Сохраняем прогресс с новым вопросом
+        this.saveProgressToLocalStorage();
+        await this.sendProgress();
+    }
     async saveAnswerHistory({ userAnswer, isCorrect, timeSpent }) {
         try {
             const answerData = {
@@ -990,15 +1023,38 @@ class TestApp {
     }
 
     evaluateSeries() {
-        if (this.correctInCurrentSeries === 3) {
-            this.moveToNextLevel();
-        } else if (this.correctInCurrentSeries <= 1) {
-            this.moveToPreviousLevel();
-        }
-        // Если 2 правильных ответа, остаемся на текущем уовне
+        console.log('Оценка серии:', {
+            correctInSeries: this.correctInCurrentSeries,
+            questionsInSeries: this.questionsInCurrentSeries,
+            currentLevel: this.currentLevel
+        });
 
+        if (this.correctInCurrentSeries === 3 && this.questionsInCurrentSeries === 3 && 
+            this.currentLevelIndex < this.levels.length - 1) {
+            this.currentLevelIndex++;
+            this.currentLevel = this.levels[this.currentLevelIndex];
+            console.log('Повышение уровня до:', this.currentLevel);
+            
+            // Сбрасываем счетчики для нового уровня
+            this.questionsOnCurrentLevel = 0;
+            this.correctOnCurrentLevel = 0;
+        } else if (this.correctInCurrentSeries === 0 && this.currentLevelIndex > 0) {
+            this.currentLevelIndex--;
+            this.currentLevel = this.levels[this.currentLevelIndex];
+            console.log('Пониение уровня до:', this.currentLevel);
+            
+            // Сбрасываем счетчики для нового уровня
+            this.questionsOnCurrentLevel = 0;
+            this.correctOnCurrentLevel = 0;
+        }
+
+        // Сбрасываем счетчики серии
         this.questionsInCurrentSeries = 0;
         this.correctInCurrentSeries = 0;
+
+        // Сохраняем прогресс после изменения уровня
+        this.saveProgressToLocalStorage();
+        this.sendProgress();
     }
 
     moveToNextLevel() {
@@ -1017,29 +1073,29 @@ class TestApp {
             this.currentLevelIndex--;
             this.questionsOnCurrentLevel = 0;
             this.correctOnCurrentLevel = 0;
-            console.log(`Переход на предыдущий уровень: ${this.levels[this.currentLevelIndex]}`);
+            console.log(`Перехо на предыдущий уровень: ${this.levels[this.currentLevelIndex]}`);
         }
     }
 
     async sendProgress() {
+        const progressData = {
+            userLogin: this.user.login,
+            stage: this.stages[this.currentStageIndex],
+            level: this.levels[this.currentLevelIndex],
+            correctCount: this.correctCount,
+            incorrectCount: this.incorrectCount,
+            totalQuestions: this.totalQuestions,
+            correctHigherLevel: this.correctHigherLevel,
+            incorrectLowerLevel: this.incorrectLowerLevel,
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
+            currentQuestionId: this.currentQuestionId, // Добавляем текущий ID вопроса
+            answeredQuestions: Array.from(this.answeredQuestions),
+            timestamp: new Date().toISOString()
+        };
+
+        console.log("Отправляемые данные прогресса:", progressData);
+
         try {
-            const progressData = {
-                userLogin: this.user.login,
-                stage: this.stages[this.currentStageIndex],
-                level: this.levels[this.currentLevelIndex],
-                correctCount: this.correctCount,
-                incorrectCount: this.incorrectCount,
-                totalQuestions: this.totalQuestions,
-                correctHigherLevel: this.correctHigherLevel,
-                incorrectLowerLevel: this.incorrectLowerLevel,
-                questionsOnCurrentLevel: this.questionsOnCurrentLevel,
-                currentQuestionId: this.currentQuestionId,
-                answeredQuestions: Array.from(this.answeredQuestions),
-                timestamp: new Date().toISOString()
-            };
-
-            console.log("Отправляемые данные прогресса:", progressData);
-
             const response = await fetch(`${this.API_BASE_URL}/api/progress`, {
                 method: 'POST',
                 headers: {
@@ -1048,16 +1104,14 @@ class TestApp {
                 body: JSON.stringify(progressData)
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
-                throw new Error(`Server error: ${data.error || data.message || 'Unknown error'}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            console.log("Прогресс успешно отправлен:", data);
+            const data = await response.json();
+            console.log("Прогресс успешно отправлен", data);
         } catch (error) {
             console.error("Ошибка при отправке прогресса:", error);
-            // Не прерываем выполнение теста при ошибке сохранения
         }
     }
     
@@ -1085,7 +1139,7 @@ class TestApp {
     
         this.stagesResults.push(stageResult);
     
-        // Очиста счетчиков для следующего этапа
+        // Очита счетчиков для следующего этапа
         this.correctCount = 0;
         this.incorrectCount = 0;
         this.totalQuestions = 0;
@@ -1110,8 +1164,11 @@ class TestApp {
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         
+        // Получаем результаты по этапам
+        const readingResults = this.stagesResults.find(r => r.stage === 'reading') || {};
+        const listeningResults = this.stagesResults.find(r => r.stage === 'listening') || {};
+        
         try {
-            // Сн��чала завершаем тест
             const completeResponse = await fetch(`${this.API_BASE_URL}/api/complete`, {
                 method: 'POST',
                 headers: {
@@ -1124,7 +1181,17 @@ class TestApp {
                     correctCount: this.correctCount,
                     incorrectCount: this.incorrectCount,
                     totalQuestions: this.totalQuestions,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    // Добавляем данные по этапам
+                    readingCorrectCount: readingResults.correctCount,
+                    readingIncorrectCount: readingResults.incorrectCount,
+                    readingLevel: readingResults.finalLevel,
+                    readingWss: readingResults.finalWss,
+                    listeningCorrectCount: listeningResults.correctCount,
+                    listeningIncorrectCount: listeningResults.incorrectCount,
+                    listeningLevel: listeningResults.finalLevel,
+                    listeningWss: listeningResults.finalWss,
+                    stagesResults: this.stagesResults
                 })
             });
 
@@ -1132,7 +1199,7 @@ class TestApp {
                 throw new Error(`HTTP error! status: ${completeResponse.status}`);
             }
 
-            // Затем сохраняем результаты в Story
+            // Затем сохраням результаты в Story
             await fetch(`${this.API_BASE_URL}/api/sendResults`, {
                 method: 'POST',
                 headers: {
@@ -1154,6 +1221,7 @@ class TestApp {
             this.disableInteractions();
             
             // Очищаем локальный прогресс
+            localStorage.removeItem('reloadCount');
             localStorage.removeItem('testProgress');
         } catch (error) {
             console.error("Ошибка при завершении теста:", error);
@@ -1176,7 +1244,7 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Прогресс успешно сброшн:", data);
+            console.log("Проресс успешно сброшн:", data);
             
             // Очистка локального хранилища
             localStorage.removeItem('testProgress');
@@ -1214,42 +1282,29 @@ class TestApp {
         }
     }
 
-    // Доплнительно, давайте изменим обработку ошибок в клиентском коде:
+    // Доплнительно, давайте изменим обработку ошибок  клиентском коде:
 
-    showResults(finalLevel, finalWss) {
-        const resultMessage = `
-            <div class="test-results">
-                <h2>Test Completed!</h2>
-                <p>Your level: ${finalLevel}</p>
-                <p>Your WSS score: ${finalWss}</p>
-                <p>Correct answers: ${this.correctCount}</p>
-                <p>Total questions: ${this.totalQuestions}</p>
-                <p>Thank you for completing the test! View your detailed results in your personal account.</p>
-                <a href="https://wiseman-skills.com/lk" class="results-link">Go to Personal Account</a>
-            </div>
-        `;
-        
-        this.questionContainer.innerHTML = resultMessage;
-        this.submitBtn.style.display = 'none';
+    showResults() {
+        const container = document.querySelector('.question-container');
+        let resultsHTML = '<div class="results-container">';
 
-        // Скрываем ненужные элементы
-        const elementsToHide = [
-            'timer',
-            'current-stage',
-            'task-description',
-            'question-number'
-        ];
-        
-        elementsToHide.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                if (id === 'question-number') {
-                    element.parentElement.style.display = 'none';
-                } else {
-                    element.style.display = 'none';
-                }
-            }
+        // Проходим по всем этапам в stagesResults
+        this.stagesResults.forEach(result => {
+            const correctPercentage = ((result.correctCount / (result.correctCount + result.incorrectCount)) * 100).toFixed(1);
+            
+            resultsHTML += `
+                <div class="stage-result">
+                    <h3>${result.stage.toUpperCase()}</h3>
+                    <p>Correct answers: ${result.correctCount}</p>
+                    <p>Incorrect answers: ${result.incorrectCount}</p>
+                    <p>Score: ${correctPercentage}%</p>
+                    <p>Final level: ${result.finalLevel}</p>
+                </div>
+            `;
         });
+
+        resultsHTML += '</div>';
+        container.innerHTML = resultsHTML;
     }
 
     shuffleArray(array) {
@@ -1272,7 +1327,7 @@ class TestApp {
         if (wss >= wssScale[wssScale.length - 1].minWss) {
             return wssScale[wssScale.length - 1].level;
         }
-        // Если WSS меньше минимального значения в шкале, возвращаем первый уровень
+        // Если WSS меньше минимального значения в шале, возвращаем первый уровень
         return wssScale[0].level;
     }
 
@@ -1374,12 +1429,44 @@ class TestApp {
 
     checkMatchingAnswer(userAnswer) {
         try {
-            // Проверяем, что все пары совпадают с оригинальным порядком
-            return userAnswer.every(answer => {
-                const dropZoneIndex = parseInt(answer.targetIndex);
-                const optionOriginalIndex = parseInt(answer.optionIndex);
-                return dropZoneIndex === optionOriginalIndex;
+            console.log('Проверка ответа matching:', {
+                userAnswer,
+                matchPairs: this.currentQuestion.matchPairs
             });
+
+            if (!userAnswer || !Array.isArray(userAnswer) || userAnswer.length === 0) {
+                console.error('Некорректный формат ответа matching');
+                return false;
+            }
+
+            const matchPairs = JSON.parse(this.currentQuestion.matchPairs);
+            if (!Array.isArray(matchPairs)) {
+                console.error('Некорректный формат matchPairs');
+                return false;
+            }
+
+            // Проверяем все пары
+            const isCorrect = userAnswer.every(answer => {
+                const targetIndex = parseInt(answer.targetIndex);
+                const optionIndex = parseInt(answer.optionIndex);
+                
+                if (isNaN(targetIndex) || isNaN(optionIndex)) {
+                    console.error('Некорректные индексы:', { targetIndex, optionIndex });
+                    return false;
+                }
+
+                console.log('Проверка пары:', {
+                    targetIndex,
+                    optionIndex,
+                    isMatch: targetIndex === optionIndex
+                });
+
+                return targetIndex === optionIndex;
+            });
+
+            console.log('Результат проверки matching:', isCorrect);
+            return isCorrect;
+
         } catch (error) {
             console.error('Ошибка при проверке ответа matching:', error);
             return false;
@@ -1402,7 +1489,26 @@ class TestApp {
     }
 
     checkMultipleChoiceAnswer(userAnswer) {
-        return userAnswer.toLowerCase() === this.currentQuestion.correct.toLowerCase();
+        console.log('Проверка ответа multiple-choice:', {
+            userAnswer,
+            correctAnswer: this.currentQuestion.correct
+        });
+
+        if (!userAnswer || !this.currentQuestion.correct) {
+            console.error('Отсутствует ответ пользователя или правильны ответ');
+            return false;
+        }
+
+        // Точное сравнение без изменения регистра
+        const isCorrect = userAnswer === this.currentQuestion.correct;
+        
+        console.log('Результат проверки multiple-choice:', {
+            userAnswer,
+            correctAnswer: this.currentQuestion.correct,
+            isCorrect
+        });
+
+        return isCorrect;
     }
 
     checkTypeImgAnswer(userAnswer) {
@@ -1413,35 +1519,44 @@ class TestApp {
     checkTypingAnswer(userAnswer) {
         console.log('Проверка ответа typing:', {
             userAnswer,
-            correctAnswer: this.currentQuestion.correct,
-            answers: this.currentQuestion.answers
+            gapAnswers: this.currentQuestion.gapAnswers,
+            correct: this.currentQuestion.correct
         });
 
-        if (!userAnswer || !Array.isArray(userAnswer)) {
-            console.error('Некорректный формат пользовательского ответа');
+        // Проверяем наличие и непустоту gapAnswers
+        if (!this.currentQuestion.gapAnswers || 
+            (Array.isArray(this.currentQuestion.gapAnswers) && this.currentQuestion.gapAnswers.length === 0)) {
+            console.error('gapAnswers отсутствует или пуст:', this.currentQuestion.gapAnswers);
             return false;
         }
 
-        // Получаем массив правильных ответов
-        const correctAnswers = this.currentQuestion.correct.split(',').map(ans => ans.trim());
+        if (!Array.isArray(userAnswer)) {
+            return false;
+        }
 
-        // Проверяем каждый введенный ответ
-        return userAnswer.every((answer, index) => {
-            const userAns = answer.trim().toLowerCase();
-            const correctAns = correctAnswers[index]?.toLowerCase();
-            
-            console.log(`Проверка ответа ${index}:`, {
-                userAnswer: userAns,
-                correctAnswer: correctAns,
-                isCorrect: userAns === correctAns
+        const correctAnswers = Array.isArray(this.currentQuestion.gapAnswers) 
+            ? this.currentQuestion.gapAnswers 
+            : [this.currentQuestion.gapAnswers];
+
+        // Проверяе соответствие длин массивов
+        if (userAnswer.length !== correctAnswers.length) {
+            console.error('Количество ответов не совпадает:', {
+                userAnswerLength: userAnswer.length,
+                correctAnswersLength: correctAnswers.length
             });
+            return false;
+        }
 
-            return userAns === correctAns;
+        return userAnswer.every((answer, index) => {
+            if (!correctAnswers[index]) return false;
+            const userAns = answer.trim().toLowerCase();
+            const correctAns = correctAnswers[index].trim().toLowerCase();
+            return correctAns === userAns;
         });
     }
 
     checkMatchingWordsAnswer(userAnswer) {
-        console.log('Проверка ответа для вопроса типа matchingWords');
+        console.log('Проверка ответа для вопроса тпа matchingWords');
         console.log('Ответ польователя:', userAnswer);
         console.log('Правильный ответ:', this.currentQuestion.wordOptions);
         
@@ -1453,9 +1568,8 @@ class TestApp {
     }
 
     updateQuestionNumber() {
-        const questionNumberElement = document.getElementById('question-number');
-        if (questionNumberElement) {
-            questionNumberElement.textContent = this.questionNumber;
+        if (this.questionNumberElement) {
+            this.questionNumberElement.textContent = `${this.totalQuestions}`;
         }
     }
 
@@ -1510,39 +1624,21 @@ class TestApp {
     }
 
     startTest() {
-        const currentStageElement = document.getElementById('current-stage');
-        if (currentStageElement) {
-            const currentStage = this.stages[this.currentStageIndex];
-            if (currentStage) {
-                // Преобазуем первую букву в заглавную
-                const formattedStage = currentStage.charAt(0).toUpperCase() + currentStage.slice(1);
-                currentStageElement.textContent = formattedStage;
-            } else {
-                console.error('Invalid stage index:', this.currentStageIndex);
-                currentStageElement.textContent = 'Reading'; // значение по умолчанию
-            }
-        }
-
-        // Проверяем и устанавливаем начальные значения
-        if (typeof this.currentStageIndex === 'undefined' || this.currentStageIndex < 0) {
+        if (this.currentStageIndex === -1) {
+            console.error('Invalid stage index:', this.currentStageIndex);
             this.currentStageIndex = 0;
         }
-        
+    
+        console.log('Starting test with stage:', this.stages[this.currentStageIndex]);
+    
         if (!this.totalQuestions) {
             this.questionNumber = 1;
             this.totalQuestions = 0;
         } else {
             this.questionNumber = this.totalQuestions + 1;
         }
-
-        this.initialLevelIndex = 0;
-        this.currentLevelIndex = this.initialLevelIndex;
-        this.currentLevel = this.levels[this.currentLevelIndex];
-
-        console.log('Starting test with stage:', this.stages[this.currentStageIndex]);
         
         this.updateQuestionNumber();
-        this.updateCurrentStage();
         this.loadQuestion();
         
         if (this.submitBtn) {
@@ -1558,7 +1654,7 @@ class TestApp {
         return answer;
     }
 
-    async fetchWithRetry(url, options = {}, retries = 3) {
+    async fetchWithRetry(url, options = {}, retries = 10) {
         for (let i = 0; i < retries; i++) {
             try {
                 const response = await fetch(url, {
@@ -1679,7 +1775,7 @@ class TestApp {
 
     // Добавим новый метод для отключения взаимодействий
     disableInteractions() {
-        // Удаляем обработчики соытий с кнопки submit
+        // даляем бработчики соытий с кнопки submit
         if (this.submitBtn) {
             this.submitBtn.style.display = 'none';
         }
@@ -1766,8 +1862,8 @@ class TestApp {
             this.disableInteractions();
         } catch (error) {
             this.hideLoading();
-            console.error("Ошибка при принудительном завершении теста:", error);
-            this.showUnavailableMessage("Произошла ошибка. Пожалуйста, обратитесь к администратору.");
+            console.error("Ошибка ри принудительном завершении теста:", error);
+            this.showUnavailableMessage("Произошла ошибка. Пожалуйста, обратитесь к администртору.");
         }
     }
 
@@ -1777,7 +1873,7 @@ class TestApp {
                 <h2>Тест завершен</h2>
                 <p>Тест был автоматически завершен из-за превышения допустимого количества перезагрузок страницы.</p>
                 <p>Результат: Не засчитан</p>
-                <p>Пожалуйста, свяжитесь с администратором для получения новой попытки.</p>
+                <p>Пожалуйста, свяжитесь с администратором для получения новой ппытки.</p>
                 <a href="https://wiseman-skills.com/lk" class="results-link">Перейти в личный кабинет</a>
             </div>
         `;
@@ -1804,8 +1900,8 @@ class TestApp {
         });
     }
 }
-
 document.addEventListener('DOMContentLoaded', () => {
     const app = new TestApp();
     app.init().catch(error => console.error("Error initializing app:", error));
 });
+

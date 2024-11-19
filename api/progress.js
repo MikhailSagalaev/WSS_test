@@ -18,41 +18,39 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
         try {
             const userLogin = req.query.userLogin;
-            const filterFormula = `({UserLogin} = '${userLogin}')`;
+            console.log('Запрос прогресса для пользователя:', userLogin);
             
-            const response = await fetch(
-                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${AIRTABLE_PAT}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
+            const records = await base(AIRTABLE_PROGRESS_TABLE)
+                .select({
+                    filterByFormula: `{UserLogin} = '${userLogin}'`,
+                    sort: [{ field: 'Timestamp', direction: 'desc' }],
+                    maxRecords: 1
+                })
+                .firstPage();
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            console.log('Полученные записи:', records);
 
-            const data = await response.json();
-            
-            if (data.records && data.records.length > 0) {
-                const record = data.records[0].fields;
+            if (records && records.length > 0) {
+                const record = records[0].fields;
+                console.log('Поля записи:', record);
+                
                 const progress = {
-                    correctCount: record.CorrectCount || 0,
-                    incorrectCount: record.IncorrectCount || 0,
-                    totalQuestions: record.TotalQuestions || 0,
-                    correctHigherLevel: record.CorrectHigherLevel || 0,
-                    incorrectLowerLevel: record.IncorrectLowerLevel || 0,
-                    questionsOnCurrentLevel: record.QuestionsOnCurrentLevel || 0,
-                    stage: record.Stage || 'reading',
-                    level: record.Level,
-                    currentQuestionId: record.CurrentQuestionId,
-                    answeredQuestions: record.AnsweredQuestions ? JSON.parse(record.AnsweredQuestions) : []
+                    Stage: record.Stage,
+                    Level: record.Level,
+                    CorrectCount: record.CorrectCount || 0,
+                    IncorrectCount: record.IncorrectCount || 0,
+                    TotalQuestions: record.TotalQuestions || 0,
+                    CorrectHigherLevel: record.CorrectHigherLevel || 0,
+                    IncorrectLowerLevel: record.IncorrectLowerLevel || 0,
+                    QuestionsOnCurrentLevel: record.QuestionsOnCurrentLevel || 0,
+                    CurrentQuestionId: record.CurrentQuestionId,
+                    AnsweredQuestions: record.AnsweredQuestions
                 };
                 
+                console.log('Отправляемый прогресс:', progress);
                 res.status(200).json({ progress });
             } else {
+                console.log('Записи не найдены');
                 res.status(200).json({ progress: null });
             }
         } catch (error) {
