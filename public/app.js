@@ -54,7 +54,7 @@ class TestApp {
         // Добавляем обработку видимости страниы
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
-                // Страница скрыта - останавливаем таймер
+                // Страница скрыта - остнавливаем таймер
                 if (this.timer) {
                     clearInterval(this.timer);
                 }
@@ -198,7 +198,7 @@ class TestApp {
             const response = await fetch(`${this.API_BASE_URL}/api/progress?userLogin=${encodeURIComponent(this.user.login)}`);
             const data = await response.json();
             
-            console.log("Прогресс получен из Airtable:", data);
+            console.log("Прогресс Airtable:", data);
     
             if (data && data.progress) {
                 const progress = data.progress;
@@ -240,7 +240,7 @@ class TestApp {
                         this.answeredQuestions = new Set(answeredQuestions);
                         console.log("Восстановлены отвеченные вопросы:", this.answeredQuestions);
                     } catch (e) {
-                        console.error("Ошибка при парсинге отвеченных вопросов:", e);
+                        console.error("Ошибка при парсинге отвеченных впросов:", e);
                         this.answeredQuestions = new Set();
                     }
                 }
@@ -281,7 +281,7 @@ class TestApp {
         this.incorrectLowerLevel = 0;
     }
 
-    // Метод дя схранения прогресса в localStorage
+    // Мтод �� схрнения прогресса в localStorage
     saveProgressToLocalStorage() {
         const progress = {
             stage: this.stages[this.currentStageIndex],
@@ -298,7 +298,7 @@ class TestApp {
             questionsOnCurrentLevel: this.questionsOnCurrentLevel,
             currentLevelIndex: this.currentLevelIndex,
             answeredQuestions: Array.from(this.answeredQuestions),
-            currentQuestionId: this.currentQuestionId
+            currentQuestionId: this.currentQuestion?.id
         };
         localStorage.setItem('testProgress', JSON.stringify(progress));
         console.log("Прогресс сохранён в localStorage:", progress);
@@ -321,6 +321,7 @@ class TestApp {
             this.currentLevelIndex = savedProgress.currentLevelIndex ?? 0;
             this.answeredQuestions = new Set(savedProgress.answeredQuestions || []);
             this.currentQuestionId = savedProgress.currentQuestionId;
+            console.log('Загру��ен ID вопроса:', this.currentQuestionId);
             if (!this.stages) {
                 console.error("Stages are not initialized.");
                 this.currentStageIndex = 0; 
@@ -428,23 +429,35 @@ class TestApp {
             sentenceWithGaps: question.fields.SentenceWithGaps || '',
             audio: question.fields.Audio || null,
             timeLimit: question.fields.TimeLimit ? parseInt(question.fields.TimeLimit, 10) : null,
-            matchPairs: question.fields.MatchPairs || '',
-            designImage: question.fields.DesignImg || ''
+            designImage: question.fields.DesignImg || null,
+            wordOptions: question.fields.WordOptions ? question.fields.WordOptions.split(';').map(word => word.trim()) : [],
+            matchPairs: typeof question.fields.MatchPairs === 'string' ? JSON.parse(question.fields.MatchPairs) : question.fields.MatchPairs || []
         };
-        
-        console.log('Форматированный вопрос:', formattedQuestion);
-        
+
+        // Безопасная обработка MatchPairs
         if (question.fields.MatchPairs) {
-            const pairs = question.fields.MatchPairs.split(';').map(pair => {
-                const [option, image] = pair.split('=');
-                return {
-                    option: option.trim(),
-                    image: image.trim()
-                };
-            });
-            formattedQuestion.matchPairs = pairs;
+            try {
+                const pairs = typeof question.fields.MatchPairs === 'string' 
+                    ? JSON.parse(question.fields.MatchPairs)
+                    : question.fields.MatchPairs;
+                formattedQuestion.matchPairs = Array.isArray(pairs) ? pairs : [];
+            } catch (error) {
+                console.error('Ошибка при парсинге MatchPairs:', error);
+                formattedQuestion.matchPairs = [];
+            }
+        } else {
+            formattedQuestion.matchPairs = [];
         }
         
+        // Если это вопрос типа matchingWords, проверяем наличие необходимых данных
+    if (formattedQuestion.questionType === 'matchingWords' && 
+        (!formattedQuestion.wordOptions || !formattedQuestion.sentenceWithGaps)) {
+        console.error('Отсутствуют необходимые данные для matchingWords:', {
+            wordOptions: formattedQuestion.wordOptions,
+            sentenceWithGaps: formattedQuestion.sentenceWithGaps
+        });
+    }
+    console.log('Форматированный вопрос:', formattedQuestion);
         return formattedQuestion;
     }
 
@@ -453,12 +466,11 @@ class TestApp {
         const currentStage = this.stages[this.currentStageIndex];
         const currentLevel = this.levels[this.currentLevelIndex];
         
-        // Фильтруем вопросы текущего уровня
         const availableQuestions = this.questions[currentStage].filter(q => 
             q.level === currentLevel && !this.answeredQuestions.has(q.id)
         );
 
-        console.log('Доступные вопросы:', availableQuestions.length);
+        console.log('Доступные вопросы:', availableQuestions.length, availableQuestions);
         console.log('Текущий ID вопроса:', this.currentQuestionId);
         console.log('Текущий уровень:', currentLevel);
 
@@ -467,35 +479,42 @@ class TestApp {
             return;
         }
 
-        // Проверяем наличие сохраненного вопроса при первой загрузке
-        if (this.currentQuestionId && this.totalQuestions === 0) {
-            const savedQuestion = this.questions[currentStage].find(q => 
-                q.id === this.currentQuestionId && 
-                q.level === currentLevel &&
-                !this.answeredQuestions.has(q.id)
-            );
-            
-            if (savedQuestion) {
+        // Проверяем, есть ли сохраненный ID вопроса
+        if (this.currentQuestionId && !this.answeredQuestions.has(this.currentQuestionId)) {
+            const savedQuestion = this.questions[currentStage].find(q => q.id === this.currentQuestionId);
+            if (savedQuestion && savedQuestion.level === currentLevel) {
                 console.log("Восстановлен сохраненный вопрос:", savedQuestion);
                 this.currentQuestion = savedQuestion;
             } else {
-                const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-                this.currentQuestion = availableQuestions[randomIndex];
-                console.log("Выбран случайный вопрос (сохраненный не подходит):", this.currentQuestion);
+                console.warn("Сохраненный вопрос не найден или уже отвечен. Выбираем случайный.");
+                this.chooseRandomQuestion(availableQuestions);
             }
         } else {
-            const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-            this.currentQuestion = availableQuestions[randomIndex];
-            console.log("Выбран случайный вопрос:", this.currentQuestion);
+            this.chooseRandomQuestion(availableQuestions);
         }
 
-        this.currentQuestionId = this.currentQuestion.id;
-        this.currentQuestionType = this.currentQuestion.questionType;
-        
-        this.questionStartTime = new Date();
-        this.updateDesignImage(this.currentQuestion);
-        this.updateTaskDescription(this.currentQuestion);
+        // Рендерим вопрос
+        if (this.currentQuestion.designImage) {
+            this.updateDesignImage(this.currentQuestion.designImage);
+        }
+        if (this.currentQuestion.instruction) {
+            this.updateTaskDescription(this.currentQuestion.instruction);
+        }
         this.renderQuestion(this.currentQuestion);
+
+        this.saveProgressToLocalStorage();
+        this.sendProgress();
+
+        if (this.currentQuestion.timeLimit) {
+            this.startTimer(this.currentQuestion.timeLimit);
+        }
+    }
+
+    chooseRandomQuestion(availableQuestions) {
+        const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+        this.currentQuestion = availableQuestions[randomIndex];
+        this.currentQuestionId = this.currentQuestion.id;
+        console.log("Выбран случайный вопрос:", this.currentQuestion);
     }
 
     updateQuestionInfo() {
@@ -546,7 +565,7 @@ class TestApp {
 
     renderQuestion(question) {
         console.log("Рендеринг вопроса:", question);
-        console.log("Рендеринг вопроса типа:", question.questionType);
+        console.log("ендеринг вопроса типа:", question.questionType);
         
         if (!question.questionType) {
             console.error('Тп вопроса не определен:', question);
@@ -615,69 +634,82 @@ class TestApp {
     }
 
     renderMatchingQuestion(question) {
-        try {
-            const matchPairs = JSON.parse(question.matchPairs);
-            if (!Array.isArray(matchPairs)) {
-                throw new Error('matchPairs должен быть массивом');
-            }
-
-            const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-            
-            // Создаем перемешанную копию вариантов ответов
-            const shuffledOptions = this.shuffleArray([...matchPairs]);
-
-            let html = `
-                <div class="matching-question">
-                    <div class="task">${question.task}</div>
-                    <div class="matching-container">
-                        <div class="targets-container">
-                            ${matchPairs.map((pair, index) => `
-                                <div class="target" data-index="${index}">
-                                    <img src="${pair.image}" alt="Target ${index + 1}">
-                                </div>
-                            `).join('')}
-                        </div>
-                        <div class="drop-zones-container">
-                            ${matchPairs.map((pair, index) => `
-                                <div class="drop-zone" data-index="${index}">
-                                    <span class="drop-zone-letter">${letters[index]}</span>
-                                </div>
-                            `).join('')}
-                        </div>
-                        <div class="options-container">
-                            ${shuffledOptions.map((pair, shuffledIndex) => `
-                                <div class="option" draggable="true" 
-                                    data-index="${shuffledIndex}" 
-                                    data-original-index="${matchPairs.findIndex(p => p.option === pair.option)}">
-                                    ${pair.option}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            this.questionContainer.innerHTML = html;
-            this.initDragAndDrop();
-        } catch (error) {
-            console.error('Ошибка при рендеринге matching вопроса:', error);
-            this.showUnavailableMessage("Ошибка при загрузке вопроса. Пожалуйста, обратитесь к администратору.");
+        if (!question.matchPairs || !Array.isArray(question.matchPairs)) {
+            console.error('Некорректные данные для matching вопроса:', question);
+            return;
         }
+
+        const container = document.createElement('div');
+        container.className = 'matching-question';
+
+        // Контейнер для изображений
+        const imagesRow = document.createElement('div');
+        imagesRow.className = 'images-row';
+
+        // Контейнер для drop-зон
+        const dropZonesRow = document.createElement('div');
+        dropZonesRow.className = 'drop-zones-row';
+
+        question.matchPairs.forEach((pair, index) => {
+            // Изображение
+            const imageWrapper = document.createElement('div');
+            imageWrapper.className = 'image-wrapper';
+            
+            const img = document.createElement('img');
+            img.src = pair.image;
+            img.alt = pair.option;
+            imageWrapper.appendChild(img);
+            imagesRow.appendChild(imageWrapper);
+
+            // Drop-зона
+            const dropZone = document.createElement('div');
+            dropZone.className = 'drop-zone';
+            dropZone.setAttribute('data-index', index);
+            dropZonesRow.appendChild(dropZone);
+        });
+
+        // Контейнер для вариантов ответов
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'options-container';
+
+        // Перемешиваем варианты ответов
+        const shuffledOptions = [...question.matchPairs]
+            .map(pair => pair.option)  // получаем только опции
+            .sort(() => Math.random() - 0.5);  // перемешиваем
+
+        // Создаем элементы для перемешанных вариантов
+        shuffledOptions.forEach(option => {
+            const optionElement = document.createElement('div');
+            optionElement.className = 'option';
+            optionElement.textContent = option;
+            optionElement.draggable = true;
+            optionElement.setAttribute('data-word', option);
+            optionsContainer.appendChild(optionElement);
+        });
+
+        container.appendChild(imagesRow);
+        container.appendChild(dropZonesRow);
+        container.appendChild(optionsContainer);
+
+        this.questionContainer.innerHTML = '';
+        this.questionContainer.appendChild(container);
+
+        // Добавляем обработчики drag and drop
+        this.initMatchingDragAndDrop();
     }
 
-    initDragAndDrop() {
+    initMatchingDragAndDrop() {
         const options = this.questionContainer.querySelectorAll('.option');
         const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
 
         options.forEach(option => {
             option.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', option.dataset.index);
                 option.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', option.getAttribute('data-word'));
             });
 
             option.addEventListener('dragend', () => {
                 option.classList.remove('dragging');
-                this.checkAllMatchingAnswersFilled();
             });
         });
 
@@ -694,32 +726,24 @@ class TestApp {
             zone.addEventListener('drop', (e) => {
                 e.preventDefault();
                 zone.classList.remove('drag-over');
-                const optionIndex = e.dataTransfer.getData('text/plain');
-                const option = this.questionContainer.querySelector(`.option[data-index="${optionIndex}"]`);
+                const word = e.dataTransfer.getData('text/plain');
+                const option = this.questionContainer.querySelector(`.option[data-word="${word}"]`);
                 
-                // Если в текущей зоне уже есть элемент
-                const existingOption = zone.querySelector('.option');
-                if (existingOption) {
-                    // Если перетаскиваем из другой зоны
-                    const sourceZone = option.parentElement;
-                    if (sourceZone && sourceZone.classList.contains('drop-zone')) {
-                        // Меняем элементы местами
-                        sourceZone.appendChild(existingOption);
-                        existingOption.setAttribute('draggable', 'true');
-                    } else {
-                        // Возвращаем существующий элемент в контейнер options
-                        const optionsContainer = this.questionContainer.querySelector('.options-container');
-                        existingOption.setAttribute('draggable', 'true');
-                        optionsContainer.appendChild(existingOption);
+                if (option) {
+                    // Если в зоне уже есть элемент, меняем их местами
+                    const existingOption = zone.querySelector('.option');
+                    if (existingOption) {
+                        const sourceZone = option.parentElement;
+                        if (sourceZone.classList.contains('drop-zone')) {
+                            sourceZone.appendChild(existingOption);
+                        } else {
+                            const optionsContainer = this.questionContainer.querySelector('.options-container');
+                            optionsContainer.appendChild(existingOption);
+                        }
                     }
+                    zone.appendChild(option);
+                    this.checkAllMatchingAnswersFilled();
                 }
-
-                // Перемещаем новый элемент в drop zone
-                zone.appendChild(option);
-                option.setAttribute('draggable', 'true'); // Оставляем возможность перетаскивать
-
-                // Проверяем заполнение всех зон
-                this.checkAllMatchingAnswersFilled();
             });
         });
     }
@@ -731,7 +755,7 @@ class TestApp {
                 <!-- Остальной код для type-img -->
             </div>
         `;
-        // ... осальной код ...
+        // ... остальной код ...
     }
 
     renderTypingQuestion(question) {
@@ -773,45 +797,126 @@ class TestApp {
     }
 
     renderMatchingWordsQuestion(question) {
-        const html = `
-            <div class="matching-words-question">
-                <div class="task">${question.task}</div>
-                <!-- Остальной код для matching words -->
-            </div>
-        `;
-        // ... остальной код ...
+        console.log('Рендеринг matchingWords вопроса:', question);
+
+        const container = document.createElement('div');
+        container.className = 'matching-words-container';
+
+        // Создаем контейнер для предложения с пропусками
+        const sentenceContainer = document.createElement('div');
+        sentenceContainer.className = 'matchingWords-question matching-words';
+
+        // Создаем drop zones для пропусков
+        const parts = question.sentenceWithGaps.split('_');
+        parts.forEach((part, index) => {
+            sentenceContainer.appendChild(document.createTextNode(part));
+            
+            if (index < parts.length - 1) {
+                const dropZone = document.createElement('div');
+                dropZone.className = 'drop-zone';
+                dropZone.setAttribute('data-index', index);
+
+                // Добавляем обработчики drop событий
+                dropZone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.add('drag-over');
+                });
+
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('drag-over');
+                });
+
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('drag-over');
+                    const option = document.querySelector('.option.dragging');
+                    if (option) {
+                        // Если в зоне уже есть элемент, меняем их местами
+                        const existingOption = dropZone.querySelector('.option');
+                        if (existingOption) {
+                            const sourceZone = option.parentElement;
+                            if (sourceZone.classList.contains('drop-zone')) {
+                                sourceZone.appendChild(existingOption);
+                            } else {
+                                const optionsContainer = document.querySelector('.options-container');
+                                optionsContainer.appendChild(existingOption);
+                            }
+                        }
+                        dropZone.appendChild(option);
+                        this.checkAllMatchingAnswersFilled();
+                    }
+                });
+
+                sentenceContainer.appendChild(dropZone);
+            }
+        });
+
+        // Перемешиваем варианты ответов для отображения
+        const shuffledOptions = [...question.wordOptions].sort(() => Math.random() - 0.5);
+
+        // Создаем контейнер для вариантов ответов
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'options-container';
+
+        shuffledOptions.forEach((word, index) => {
+            const option = document.createElement('div');
+            option.className = 'option';
+            option.textContent = word;
+            option.draggable = true;
+            option.setAttribute('data-word', word);
+            
+            option.addEventListener('dragstart', () => {
+                option.classList.add('dragging');
+            });
+
+            option.addEventListener('dragend', () => {
+                option.classList.remove('dragging');
+            });
+
+            optionsContainer.appendChild(option);
+        });
+
+        container.appendChild(sentenceContainer);
+        container.appendChild(optionsContainer);
+
+        this.questionContainer.innerHTML = '';
+        this.questionContainer.appendChild(container);
+
+        if (this.submitBtn) {
+            this.submitBtn.disabled = true;
+        }
     }
 
-    initializeWordDragAndDrop() {
-        const wordOptions = this.questionContainer.querySelectorAll('.word-option');
-        const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
-
-        wordOptions.forEach(word => {
-            word.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData('text/plain', word.textContent);
+    // Добавляем вспомогательные методы
+    returnWordToOptions(word) {
+        const optionsContainer = this.questionContainer.querySelector('.word-options');
+        if (optionsContainer) {
+            const wordItem = document.createElement('div');
+            wordItem.className = 'word-item';
+            wordItem.textContent = word;
+            wordItem.draggable = true;
+            wordItem.setAttribute('data-word', word);
+            
+            wordItem.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', word);
+                wordItem.classList.add('dragging');
             });
-        });
 
-        dropZones.forEach(zone => {
-            zone.addEventListener('dragover', (e) => e.preventDefault());
-            zone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                const word = e.dataTransfer.getData('text/plain');
-                zone.textContent = word;
-                // Удаляем использованный вариант ответа
-                const usedOption = Array.from(wordOptions).find(option => option.textContent === word);
-                if (usedOption) {
-                    usedOption.remove();
-                }
-                this.checkAllWordsFilled();
+            wordItem.addEventListener('dragend', () => {
+                wordItem.classList.remove('dragging');
             });
-        });
+
+            optionsContainer.appendChild(wordItem);
+        }
     }
 
     checkAllWordsFilled() {
         const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
-        const allFilled = Array.from(dropZones).every(zone => zone.textContent.trim() !== '');
-        this.submitBtn.disabled = !allFilled;
+        const allFilled = Array.from(dropZones).every(zone => zone.firstChild);
+        
+        if (this.submitBtn) {
+            this.submitBtn.disabled = !allFilled;
+        }
     }
 
     addInputListeners() {
@@ -821,7 +926,7 @@ class TestApp {
             input.removeAttribute('placeholder');
             
             input.addEventListener('input', (e) => {
-                // Разрешаем латинские и русские буквы
+                // азрешаем латинские и русские буквы
                 if (!/^[a-zA-Zа-яА-ЯёЁ]*$/.test(e.target.value)) {
                     e.target.value = e.target.value.replace(/[^a-zA-Zа-яА-ЯёЁ]/g, '');
                 }
@@ -846,77 +951,65 @@ class TestApp {
     }
 
     getUserAnswer() {
-        console.log('Получение ответа пользователя для вопроса типа:', this.currentQuestionType);
+        console.log('Получение ответа пользователя для вопроса типа:', this.currentQuestion.questionType);
         
-        switch (this.currentQuestionType.toLowerCase()) {
+        let answers;  // Объявляем переменную в начале функции
+        
+        switch(this.currentQuestion.questionType) {
             case 'multiple-choice':
                 const selectedOption = this.questionContainer.querySelector('.answer-option.selected');
-                if (!selectedOption) {
-                    console.log('Не выбран вариант ответа');
-                    return null;
-                }
-                const answer = selectedOption.textContent.trim();
-                console.log('Выбранный ответ:', answer);
-                return answer;
-                
+                return selectedOption ? selectedOption.textContent : null;                
             case 'typing':
                 const inputs = this.questionContainer.querySelectorAll('.gap-answer');
-                if (!inputs || inputs.length === 0) {
-                    console.log('Не найдены поля для ввода');
-                    return null;
-                }
-                const answers = Array.from(inputs).map(input => input.value.trim());
-                if (answers.some(answer => !answer)) {
-                    console.log('Не все поля заполнены');
-                    return null;
-                }
-                console.log('Полученные ответы typing:', answers);
-                return answers;
-                
-            case 'matching':
-                const matchingAnswers = [];
+                answers = Array.from(inputs).map(input => input.value.trim());
+                console.log('Собранные ответы typing:', answers);
+                return answers.every(answer => answer !== '') ? answers : null;                         
+            case 'matchingWords':
                 const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
-                
-                dropZones.forEach(zone => {
+                answers = Array.from(dropZones).map(zone => {
                     const option = zone.querySelector('.option');
-                    if (option) {
-                        matchingAnswers.push({
-                            targetIndex: parseInt(zone.dataset.index),
-                            optionIndex: parseInt(option.dataset.originalIndex)
-                        });
-                    }
+                    return option ? option.getAttribute('data-word') : null;
                 });
-
-                if (matchingAnswers.length !== dropZones.length) {
-                    console.log('Не все зоны заполнены');
-                    return null;
-                }
-
-                console.log('Полученные ответы matching:', matchingAnswers);
-                return matchingAnswers;
+                console.log('Собранные ответы:', answers);
+                return answers.every(answer => answer !== null) ? answers : null;                
+            case 'matching':
+                const matchingDropZones = this.questionContainer.querySelectorAll('.drop-zone');
+                answers = Array.from(matchingDropZones).map(zone => {
+                    const option = zone.querySelector('.option');
+                    return option ? option.getAttribute('data-word') : null;
+                });
+                console.log('Собранные ответы matching:', answers);
+                return answers.every(answer => answer !== null) ? answers : null;
+                
+            default:
+                console.error('Неизвестный тип вопроса:', this.currentQuestion.questionType);
+                return null;
         }
     }
 
     checkAnswer(userAnswer) {
-        if (!this.currentQuestionType) {
-            console.error('Тип вопроса не определен');
-            return false;
-        }
-
-        switch (this.currentQuestionType) {
-            case 'single':
+        console.log('Проверка ответа для типа:', this.currentQuestion.questionType);
+        
+        switch(this.currentQuestion.questionType) {
             case 'multiple-choice':
                 return this.checkMultipleChoiceAnswer(userAnswer);
             case 'typing':
                 return this.checkTypingAnswer(userAnswer);
             case 'matching':
-                return this.checkMatchingAnswer(userAnswer);
+                const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+                const answers = Array.from(dropZones).map(zone => {
+                        const option = zone.querySelector('.option');
+                        return option ? option.getAttribute('data-word') : null;
+                    });
+                    
+                    console.log('Собранные ответы matching:', answers);
+                    
+                // Возвращаем ответы только если все зоны заполнены
+                return answers.every(answer => answer !== null) ? answers : null;                
             case 'matchingWords':
                 return this.checkMatchingWordsAnswer(userAnswer);
-            case 'typeImg':
-                return this.checkTypeImgAnswer(userAnswer);
             default:
-                console.error('Неизвестный тип вопроса:', this.currentQuestionType);
+                console.error('Тип вопроса не определен:', this.currentQuestion.questionType);
                 return false;
         }
     }
@@ -924,54 +1017,73 @@ class TestApp {
     async handleSubmit(timeExpired = false) {
         if (this.submitBtn.disabled && !timeExpired) return;
 
-        const startTime = this.questionStartTime || new Date();
-        const timeSpent = new Date() - startTime;
+        const userAnswer = this.getUserAnswer();
+        console.log('Полученный ответ:', userAnswer);
 
-        const userAnswer = timeExpired ? null : this.getUserAnswer();
         if (userAnswer === null && !timeExpired) return;
 
-        const isCorrect = timeExpired ? false : this.checkAnswer(userAnswer);
+        const isCorrect = this.checkAnswer(userAnswer);
+        console.log('Результат проверки:', isCorrect);
 
-        // Сохраняем ответ в историю только один раз
-        await this.saveAnswerHistory({
-            userAnswer,
-            isCorrect,
-            timeSpent
+        const timeSpent = Date.now() - this.startTime;
+
+        await this.saveAnswer(userAnswer, isCorrect, timeSpent);
+
+        // Получаем индексы уровней для сравнения
+        const questionLevelIndex = this.levels.indexOf(this.currentQuestion.level);
+        const currentLevelIndex = this.levels.indexOf(this.currentLevel);
+
+        if (isCorrect) {
+            this.correctCount++;
+            this.correctInCurrentSeries++;
+            
+            // Обновляем счетчики в зависимости от уровня вопроса
+            if (questionLevelIndex === currentLevelIndex) {
+                this.correctOnCurrentLevel++;
+                console.log('Увеличен correctOnCurrentLevel:', this.correctOnCurrentLevel);
+            } else if (questionLevelIndex > currentLevelIndex) {
+                this.correctOnHigherLevel++;
+                console.log('Увеличен correctOnHigherLevel:', this.correctOnHigherLevel);
+            }
+        } else {
+            this.incorrectCount++;
+            if (questionLevelIndex < currentLevelIndex) {
+                this.incorrectOnLowerLevel++;
+                console.log('Увеличен incorrectOnLowerLevel:', this.incorrectOnLowerLevel);
+            }
+        }
+
+        this.questionsInCurrentSeries++;
+        this.questionsOnCurrentLevel++;
+        this.totalQuestions++;
+        this.updateQuestionNumber();
+
+        console.log('Обновлены счетчики:', {
+            correctOnCurrentLevel: this.correctOnCurrentLevel,
+            correctOnHigherLevel: this.correctOnHigherLevel,
+            incorrectOnLowerLevel: this.incorrectOnLowerLevel,
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
+            totalQuestions: this.totalQuestions
         });
 
         // Добавляем текущий вопрос в отвеченные
         this.answeredQuestions.add(this.currentQuestion.id);
 
-        // Обновляем счетчики
-        this.totalQuestions++;
-        this.questionNumber = this.totalQuestions + 1;
-        this.updateQuestionNumber();
+        // Оцениваем серию
+        this.evaluateSeries();
 
-        // Проверяем серию из трех вопросов
-        if (this.questionsInCurrentSeries === 3) {
-            this.evaluateSeries();
-        }
-
-        // Проверяем общее количество вопросов на уровне
-        if (this.questionsOnCurrentLevel >= 27) {
-            this.finishStage();
-        }
-
-        // Загружаем следующий вопрос
+        // Явно вызываем загрузку следующего вопроса
         await this.loadQuestion();
-
-        // Сохраняем прогресс с новым вопросом
-        this.saveProgressToLocalStorage();
-        await this.sendProgress();
     }
-    async saveAnswerHistory({ userAnswer, isCorrect, timeSpent }) {
+
+    async saveAnswer(userAnswer, isCorrect, timeSpent) {
         try {
             const answerData = {
                 userLogin: this.user.login,
                 questionId: this.currentQuestion.id,
                 stage: this.stages[this.currentStageIndex],
                 level: this.levels[this.currentLevelIndex],
-                questionType: this.currentQuestionType,
+                questionType: this.currentQuestion.questionType,
                 userAnswer: typeof userAnswer === 'object' ? JSON.stringify(userAnswer) : userAnswer,
                 isCorrect,
                 timeSpent: Math.round(timeSpent / 1000), // Конвертируем в секунды
@@ -1023,13 +1135,13 @@ class TestApp {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                console.error("Оибка при сохранении прогресса в Airtable:", data.error);
+                console.error("Оибка при сохранени прогресса в Airtable:", data.error);
             } else {
                 console.log("Прогресс успешно сохранен в Airtable");
             }
         })
         .catch(error => {
-            console.error("Ошибка при сораннии прогресса в Airtable:", error);
+            console.error("Ошибка при сораннии прогресс в Airtable:", error);
         });
     }
 
@@ -1040,32 +1152,21 @@ class TestApp {
             currentLevel: this.currentLevel
         });
 
-        if (this.correctInCurrentSeries === 3 && this.questionsInCurrentSeries === 3 && 
-            this.currentLevelIndex < this.levels.length - 1) {
-            this.currentLevelIndex++;
-            this.currentLevel = this.levels[this.currentLevelIndex];
-            console.log('Повышение уровня до:', this.currentLevel);
+        // Проблема в том, что счетчики сбрасываются после каждого вопроса
+        // Нужно накапливать их до 3-х вопросов
+        if (this.questionsInCurrentSeries === 3) {
+            if (this.correctInCurrentSeries === 3 && this.currentLevelIndex < this.levels.length - 1) {
+                this.currentLevelIndex++;
+                this.currentLevel = this.levels[this.currentLevelIndex];
+            } else if (this.correctInCurrentSeries === 0 && this.currentLevelIndex > 0) {
+                this.currentLevelIndex--;
+                this.currentLevel = this.levels[this.currentLevelIndex];
+            }
             
-            // Сбрасываем счетчики для нового уровня
-            this.questionsOnCurrentLevel = 0;
-            this.correctOnCurrentLevel = 0;
-        } else if (this.correctInCurrentSeries === 0 && this.currentLevelIndex > 0) {
-            this.currentLevelIndex--;
-            this.currentLevel = this.levels[this.currentLevelIndex];
-            console.log('Пониение уровня до:', this.currentLevel);
-            
-            // Сбрасываем счетчики для нового уровня
-            this.questionsOnCurrentLevel = 0;
-            this.correctOnCurrentLevel = 0;
+            // Сбрасываем счетчики только после 3-х вопросов
+            this.questionsInCurrentSeries = 0;
+            this.correctInCurrentSeries = 0;
         }
-
-        // Сбрасываем счетчики серии
-        this.questionsInCurrentSeries = 0;
-        this.correctInCurrentSeries = 0;
-
-        // Сохраняем прогресс после изменения уровня
-        this.saveProgressToLocalStorage();
-        this.sendProgress();
     }
 
     moveToNextLevel() {
@@ -1099,12 +1200,12 @@ class TestApp {
             correctHigherLevel: this.correctHigherLevel,
             incorrectLowerLevel: this.incorrectLowerLevel,
             questionsOnCurrentLevel: this.questionsOnCurrentLevel,
-            currentQuestionId: this.currentQuestionId, // Добавляем текущий ID вопроса
+            currentQuestionId: this.currentQuestionId, // Дбавляем текущий ID вопроса
             answeredQuestions: Array.from(this.answeredQuestions),
             timestamp: new Date().toISOString()
         };
 
-        console.log("Отправляемые данные прогресса:", progressData);
+        console.log("Отпрвляемые данные прогресс:", progressData);
 
         try {
             const response = await fetch(`${this.API_BASE_URL}/api/progress`, {
@@ -1120,7 +1221,7 @@ class TestApp {
             }
 
             const data = await response.json();
-            console.log("Прогресс успешно отправлен", data);
+            console.log("Прогресс усешно отправлен", data);
         } catch (error) {
             console.error("Ошибка при отправке прогресса:", error);
         }
@@ -1162,13 +1263,32 @@ class TestApp {
     
         // Переход к следующему этапу или завершение теста
         if (this.currentStageIndex < this.stages.length - 1) {
-            this.currentStageIndex++;
-            this.currentLevelIndex = 0; // Сбрасываем уровень на начальный для нового этапа
-            this.updateCurrentStage(); // Обновляем отображение этапа
-            this.loadQuestion();
+            this.showIntermediateScreen();
         } else {
             this.finishTest();
         }
+    }
+
+    showIntermediateScreen() {
+        this.questionContainer.innerHTML = `
+            <div class="intermediate-screen">
+                <h2>Next Stage: Listening</h2>
+                <p>You have completed the Reading section. The Listening section will begin shortly. Please ensure you have headphones or earbuds for optimal audio quality.</p>
+                <p>You can review the instructions from the start screen if needed.</p>
+                <button id="start-listening-btn">Start Listening Section</button>
+            </div>
+        `;
+
+        // Скрываем номер вопроса и инструкцию
+        document.getElementById('question-number').style.display = 'none';
+        document.getElementById('task-description').style.display = 'none';
+
+        document.getElementById('start-listening-btn').addEventListener('click', () => {
+            this.currentStageIndex++;
+            this.currentLevelIndex = 0;
+            this.updateCurrentStage();
+            this.loadQuestion();
+        });
     }
 
     async finishTest() {
@@ -1210,7 +1330,7 @@ class TestApp {
                 throw new Error(`HTTP error! status: ${completeResponse.status}`);
             }
 
-            // Показываем результаты
+            // Показываем результат
             this.showResults();
             this.disableInteractions();
             
@@ -1245,7 +1365,7 @@ class TestApp {
             
             // Срос лкальных переменных
             this.currentStageIndex = 0;
-            this.currentLevel = this.levels[0]; // Используем первый уровень из массива
+            this.currentLevel = this.levels[0]; // Испольуем первый уровень из массива
             this.correctCount = 0;
             this.incorrectCount = 0;
             this.totalQuestions = 0;
@@ -1258,7 +1378,7 @@ class TestApp {
             // Показываем кнопку START
             this.showStartButton();
         } catch (error) {
-            console.error("Ошибка при сбросе прогресса:", error);
+            console.error("Ошибка при сбросе погресса:", error);
             alert("Произошла ошибка при сбросе прогресса. Пожалуйста, попробуйте еще раз.");
         }
     }
@@ -1279,10 +1399,17 @@ class TestApp {
     // Доплнительно, давайте изменим обработку ошибок  клиентском коде:
 
     showResults() {
-        const container = document.querySelector('.question-container');
+        const container = document.getElementById('question-container');
+        if (!container) {
+            console.error('Не найден контейнер для отображения результатов');
+            return;
+        }
+        if (this.timerElement) {
+            this.timerElement.style.display = 'none';
+        }
         let resultsHTML = '<div class="results-container">';
-
-        // Проходим по всем этапам в stagesResults
+        
+        // Показываем результаты для каждого этапа
         this.stagesResults.forEach(result => {
             const correctPercentage = ((result.correctCount / (result.correctCount + result.incorrectCount)) * 100).toFixed(1);
             
@@ -1309,15 +1436,19 @@ class TestApp {
         return array;
     }
 
-    // Логика для вычисения иогового уровн на основе WSS
+    // Логика для вычисения иоговоо уровн на основе WSS
     calculateFinalLevel(wss) {
         const wssScale = this.initializeWssScale();
-        for (let i = 0; i < wssScale.length - 1; i++) {
-            if (wss >= wssScale[i].minWss && wss < wssScale[i + 1].minWss) {
-                return wssScale[i].level;
+        for (let i = 0; i < wssScale.length; i++) {
+            const entry = wssScale[i];
+            const isWithinRange = wss >= entry.minWss && wss <= entry.maxWss;
+            console.log(`Проверка уровня ${entry.level}:`, { wss, minWss: entry.minWss, maxWss: entry.maxWss, isWithinRange });
+            if (isWithinRange) {
+                console.log('Определен уровень:', entry.level);
+                return entry.level;
             }
         }
-        // Проверка для оследнего урвня
+        // Проверка для последнего урвня
         if (wss >= wssScale[wssScale.length - 1].minWss) {
             return wssScale[wssScale.length - 1].level;
         }
@@ -1422,49 +1553,27 @@ class TestApp {
     }
 
     checkMatchingAnswer(userAnswer) {
-        try {
-            console.log('Проверка ответа matching:', {
-                userAnswer,
-                matchPairs: this.currentQuestion.matchPairs
-            });
-
-            if (!userAnswer || !Array.isArray(userAnswer) || userAnswer.length === 0) {
-                console.error('Некорректный формат ответа matching');
-                return false;
-            }
-
-            const matchPairs = JSON.parse(this.currentQuestion.matchPairs);
-            if (!Array.isArray(matchPairs)) {
-                console.error('Некорректный формат matchPairs');
-                return false;
-            }
-
-            // Проверяем все пары
-            const isCorrect = userAnswer.every(answer => {
-                const targetIndex = parseInt(answer.targetIndex);
-                const optionIndex = parseInt(answer.optionIndex);
-                
-                if (isNaN(targetIndex) || isNaN(optionIndex)) {
-                    console.error('Некорректные индексы:', { targetIndex, optionIndex });
-                    return false;
-                }
-
-                console.log('Проверка пары:', {
-                    targetIndex,
-                    optionIndex,
-                    isMatch: targetIndex === optionIndex
-                });
-
-                return targetIndex === optionIndex;
-            });
-
-            console.log('Результат проверки matching:', isCorrect);
-            return isCorrect;
-
-        } catch (error) {
-            console.error('Ошибка при проверке ответа matching:', error);
+        console.log('Проверка ответа matching:', {
+            userAnswer,
+            matchPairs: this.currentQuestion.matchPairs
+        });
+    
+        if (!Array.isArray(userAnswer) || userAnswer.length !== this.currentQuestion.matchPairs.length) {
+            console.log('Некорректный формат ответа matching');
             return false;
         }
+    
+        // Проверяем каждый ответ
+        return userAnswer.every((answer, index) => {
+            const correctAnswer = this.currentQuestion.matchPairs[index].option;
+            const isCorrect = answer === correctAnswer;
+            console.log(`Проверка ответа ${index}:`, { 
+                userAnswer: answer, 
+                correctAnswer, 
+                isCorrect 
+            });
+            return isCorrect;
+        });
     }
 
     getMultipleChoiceAnswer() {
@@ -1488,17 +1597,15 @@ class TestApp {
             correctAnswer: this.currentQuestion.correct
         });
 
-        if (!userAnswer || !this.currentQuestion.correct) {
-            console.error('Отсутствует ответ пользователя или правильны ответ');
-            return false;
-        }
+        // Очищаем ответы от пробелов и переносов строк
+        const cleanUserAnswer = userAnswer.trim().replace(/\s+/g, '');
+        const cleanCorrectAnswer = this.currentQuestion.correct.trim().replace(/\s+/g, '');
 
-        // Точное сравнение без изменения регистра
-        const isCorrect = userAnswer === this.currentQuestion.correct;
-        
+        const isCorrect = cleanUserAnswer === cleanCorrectAnswer;
+
         console.log('Результат проверки multiple-choice:', {
-            userAnswer,
-            correctAnswer: this.currentQuestion.correct,
+            userAnswer: cleanUserAnswer,
+            correctAnswer: cleanCorrectAnswer,
             isCorrect
         });
 
@@ -1532,7 +1639,7 @@ class TestApp {
             ? this.currentQuestion.gapAnswers 
             : [this.currentQuestion.gapAnswers];
 
-        // Проверяе соответствие длин массивов
+        // Проверяе соответствие дин массивов
         if (userAnswer.length !== correctAnswers.length) {
             console.error('Количество ответов не совпадает:', {
                 userAnswerLength: userAnswer.length,
@@ -1550,20 +1657,40 @@ class TestApp {
     }
 
     checkMatchingWordsAnswer(userAnswer) {
-        console.log('Проверка ответа для вопроса тпа matchingWords');
-        console.log('Ответ польователя:', userAnswer);
-        console.log('Правильный ответ:', this.currentQuestion.wordOptions);
-        
-        const correctAnswers = this.currentQuestion.wordOptions.split(';').map(word => word.trim().toLowerCase());
-        const isCorrect = userAnswer.every((answer, index) => answer.toLowerCase() === correctAnswers[index]);
-        
+        console.log('Проверка ответа matchingWords:', {
+            userAnswer,
+            correctAnswers: this.currentQuestion.wordOptions
+        });
+    
+        if (!Array.isArray(userAnswer) || !Array.isArray(this.currentQuestion.wordOptions)) {
+            console.log('Неверный формат ответов');
+            return false;
+        }
+    
+        if (userAnswer.length !== this.currentQuestion.wordOptions.length) {
+            console.log('Разное количество ответов');
+            return false;
+        }
+    
+        const isCorrect = userAnswer.every((answer, index) => {
+            const correct = this.currentQuestion.wordOptions[index];
+            console.log(`Проверка ответа ${index}:`, {
+                userAnswer: answer,
+                correctAnswer: correct,
+                isMatch: answer === correct
+            });
+            return answer === correct;
+        });
+    
         console.log('Результат проверки:', isCorrect);
         return isCorrect;
     }
 
     updateQuestionNumber() {
-        if (this.questionNumberElement) {
-            this.questionNumberElement.textContent = `${this.totalQuestions}`;
+        const questionNumberElement = document.getElementById('question-number');
+        if (questionNumberElement) {
+            const progress = JSON.parse(localStorage.getItem('testProgress') || '{}');
+            questionNumberElement.textContent = `${this.totalQuestions + 1}`;
         }
     }
 
@@ -1641,11 +1768,17 @@ class TestApp {
     }
 
     getMatchingWordsAnswer() {
-        console.log('Получение ответа для вопроса типа matchingWords');
-        const dropZones = this.questionContainer.querySelectorAll('.word-drop-zone');
-        const answer = Array.from(dropZones).map(zone => zone.textContent.trim());
-        console.log('Ответ пользователя:', answer);
-        return answer;
+        console.log('Получение отве��ов matchingWords');
+        const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+        const answers = Array.from(dropZones).map(zone => {
+            const option = zone.querySelector('.option');
+            const answer = option ? option.getAttribute('data-word') : null;
+            console.log('Ответ из зоны:', answer);
+            return answer;
+        }).filter(answer => answer !== null); // Фильтруем null значения
+
+        console.log('Собранные ответы matchingWords:', answers);
+        return answers.length === dropZones.length ? answers : null;
     }
 
     async fetchWithRetry(url, options = {}, retries = 10) {
@@ -1671,39 +1804,27 @@ class TestApp {
         }
     }
 
-    updateDesignImage(question) {
+    updateDesignImage(imageUrl) {
         const designImageContainer = document.getElementById('design-image');
         if (designImageContainer) {
-            if (question.designImage) {
-                console.log('Загрузка изображения:', question.designImage);
-                designImageContainer.innerHTML = `<img src="${question.designImage}" alt="Design">`;
+            if (imageUrl) {
+                designImageContainer.innerHTML = `<img src="${imageUrl}" alt="Design Image">`;
             } else {
-                console.log('Изображение не найдено для вопроса');
                 designImageContainer.innerHTML = '';
             }
         } else {
-            console.error('Контейнер для иображения не найден');
+            console.error('Контейнер design-image не найден');
         }
     }
 
-    updateTaskDescription(question) {
+    updateTaskDescription(instruction) {
         const taskDescriptionElement = document.getElementById('task-description');
         if (taskDescriptionElement) {
-            let content = '';
-            
-            // Добавляем instruction если оно есть
-            if (question.instruction) {
-                content += `<div class="instruction">${question.instruction}</div>`;
-            }
-            
-            // Обновляем содержимое и отображение
-            if (content) {
-                taskDescriptionElement.innerHTML = content;
+            if (instruction) {
+                taskDescriptionElement.innerHTML = `<div class="instruction">${instruction}</div>`;
                 taskDescriptionElement.style.display = 'block';
-                console.log('Обновлен task-description:', content);
             } else {
                 taskDescriptionElement.style.display = 'none';
-                console.log('task-description скрыт (нет контента)');
             }
         } else {
             console.error('Элемент task-description не найден');
@@ -1726,7 +1847,7 @@ class TestApp {
     }
 
     hideTestElements() {
-        // Скрваем элементы при инициализации
+        // элементы при инициализации
         const elementsToHide = [
             'question-number',
             'timer',
@@ -1810,10 +1931,9 @@ class TestApp {
         const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
         const allFilled = Array.from(dropZones).every(zone => zone.querySelector('.option'));
         
-        console.log('Проверка заполнения matching вопроса:', allFilled);
-        
         if (this.submitBtn) {
             this.submitBtn.disabled = !allFilled;
+            console.log('Все пропуски заполнены:', allFilled);
         }
     }
 
@@ -1856,8 +1976,8 @@ class TestApp {
             this.disableInteractions();
         } catch (error) {
             this.hideLoading();
-            console.error("Ошибка ри принудительном завершении теста:", error);
-            this.showUnavailableMessage("Произошла ошибка. Пожалуйста, обратитесь к администртору.");
+            console.error("Ошибка ри принудительном заверении теста:", error);
+            this.showUnavailableMessage("Произошла ошибка при завершении теста. Пожалуйста, обратитесь к администртору.");
         }
     }
 
@@ -1867,7 +1987,7 @@ class TestApp {
                 <h2>Тест завершен</h2>
                 <p>Тест был автоматически завершен из-за превышения допустимого количества перезагрузок страницы.</p>
                 <p>Результат: Не засчитан</p>
-                <p>Пожалуйста, свяжитесь с администратором для получения новой ппытки.</p>
+                <p>Пожалуйста, свяжитесь с адмнистратоом для получения новой ппытки.</p>
                 <a href="https://wiseman-skills.com/lk" class="results-link">Перейти в личный кабинет</a>
             </div>
         `;
@@ -1893,9 +2013,84 @@ class TestApp {
             }
         });
     }
-}
-document.addEventListener('DOMContentLoaded', () => {
-    const app = new TestApp();
-    app.init().catch(error => console.error("Error initializing app:", error));
-});
 
+    initDragAndDrop() {
+        const options = this.questionContainer.querySelectorAll('.option');
+        const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+    
+        let draggedElement = null;
+        let initialX = 0;
+        let initialY = 0;
+    
+        options.forEach(option => {
+            option.addEventListener('touchstart', (e) => {
+                draggedElement = option;
+                initialX = e.touches[0].clientX - option.offsetLeft;
+                initialY = e.touches[0].clientY - option.offsetTop;
+            });
+    
+            option.addEventListener('touchmove', (e) => {
+                if (draggedElement) {
+                    e.preventDefault();
+                    const x = e.touches[0].clientX - initialX;
+                    const y = e.touches[0].clientY - initialY;
+                    draggedElement.style.transform = `translate(${x}px, ${y}px)`;
+                }
+            });
+    
+            option.addEventListener('touchend', (e) => {
+                if (draggedElement) {
+                    const x = e.changedTouches[0].clientX - initialX;
+                    const y = e.changedTouches[0].clientY - initialY;
+                    draggedElement.style.transform = '';
+    
+                    dropZones.forEach(zone => {
+                        const rect = zone.getBoundingClientRect();
+                        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                            zone.appendChild(draggedElement);
+                            this.checkAllMatchingAnswersFilled();
+                        }
+                    });
+                    draggedElement = null;
+                }
+            });
+    
+            // Добавляем обработчики для мыши для десктопов
+            option.addEventListener('mousedown', (e) => {
+                draggedElement = option;
+                initialX = e.clientX - option.offsetLeft;
+                initialY = e.clientY - option.offsetTop;
+            });
+    
+            option.addEventListener('mousemove', (e) => {
+                if (draggedElement) {
+                    const x = e.clientX - initialX;
+                    const y = e.clientY - initialY;
+                    draggedElement.style.transform = `translate(${x}px, ${y}px)`;
+                }
+            });
+    
+            option.addEventListener('mouseup', (e) => {
+                if (draggedElement) {
+                    const x = e.clientX - initialX;
+                    const y = e.clientY - initialY;
+                    draggedElement.style.transform = '';
+    
+                    dropZones.forEach(zone => {
+                        const rect = zone.getBoundingClientRect();
+                        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+                            zone.appendChild(draggedElement);
+                            this.checkAllMatchingAnswersFilled();
+                        }
+                    });
+                    draggedElement = null;
+                }
+            });
+        });
+    }
+}   
+
+document.addEventListener('DOMContentLoaded', () => {
+    const testApp = new TestApp();
+    testApp.init();
+});

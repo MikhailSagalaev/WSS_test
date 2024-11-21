@@ -3,7 +3,6 @@ const fetch = require('node-fetch');
 const cors = require('./middleware/cors');
 
 module.exports = async (req, res) => {
-    // Проверка CORS
     if (cors(req, res)) return;
 
     console.log("Получен запрос к /api/questions");
@@ -15,26 +14,43 @@ module.exports = async (req, res) => {
 
     try {
         const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_QUESTIONS_TABLE } = process.env;
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_QUESTIONS_TABLE)}`;
-
-        const response = await fetch(url, {
-            headers: {
-                Authorization: `Bearer ${AIRTABLE_PAT}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const baseUrl = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_QUESTIONS_TABLE)}`;
         
-        // Добавим логирование для проверки данных
-        console.log("Данные, полученные из Airtable:", JSON.stringify(data, null, 2));
+        // Массив для хранения всех записей
+        let allRecords = [];
+        let offset = null;
 
-        // Преобразуем данные, чтобы убедиться, что TimeLimit и Audio корректно передаются
-        const questions = data.records.map(record => ({
+        // Цикл для получения всех страниц
+        do {
+            const url = offset 
+                ? `${baseUrl}?offset=${offset}`
+                : baseUrl;
+
+            const response = await fetch(url, {
+                headers: {
+                    Authorization: `Bearer ${AIRTABLE_PAT}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // Добавляем записи в общий массив
+            allRecords = allRecords.concat(data.records);
+            
+            // Получаем offset для следующей страницы
+            offset = data.offset;
+
+        } while (offset); // Продолжаем, пока есть следующая страница
+
+        console.log(`Всего загружено вопросов: ${allRecords.length}`);
+
+        // Преобразуем данные
+        const questions = allRecords.map(record => ({
             id: record.id,
             fields: {
                 ...record.fields,
