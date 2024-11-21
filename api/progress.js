@@ -78,10 +78,25 @@ module.exports = async (req, res) => {
                 timestamp 
             } = req.body;
 
-            console.log('Получены данные прогресса:', {
-                userLogin,
-                questionsCountByLevel
-            });
+            console.log('Данные для сохранения:', req.body);
+
+            const updateData = {
+                fields: {
+                    UserLogin: userLogin,
+                    Stage: stage,
+                    Level: level,
+                    CorrectCount: Number(correctCount) || 0,
+                    IncorrectCount: Number(incorrectCount) || 0,
+                    TotalQuestions: Number(totalQuestions) || 0,
+                    CorrectHigherLevel: Number(correctHigherLevel) || 0,
+                    IncorrectLowerLevel: Number(incorrectLowerLevel) || 0,
+                    QuestionsOnCurrentLevel: Number(questionsOnCurrentLevel) || 0,
+                    QuestionsCountByLevel: questionsCountByLevel ? JSON.stringify(questionsCountByLevel) : '{}',
+                    LastUpdated: timestamp || new Date().toISOString()
+                }
+            };
+
+            console.log('Данные для отправки в Airtable:', updateData);
 
             const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
 
@@ -97,22 +112,6 @@ module.exports = async (req, res) => {
             );
 
             const existingData = await existingRecordResponse.json();
-
-            const updateData = {
-                fields: {
-                    UserLogin: userLogin,
-                    Stage: stage,
-                    Level: level,
-                    CorrectCount: correctCount,
-                    IncorrectCount: incorrectCount,
-                    TotalQuestions: totalQuestions,
-                    CorrectHigherLevel: correctHigherLevel,
-                    IncorrectLowerLevel: incorrectLowerLevel,
-                    QuestionsOnCurrentLevel: questionsOnCurrentLevel,
-                    QuestionsCountByLevel: JSON.stringify(questionsCountByLevel),
-                    LastUpdated: timestamp
-                }
-            };
 
             let response;
             if (existingData.records && existingData.records.length > 0) {
