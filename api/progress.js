@@ -74,15 +74,20 @@ module.exports = async (req, res) => {
                 correctHigherLevel, 
                 incorrectLowerLevel,
                 questionsOnCurrentLevel,
-                currentQuestionId,
-                answeredQuestions,
+                questionsCountByLevel,
                 timestamp 
             } = req.body;
 
-            // Проверяем существующую запись
-            const filterFormula = `({UserLogin} = '${userLogin}')`;
-            const existingResponse = await fetch(
-                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`,
+            console.log('Получены данные прогресса:', {
+                userLogin,
+                questionsCountByLevel
+            });
+
+            const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
+
+            // Проверяем существование записи
+            const existingRecordResponse = await fetch(
+                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(`{UserLogin} = '${userLogin}'`)}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${AIRTABLE_PAT}`,
@@ -91,10 +96,11 @@ module.exports = async (req, res) => {
                 }
             );
 
-            const existingData = await existingResponse.json();
+            const existingData = await existingRecordResponse.json();
 
             const updateData = {
                 fields: {
+                    UserLogin: userLogin,
                     Stage: stage,
                     Level: level,
                     CorrectCount: correctCount,
@@ -103,11 +109,8 @@ module.exports = async (req, res) => {
                     CorrectHigherLevel: correctHigherLevel,
                     IncorrectLowerLevel: incorrectLowerLevel,
                     QuestionsOnCurrentLevel: questionsOnCurrentLevel,
-                    CurrentQuestionId: currentQuestionId,
-                    AnsweredQuestions: JSON.stringify(answeredQuestions),
-                    Status: 'In Progress',
-                    Timestamp: timestamp,
-                    QuestionsCountByLevel: JSON.stringify(questionsCountByLevel)
+                    QuestionsCountByLevel: JSON.stringify(questionsCountByLevel),
+                    LastUpdated: timestamp
                 }
             };
 
@@ -122,7 +125,7 @@ module.exports = async (req, res) => {
                             'Authorization': `Bearer ${AIRTABLE_PAT}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ fields: updateData.fields })
+                        body: JSON.stringify(updateData)
                     }
                 );
             } else {
@@ -135,7 +138,7 @@ module.exports = async (req, res) => {
                             'Authorization': `Bearer ${AIRTABLE_PAT}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ records: [updateData] })
+                        body: JSON.stringify(updateData)
                     }
                 );
             }
