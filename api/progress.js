@@ -75,34 +75,47 @@ module.exports = async (req, res) => {
                 incorrectLowerLevel,
                 questionsOnCurrentLevel,
                 questionsCountByLevel,
-                timestamp 
+                timestamp,
+                currentQuestionId,
+                answeredQuestions 
             } = req.body;
+
+            // Проверяем обязательные поля
+            if (!userLogin) {
+                return res.status(400).json({ error: 'UserLogin is required' });
+            }
 
             console.log('Данные для сохранения:', req.body);
 
+            // Подготавливаем данные для Airtable
             const updateData = {
                 fields: {
                     UserLogin: userLogin,
-                    Stage: stage,
-                    Level: level,
+                    Stage: stage || 'reading',
+                    Level: level || 'pre-A1',
                     CorrectCount: Number(correctCount) || 0,
                     IncorrectCount: Number(incorrectCount) || 0,
                     TotalQuestions: Number(totalQuestions) || 0,
                     CorrectHigherLevel: Number(correctHigherLevel) || 0,
                     IncorrectLowerLevel: Number(incorrectLowerLevel) || 0,
                     QuestionsOnCurrentLevel: Number(questionsOnCurrentLevel) || 0,
-                    QuestionsCountByLevel: questionsCountByLevel ? JSON.stringify(questionsCountByLevel) : '{}',
+                    CurrentQuestionId: currentQuestionId || '',
+                    AnsweredQuestions: Array.isArray(answeredQuestions) 
+                        ? JSON.stringify(answeredQuestions) 
+                        : '[]',
+                    QuestionsCountByLevel: typeof questionsCountByLevel === 'object' 
+                        ? JSON.stringify(questionsCountByLevel) 
+                        : '{}',
                     LastUpdated: timestamp || new Date().toISOString()
                 }
             };
 
             console.log('Данные для отправки в Airtable:', updateData);
 
-            const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
-
             // Проверяем существование записи
+            const filterFormula = `({UserLogin} = '${userLogin}')`;
             const existingRecordResponse = await fetch(
-                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(`{UserLogin} = '${userLogin}'`)}`,
+                `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${AIRTABLE_PAT}`,
@@ -110,6 +123,10 @@ module.exports = async (req, res) => {
                     }
                 }
             );
+
+            if (!existingRecordResponse.ok) {
+                throw new Error(`Failed to check existing record: ${existingRecordResponse.status}`);
+            }
 
             const existingData = await existingRecordResponse.json();
 
@@ -137,19 +154,34 @@ module.exports = async (req, res) => {
                             'Authorization': `Bearer ${AIRTABLE_PAT}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(updateData)
+                        body: JSON.stringify({
+                            records: [updateData]
+                        })
                     }
                 );
             }
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json();
+                console.error('Airtable error:', errorData);
+                throw new Error(`Airtable error: ${JSON.stringify(errorData)}`);
             }
 
-            res.status(200).json({ message: 'Прогресс успешно сохранён.' });
+            const result = await response.json();
+            console.log('Успешно сохранено в Airtable:', result);
+
+            res.status(200).json({ 
+                message: 'Прогресс успешно сохранён.',
+                data: result 
+            });
+
         } catch (error) {
             console.error('Error:', error);
-            res.status(500).json({ error: 'Internal Server Error', details: error.message });
+            res.status(500).json({ 
+                error: 'Internal Server Error', 
+                details: error.message,
+                stack: error.stack 
+            });
         }
     } else {
         res.status(405).json({ error: 'Method not allowed' });
