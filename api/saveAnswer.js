@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
                 "Level": level,
                 "Question Type": questionType,
                 "User Answer": JSON.stringify(userAnswer),
-                "Is Correct": isCorrect,
+                "Is Correct": isCorrect ? '1' : '0',
                 "Time Spent": timeSpent,
                 "Timestamp": timestamp
             }
