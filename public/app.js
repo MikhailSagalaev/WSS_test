@@ -1100,7 +1100,7 @@ class TestApp {
         this.totalQuestions++;
         this.updateQuestionNumber();
 
-        console.log('Обновлены счетчи��и:', {
+        console.log('Обновлены счетчи����и:', {
             correctOnCurrentLevel: this.correctOnCurrentLevel,
             correctOnHigherLevel: this.correctOnHigherLevel,
             incorrectOnLowerLevel: this.incorrectOnLowerLevel,
@@ -1288,25 +1288,31 @@ class TestApp {
         }
     }
     
-    finishStage() {
+    async finishStage() {
+        // Сохраняем результаты текущего этапа
+        const stageResult = {
+            stage: this.stages[this.currentStageIndex],
+            level: this.currentLevel,
+            correctCount: this.correctCount,
+            incorrectCount: this.incorrectCount,
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel
+        };
+        
+        // Если есть следующий этап
         if (this.currentStageIndex < this.stages.length - 1) {
-            this.currentStageIndex++;
-            // Сбрасываем счетчики для нового этапа
-            this.questionsCountByLevel = {
-                'pre-A1': 0,
-                'A1': 0,
-                'A2': 0,
-                'B1': 0,
-                'B2': 0,
-                'C1': 0
-            };
-            this.currentLevelIndex = 0;
             this.currentLevel = this.levels[0];
             this.correctInCurrentSeries = 0;
             this.questionsInCurrentSeries = 0;
+            this.currentStageIndex++;
+            this.questionsOnCurrentLevel = 0; // Сбрасываем счетчик
+            this.correctInSeries = 0; // Сбрасываем серию
+            this.questionsInSeries = 0;
+            this.showIntermediateScreen();
         } else {
-            this.completeTest();
+            await this.finishTest(); // Завершаем тест
         }
+
+        await this.sendProgress();
     }
 
     showIntermediateScreen() {
@@ -1353,7 +1359,6 @@ class TestApp {
                     incorrectCount: this.incorrectCount,
                     totalQuestions: this.totalQuestions,
                     timestamp: new Date().toISOString(),
-                    // Добавляем данные по этапам
                     readingLevel: readingResults.finalLevel,
                     readingWss: readingResults.finalWss,
                     readingCorrectCount: readingResults.correctCount,
@@ -1482,7 +1487,7 @@ class TestApp {
         for (let i = 0; i < wssScale.length; i++) {
             const entry = wssScale[i];
             const isWithinRange = wss >= entry.minWss && wss <= entry.maxWss;
-            console.log(`Про��ерка уровня ${entry.level}:`, { wss, minWss: entry.minWss, maxWss: entry.maxWss, isWithinRange });
+            console.log(`Проерка уровня ${entry.level}:`, { wss, minWss: entry.minWss, maxWss: entry.maxWss, isWithinRange });
             if (isWithinRange) {
                 console.log('Определен уровень:', entry.level);
                 return entry.level;
@@ -1813,7 +1818,7 @@ class TestApp {
     }
 
     getMatchingWordsAnswer() {
-        console.log('Получение отве��ов matchingWords');
+        console.log('Получение отвеов matchingWords');
         const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
         const answers = Array.from(dropZones).map(zone => {
             const option = zone.querySelector('.option');
@@ -1935,7 +1940,7 @@ class TestApp {
 
     // Добавим новый метод для отключения взаимодействий
     disableInteractions() {
-        // даляем бработчики соытий �� кнопки submit
+        // даляем бработчики соытий  кнопки submit
         if (this.submitBtn) {
             this.submitBtn.style.display = 'none';
         }
@@ -2021,7 +2026,7 @@ class TestApp {
             this.disableInteractions();
         } catch (error) {
             this.hideLoading();
-            console.error("Ошибка ри принудите��ьном заверении теста:", error);
+            console.error("Ошибка ри принудитеьном заверении теста:", error);
             this.showUnavailableMessage("Произошла ошибка при завершении теста. Пожалуйста, обратитесь к администртору.");
         }
     }
