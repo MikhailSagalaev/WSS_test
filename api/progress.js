@@ -103,9 +103,6 @@ module.exports = async (req, res) => {
                     AnsweredQuestions: Array.isArray(answeredQuestions) 
                         ? JSON.stringify(answeredQuestions) 
                         : '[]',
-                    QuestionsCountByLevel: typeof questionsCountByLevel === 'object' 
-                        ? JSON.stringify(questionsCountByLevel) 
-                        : '{}',
                     LastUpdated: timestamp || new Date().toISOString()
                 }
             };
