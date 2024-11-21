@@ -1592,6 +1592,11 @@ class TestApp {
     }
 
     checkMultipleChoiceAnswer(userAnswer) {
+        // Если время истекло и ответ не был выбран
+    if (!userAnswer) {
+        return false;
+    }
+    
         console.log('Проверка ответа multiple-choice:', {
             userAnswer,
             correctAnswer: this.currentQuestion.correct

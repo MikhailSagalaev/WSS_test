@@ -93,9 +93,8 @@ module.exports = async (req, res) => {
 
             const existingData = await existingResponse.json();
 
-            const progressData = {
+            const updateData = {
                 fields: {
-                    UserLogin: userLogin,
                     Stage: stage,
                     Level: level,
                     CorrectCount: correctCount,
@@ -107,7 +106,8 @@ module.exports = async (req, res) => {
                     CurrentQuestionId: currentQuestionId,
                     AnsweredQuestions: JSON.stringify(answeredQuestions),
                     Status: 'In Progress',
-                    Timestamp: timestamp
+                    Timestamp: timestamp,
+                    QuestionsCountByLevel: JSON.stringify(questionsCountByLevel)
                 }
             };
 
@@ -122,7 +122,7 @@ module.exports = async (req, res) => {
                             'Authorization': `Bearer ${AIRTABLE_PAT}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ fields: progressData.fields })
+                        body: JSON.stringify({ fields: updateData.fields })
                     }
                 );
             } else {
@@ -135,7 +135,7 @@ module.exports = async (req, res) => {
                             'Authorization': `Bearer ${AIRTABLE_PAT}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ records: [progressData] })
+                        body: JSON.stringify({ records: [updateData] })
                     }
                 );
             }
