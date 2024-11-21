@@ -103,7 +103,7 @@ module.exports = async (req, res) => {
                     AnsweredQuestions: Array.isArray(answeredQuestions) 
                         ? JSON.stringify(answeredQuestions) 
                         : '[]',
-                    LastUpdated: timestamp || new Date().toISOString()
+                    Timestamp: timestamp || new Date().toISOString()
                 }
             };
 
