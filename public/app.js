@@ -1606,7 +1606,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             this.questionsOnCurrentLevel = 0;
             this.correctInCurrentSeries = 0;
             this.questionsInCurrentSeries = 0;
-            this.questionsCountByLevel = { // Сбрасываем счетчики вопросов по уровням
+            this.questionsCountByLevel = {
                 'pre-A1': 0,
                 'A1': 0,
                 'A2': 0,
@@ -1614,7 +1614,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 'B2': 0,
                 'C1': 0
             };
-            this.currentStageIndex++;
+            // Убираем увеличение индекса этапа здесь
             this.showIntermediateScreen();
         } else {
             await this.finishTest();
@@ -2456,13 +2456,13 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 questionsInCurrentSeries: this.questionsInCurrentSeries,
                 answeredQuestions: Array.from(this.answeredQuestions),
                 currentQuestionId: this.currentQuestion?.id,
-                questionsCountByLevel: this.questionsCountByLevel // Сохраняем только в localStorage
+                questionsCountByLevel: this.questionsCountByLevel
             };
 
             localStorage.setItem('testProgress', JSON.stringify(progress));
             console.log('Прогресс сохранён в localStorage:', progress);
 
-            // Подготавливаем данные для отправки на сервер (без questionsCountByLevel)
+            // Подготавливаем данные для отправки на сервер
             const progressData = {
                 userLogin: this.user.login,
                 stage: progress.stage,
@@ -2474,7 +2474,8 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 incorrectLowerLevel: progress.incorrectLowerLevel,
                 questionsOnCurrentLevel: progress.questionsOnCurrentLevel,
                 correctOnCurrentLevel: progress.correctOnCurrentLevel,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                questionsCountByLevel: JSON.stringify(progress.questionsCountByLevel) // Добавляем это поле
             };
 
             // Отправляем на сервер
@@ -2502,7 +2503,6 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
 
         } catch (error) {
             console.error('Ошибка при сохранении прогресса:', error);
-            // Не прерываем выполнение программы при ошибке сохранения
             return null;
         }
     }
