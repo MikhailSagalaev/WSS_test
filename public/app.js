@@ -295,6 +295,15 @@ class TestApp {
                 this.questionNumber = this.totalQuestions + 1;
                 this.updateQuestionNumber();
 
+                if (progress.AnswersHistory) {
+                    try {
+                        const answersHistory = JSON.parse(progress.AnswersHistory);
+                        localStorage.setItem('answersHistory', JSON.stringify(answersHistory));
+                    } catch (e) {
+                        console.error("Ошибка при парсинге истории ответов:", e);
+                    }
+                }
+
                 return true;
             }
             return false;
@@ -827,7 +836,7 @@ class TestApp {
         this.questionContainer.innerHTML = '';
         this.questionContainer.appendChild(container);
 
-        // Добавляем обра��отчики drag and drop
+        // Добавляем обработчики drag and drop
         this.initMatchingDragAndDrop();
 
         const form = document.createElement('form');
@@ -1131,7 +1140,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     getUserAnswer() {
         console.log('Получеие ответа пльзователя для вопроса типа:', this.currentQuestion.questionType);
         
-        let answers;  // Объявляем переменную в начале функци��
+        let answers;  // Объявляем переменную в начале функци
         
         switch(this.currentQuestion.questionType) {
             case 'multiple-choice':
@@ -1614,33 +1623,34 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 'B2': 0,
                 'C1': 0
             };
-            // Убираем увеличение индекса этапа здесь
-            this.showIntermediateScreen();
+            
+            await this.showIntermediateScreen();
+            await this.saveProgress(); // Сохраняем прогресс после обновления счетчиков
         } else {
             await this.finishTest();
         }
-
-        await this.sendProgress();
     }
 
-    showIntermediateScreen() {
+    async showIntermediateScreen() {
         this.questionContainer.innerHTML = `
             <div class="intermediate-screen">
                 <h2>Next Stage: Listening</h2>
-                <p>You have completed the Reading section.  The Listening section will begin shortly. Please put on your headphones or earbuds for optimal audio quality.</p>
+                <p>You have completed the Reading section. The Listening section will begin shortly. Please put on your headphones or earbuds for optimal audio quality.</p>
                 <p>You can review the instructions from the start screen if needed.</p>
                 <button id="start-listening-btn">Start Listening Section</button>
             </div>
         `;
 
-        // Скрываем ненужные элементы
         this.hideTestElements();
 
-        document.getElementById('start-listening-btn').addEventListener('click', () => {
-            this.currentStageIndex++;
-            this.currentLevelIndex = 0;
-            this.updateCurrentStage();
-            this.loadQuestion();
+        return new Promise((resolve) => {
+            document.getElementById('start-listening-btn').addEventListener('click', async () => {
+                this.currentStageIndex++;
+                this.currentLevelIndex = 0;
+                this.updateCurrentStage();
+                await this.loadQuestion();
+                resolve();
+            });
         });
     }
 
@@ -1698,6 +1708,22 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
         }
         this.showResultsScreen();
+
+        localStorage.removeItem('answersHistory'); // Очищаем историю ответов
+        
+        // Отправляем финальные результаты
+        const results = {
+            userLogin: this.user.login,
+            finalLevel: this.currentLevel,
+            finalWss: this.calculateFinalWSS(),
+            correctCount: this.correctCount,
+            incorrectCount: this.incorrectCount,
+            totalQuestions: this.totalQuestions,
+            timestamp: new Date().toISOString(),
+            stagesResults: this.stagesResults
+        };
+
+        await this.sendResultsToAirtable(results);
     }
 
     async resetProgress() {
@@ -1813,32 +1839,27 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         return wssScale[0].level;
     }
 
-    sendResultsToAirtable() {
-        const data = {
-            UserLogin: this.user.login,
-            FinishDate: new Date().toISOString(),
-            StagesResults: JSON.stringify(this.stagesResults)
-        };
+    async sendResultsToAirtable(results) {
+        try {
+            const response = await fetch(`${this.API_BASE_URL}/api/complete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(results)
+            });
 
-        fetch('/api/sendResults', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            return response.json();
-        })
-        .then(result => {
-            console.log('Резуьтаты успешно отправлены в Airtable:', result);
-        })
-        .catch(error => {
+
+            const data = await response.json();
+            console.log('Результаты успешно отправлены:', data);
+            return data;
+        } catch (error) {
             console.error('Ошибка при отправке результтов в Airtable:', error);
-        });
+            throw error;
+        }
     }
 
     showLoading() {
