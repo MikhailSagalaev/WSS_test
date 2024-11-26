@@ -1131,7 +1131,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     getUserAnswer() {
         console.log('Получеие ответа пльзователя для вопроса типа:', this.currentQuestion.questionType);
         
-        let answers;  // Объявляем переменную в начале функции
+        let answers;  // Объявляем переменную в начале функци��
         
         switch(this.currentQuestion.questionType) {
             case 'multiple-choice':
@@ -2455,15 +2455,16 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 correctInCurrentSeries: this.correctInCurrentSeries,
                 questionsInCurrentSeries: this.questionsInCurrentSeries,
                 answeredQuestions: Array.from(this.answeredQuestions),
-                currentQuestionId: this.currentQuestion?.id
+                currentQuestionId: this.currentQuestion?.id,
+                questionsCountByLevel: this.questionsCountByLevel // Сохраняем только в localStorage
             };
 
             localStorage.setItem('testProgress', JSON.stringify(progress));
             console.log('Прогресс сохранён в localStorage:', progress);
 
-            // Подготавливаем данные для отправки на сервер
+            // Подготавливаем данные для отправки на сервер (без questionsCountByLevel)
             const progressData = {
-                userLogin: this.userLogin, // Убедитесь, что this.userLogin определен
+                userLogin: this.user.login,
                 stage: progress.stage,
                 level: progress.currentLevel,
                 correctCount: progress.correctCount,
@@ -2477,7 +2478,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             };
 
             // Отправляем на сервер
-            const response = await fetch('/api/progress', {
+            const response = await fetch(`${this.API_BASE_URL}/api/progress`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2486,9 +2487,13 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Ошибка при сохранении прогресса:', errorData);
-                throw new Error(`Ошибка при сохранении прогресса: ${response.status}`);
+                const errorText = await response.text();
+                console.error('Ошибка при сохранении прогресса:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: errorText
+                });
+                return null;
             }
 
             const result = await response.json();
