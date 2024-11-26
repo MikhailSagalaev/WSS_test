@@ -51,7 +51,16 @@ module.exports = async (req, res) => {
                 IncorrectLowerLevel: 0,
                 QuestionsOnCurrentLevel: 0,
                 Level: '',
-                AnsweredQuestions: '[]'
+                AnsweredQuestions: '[]',
+                CurrentQuestionId: '',
+                QuestionsCountByLevel: JSON.stringify({
+                    'pre-A1': 0,
+                    'A1': 0,
+                    'A2': 0,
+                    'B1': 0,
+                    'B2': 0,
+                    'C1': 0
+                })
             }
         };
 

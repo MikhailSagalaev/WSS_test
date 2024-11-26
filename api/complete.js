@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
 
         const { AIRTABLE_PAT, AIRTABLE_BASE_ID, AIRTABLE_PROGRESS_TABLE } = process.env;
 
-        // Получа��м существующую запись
+        // Получам существующую запись
         const filterFormula = `({UserLogin} = '${userLogin}')`;
         const getResponse = await fetch(
             `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_PROGRESS_TABLE)}?filterByFormula=${encodeURIComponent(filterFormula)}`,
@@ -75,7 +75,15 @@ module.exports = async (req, res) => {
                 FinalLevel: String(finalLevel || 'N/A'),
                 FinalWSS: Number(finalWss || 0),
                 CompletedAt: new Date(timestamp || Date.now()).toISOString(),
-                QuestionsOnCurrentLevel: 0
+                QuestionsOnCurrentLevel: 0,
+                QuestionsCountByLevel: JSON.stringify({
+                    'pre-A1': 0,
+                    'A1': 0,
+                    'A2': 0,
+                    'B1': 0,
+                    'B2': 0,
+                    'C1': 0
+                })
             }
         };
 
@@ -103,7 +111,7 @@ module.exports = async (req, res) => {
         const progressResult = await progressResponse.json();
         console.log('Progress update result:', progressResult);
 
-        // Логируем процесс обновле��ия попыток
+        // Логируем процесс обновлеия попыток
         console.log('Получаем данные пользователя:', userLogin);
         const { AIRTABLE_USERS_TABLE } = process.env;
         const userResponse = await fetch(
