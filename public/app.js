@@ -191,7 +191,7 @@ class TestApp {
             this.questionContainer.innerHTML = `
                 <div class="unavailable-message">
                     <p>${message}</p>
-                    <a href="https://t.me/@mixadev" target="_blank">Связаться с администратором</a>
+                    <a href="https://t.me/@mixadev" target="_blank">Связаться с администратор��м</a>
                 </div>
             `;
         }
@@ -292,9 +292,6 @@ class TestApp {
                     }
                 }
 
-                this.questionNumber = this.totalQuestions + 1;
-                this.updateQuestionNumber();
-
                 if (progress.AnswersHistory) {
                     try {
                         const answersHistory = JSON.parse(progress.AnswersHistory);
@@ -303,6 +300,18 @@ class TestApp {
                         console.error("Ошибка при парсинге истории ответов:", e);
                     }
                 }
+
+                if (progress.QuestionOrder) {
+                    try {
+                        const answersHistory = JSON.parse(progress.QuestionOrder);
+                        localStorage.setItem('answersHistory', JSON.stringify(answersHistory));
+                    } catch (e) {
+                        console.error("Ошибка при парсинге QuestionOrder:", e);
+                    }
+                }
+
+                this.questionNumber = this.totalQuestions + 1;
+                this.updateQuestionNumber();
 
                 return true;
             }
