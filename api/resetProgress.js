@@ -49,7 +49,9 @@ module.exports = async (req, res) => {
                 TotalQuestions: 0,
                 CorrectHigherLevel: 0,
                 IncorrectLowerLevel: 0,
-                QuestionsOnCurrentLevel: 0
+                QuestionsOnCurrentLevel: 0,
+                Level: '',
+                AnsweredQuestions: '[]'
             }
         };
 
