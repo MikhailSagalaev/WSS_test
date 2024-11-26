@@ -827,7 +827,7 @@ class TestApp {
         this.questionContainer.innerHTML = '';
         this.questionContainer.appendChild(container);
 
-        // Добавляем обработчики drag and drop
+        // Добавляем обра��отчики drag and drop
         this.initMatchingDragAndDrop();
 
         const form = document.createElement('form');
@@ -2475,7 +2475,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 questionsOnCurrentLevel: progress.questionsOnCurrentLevel,
                 correctOnCurrentLevel: progress.correctOnCurrentLevel,
                 timestamp: new Date().toISOString(),
-                questionsCountByLevel: JSON.stringify(progress.questionsCountByLevel) // Добавляем это поле
+                questionsCountByLevel: progress.questionsCountByLevel // Отправляем объект как есть
             };
 
             // Отправляем на сервер

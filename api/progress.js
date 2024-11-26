@@ -104,14 +104,16 @@ module.exports = async (req, res) => {
                         ? JSON.stringify(answeredQuestions) 
                         : '[]',
                     Timestamp: timestamp || new Date().toISOString(),
-                    QuestionsCountByLevel: questionsCountByLevel || JSON.stringify({
-                        'pre-A1': 0,
-                        'A1': 0,
-                        'A2': 0,
-                        'B1': 0,
-                        'B2': 0,
-                        'C1': 0
-                    })
+                    QuestionsCountByLevel: typeof questionsCountByLevel === 'string' 
+                        ? questionsCountByLevel 
+                        : JSON.stringify(questionsCountByLevel || {
+                            'pre-A1': 0,
+                            'A1': 0,
+                            'A2': 0,
+                            'B1': 0,
+                            'B2': 0,
+                            'C1': 0
+                        })
                 }
             };
 
