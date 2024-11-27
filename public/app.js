@@ -1216,6 +1216,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         
         let isCorrect = false;
         let questionType = this.currentQuestion.questionType;
+        let userAnswer = null;
 
         // Проверяем, истекло ли время
         if (event && event.timeExpired) {
@@ -1228,23 +1229,66 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 timeSpent: this.currentQuestion.timeLimit || 0
             };
 
-            // Сохраняем в обоих местах
             await this.saveAnswerToHistory(answerData);
             await this.saveAnswer(answerData);
 
             await this.evaluateSeries(false);
         } else {
-            const result = await this.checkAnswer(questionType);
-            isCorrect = result.isCorrect;
+            // Проверяем ответ в зависимости от типа вопроса
+            switch (questionType) {
+                case 'multiple-choice':
+                    userAnswer = this.getMultipleChoiceAnswer();
+                    if (userAnswer === null) {
+                        console.log('Ответ не выбран');
+                        return;
+                    }
+                    isCorrect = this.checkMultipleChoiceAnswer(userAnswer);
+                    break;
+
+                case 'matching':
+                    userAnswer = this.getMatchingAnswer();
+                    if (!userAnswer) {
+                        console.log('Не все элементы спарены');
+                        return;
+                    }
+                    isCorrect = this.checkMatchingAnswer(userAnswer);
+                    break;
+
+                case 'type-img':
+                    userAnswer = this.getTypeImgAnswer();
+                    if (!userAnswer.every(answer => answer.trim())) {
+                        console.log('Не все поля заполнены');
+                        return;
+                    }
+                    isCorrect = this.checkTypeImgAnswer(userAnswer);
+                    break;
+
+                case 'typing':
+                    userAnswer = this.getTypingAnswer();
+                    if (!userAnswer.every(answer => answer.trim())) {
+                        console.log('Не все поля заполнены');
+                        return;
+                    }
+                    isCorrect = this.checkTypingAnswer(userAnswer);
+                    break;
+
+                case 'matchingWords':
+                    userAnswer = this.getMatchingAnswers();
+                    if (!userAnswer.every(answer => answer)) {
+                        console.log('Не все слова сопоставлены');
+                        return;
+                    }
+                    isCorrect = this.checkMatchingAnswer(userAnswer);
+                    break;
+            }
 
             const answerData = {
                 questionId: this.currentQuestion.id,
-                userAnswer: result.userAnswer,
+                userAnswer: userAnswer,
                 isCorrect: isCorrect,
                 timeSpent: this.getTimeSpent()
             };
 
-            // Сохраняем в обоих местах
             await this.saveAnswerToHistory(answerData);
             await this.saveAnswer(answerData);
 

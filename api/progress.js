@@ -51,7 +51,13 @@ module.exports = async (req, res) => {
                     IncorrectLowerLevel: record.IncorrectLowerLevel || 0,
                     QuestionsOnCurrentLevel: record.QuestionsOnCurrentLevel || 0,
                     CurrentQuestionId: record.CurrentQuestionId,
-                    AnsweredQuestions: record.AnsweredQuestions
+                    AnsweredQuestions: record.AnsweredQuestions,
+                    AnswersHistory: record.AnswersHistory,
+                    Status: record.Status,
+                    CorrectOnCurrentLevel: record.CorrectOnCurrentLevel || 0,
+                    Timestamp: record.Timestamp,
+                    QuestionsCountByLevel: record.QuestionsCountByLevel,
+                    QuestionsOnCurrentLevel: record.QuestionsOnCurrentLevel || 0,
                 };
                 
                 res.status(200).json({ progress });
@@ -79,7 +85,8 @@ module.exports = async (req, res) => {
                 questionsCountByLevel,
                 timestamp,
                 currentQuestionId,
-                answeredQuestions 
+                answeredQuestions,
+                answersHistory
             } = req.body;
 
             // Проверяем обязательные поля
