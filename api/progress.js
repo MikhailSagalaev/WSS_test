@@ -117,9 +117,25 @@ module.exports = async (req, res) => {
                         ? answersHistory 
                         : JSON.stringify(answersHistory),   
                     Timestamp: timestamp || new Date().toISOString(),
-                    QuestionsCountByLevel: typeof questionsCountByLevel === 'string' 
-                        ? questionsCountByLevel 
-                        : JSON.stringify(questionsCountByLevel)
+                    QuestionsCountByLevel: (() => {
+                        try {
+                            if (typeof questionsCountByLevel === 'string') {
+                                const parsed = JSON.parse(questionsCountByLevel);
+                                return JSON.stringify(parsed);
+                            }
+                            return JSON.stringify(questionsCountByLevel);
+                        } catch (e) {
+                            console.error('Ошибка при обработке QuestionsCountByLevel:', e);
+                            return JSON.stringify({
+                                'pre-A1': 0,
+                                'A1': 0,
+                                'A2': 0,
+                                'B1': 0,
+                                'B2': 0,
+                                'C1': 0
+                            });
+                        }
+                    })(),
                 }
             };
 

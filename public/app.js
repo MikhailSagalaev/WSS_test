@@ -55,7 +55,10 @@ class TestApp {
                     userAnswer: answerData.userAnswer,
                     isCorrect: answerData.isCorrect,
                     timeSpent: answerData.timeSpent,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    level: this.currentLevel,
+                    stage: this.currentStage,
+                    questionType: this.currentQuestionType
                 };
                 
                 // Добавляем запись в историю
@@ -1488,7 +1491,6 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         // Обновляем счетчики
         this.questionsInCurrentSeries++;
         this.questionsOnCurrentLevel++;
-        this.questionsCountByLevel[this.currentLevel]++;
         this.totalQuestions++;
 
         // Проверяем общее количество вопросов на уровне
@@ -1611,8 +1613,17 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         
         if (nextStage) {
             console.log('Переход к этапу:', nextStage);
-            // Находим индекс следующего этапа
-            this.currentStageIndex = this.stages.indexOf(nextStage);
+            
+            // Сбрасываем текущий вопрос
+            this.currentQuestion = null;
+            
+            // Обновляем индекс этапа
+            const nextStageIndex = this.stages.indexOf(nextStage);
+            if (nextStageIndex === -1) {
+                console.error('Invalid next stage:', nextStage);
+                return;
+            }
+            this.currentStageIndex = nextStageIndex;
             
             // Сбрасываем счетчики для нового этапа
             this.correctCount = 0;
@@ -1624,13 +1635,21 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             this.correctOnCurrentLevel = 0;
             this.correctInCurrentSeries = 0;
             this.questionsInCurrentSeries = 0;
-            this.answeredQuestions.clear();
-            this.currentQuestion = null;
-
-            // Показываем экран с промежуточным результатом
-            await this.showIntermediateScreen();    
+            this.questionsCountByLevel = {
+                'pre-A1': 0,
+                'A1': 0,
+                'A2': 0,
+                'B1': 0,
+                'B2': 0,
+                'C1': 0
+            };
+            
+            // Сохраняем прогресс перед загрузкой нового вопроса
             await this.saveProgress();
-            await this.loadQuestion();
+            
+            // Показываем промежуточный экран и ждем нажатия кнопки
+            await this.showIntermediateScreen();
+            // loadQuestion будет вызван в обработчике кнопки
         } else {
             console.log('Все этапы завершены');
             await this.finishTest();
@@ -1662,10 +1681,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
 
         return new Promise((resolve) => {
             document.getElementById('start-listening-btn').addEventListener('click', async () => {
-                this.currentStageIndex++;
-                this.currentLevelIndex = 0;
-                this.updateCurrentStage();
-                await this.loadQuestion();
+                await this.loadQuestion(); // Загружаем вопрос только после нажатия кнопки
                 resolve();
             });
         });
@@ -1912,11 +1928,6 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             this.updateLevelBasedOnGroupResults();
         }
 
-        if (this.questionsOnCurrentLevel >= 9) {
-            this.finishStage();
-        } else {
-            this.loadNextQuestion();
-        }
     }
 
     setUser() {
