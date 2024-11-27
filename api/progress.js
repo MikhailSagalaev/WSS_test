@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
                 fields: {
                     UserLogin: userLogin,
                     Stage: stage || 'reading',
-                    Status: req.body.status || 'in progress',
+                    Status: req.body.status || 'In Progress',
                     Level: level || 'pre-A1',
                     CorrectCount: Number(correctCount) || 0,
                     IncorrectCount: Number(incorrectCount) || 0,
