@@ -69,6 +69,7 @@ module.exports = async (req, res) => {
             groupCorrectAnswers: latestProgress.GroupCorrectAnswers,
             groupTotalAnswers: latestProgress.GroupTotalAnswers,
             groupsAnswered: latestProgress.GroupsAnswered,
+            answersHistory: latestProgress.AnswersHistory,
             questionsOnCurrentLevel: latestProgress.QuestionsOnCurrentLevel,
             stage: latestProgress.Stage // Добавляем Stage
         };

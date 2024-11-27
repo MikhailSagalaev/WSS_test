@@ -191,7 +191,7 @@ class TestApp {
             this.questionContainer.innerHTML = `
                 <div class="unavailable-message">
                     <p>${message}</p>
-                    <a href="https://t.me/@mixadev" target="_blank">Связаться с администратор��м</a>
+                    <a href="https://t.me/@mixadev" target="_blank">Связаться с администратором</a>
                 </div>
             `;
         }
@@ -568,7 +568,7 @@ class TestApp {
             sentenceWithGaps: formattedQuestion.sentenceWithGaps
         });
     }
-    console.log('Форматированный вопрос:', formattedQuestion);
+    //console.log('Форматированный вопрос:', formattedQuestion);
         return formattedQuestion;
     }
 
@@ -1354,8 +1354,6 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             }
         }
 
-            this.questionsInCurrentSeries++;
-            this.questionsOnCurrentLevel++;
             this.totalQuestions++;
             this.updateQuestionNumber();
 
@@ -1371,7 +1369,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             this.answeredQuestions.add(this.currentQuestion.id);
 
             // Увеличиваем счетчик вопросов для текущего уровня
-            this.questionsCountByLevel[this.currentLevel]++;
+            //this.questionsCountByLevel[this.currentLevel]++;
             console.log(`Вопросов на уровне ${this.currentLevel}:`, this.questionsCountByLevel[this.currentLevel]);
 
             // Оцениваем серию
@@ -1485,32 +1483,9 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             questionsOnLevel: this.questionsCountByLevel[this.currentLevel]
         });
 
-        // Проверяем общее количество вопросов на уровне
-        if (this.questionsCountByLevel[this.currentLevel] >= 27) {
-            console.log(`Достигнут лимит в 27 вопросов на уровне ${this.currentLevel}`);
-            this.finishStage();
-            return;
-        }
-
         // Определяем индекс уровня вопроса
         const questionLevelIndex = this.levels.findIndex(level => level === this.currentQuestion.level);
-
-        // Существующая логика без изменений
-        if (this.questionsInCurrentSeries === 3) {
-            if (this.correctInCurrentSeries === 3 && this.currentLevelIndex < this.levels.length - 1) {
-                this.currentLevelIndex++;
-                this.currentLevel = this.levels[this.currentLevelIndex];
-            } else if (this.correctInCurrentSeries === 0 && this.currentLevelIndex > 0) {
-                this.currentLevelIndex--;
-                this.currentLevel = this.levels[this.currentLevelIndex];
-            }
-            
-            // Сбрасываем счетчики только после 3-х вопросов
-            this.questionsInCurrentSeries = 0;
-            this.correctInCurrentSeries = 0;
-        }
-
-        const targetLevelIndex = this.levels.indexOf(this.currentLevel); // Индекс целевого уровня
+        const targetLevelIndex = this.levels.indexOf(this.currentLevel);
 
         if (isCorrect) {
             this.correctCount++;
@@ -1532,9 +1507,29 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         this.questionsOnCurrentLevel++;
         this.totalQuestions++;
         
-        // Обновляем счетчик вопросов по уровням
-        if (this.currentQuestion.level in this.questionsCountByLevel) {
-            this.questionsCountByLevel[this.currentQuestion.level]++;
+        // Обновляем счетчик вопросов по уровням (перемещено сюда)
+        this.questionsCountByLevel[this.currentLevel]++;
+
+        // Проверяем общее количество вопросов на уровне
+        if (this.questionsCountByLevel[this.currentLevel] >= 27) {
+            console.log(`Достигнут лимит в 27 вопросов на уровне ${this.currentLevel}`);
+            await this.finishStage();
+            return;
+        }
+
+        // Проверяем серию из 3 вопросов
+        if (this.questionsInCurrentSeries === 3) {
+            if (this.correctInCurrentSeries === 3 && this.currentLevelIndex < this.levels.length - 1) {
+                this.currentLevelIndex++;
+                this.currentLevel = this.levels[this.currentLevelIndex];
+            } else if (this.correctInCurrentSeries === 0 && this.currentLevelIndex > 0) {
+                this.currentLevelIndex--;
+                this.currentLevel = this.levels[this.currentLevelIndex];
+            }
+            
+            // Сбрасываем счетчики только после 3-х вопросов
+            this.questionsInCurrentSeries = 0;
+            this.correctInCurrentSeries = 0;
         }
 
         this.updateQuestionNumber();
@@ -1568,6 +1563,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 userLogin: this.user?.login || '',
                 stage: this.stages[this.currentStageIndex] || 'reading',
                 level: this.levels[this.currentLevelIndex] || 'pre-A1',
+                status: 'in progress', 
                 correctCount: this.correctCount || 0,
                 incorrectCount: this.incorrectCount || 0,
                 totalQuestions: this.totalQuestions || 0,
@@ -1608,19 +1604,29 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     }
     
     async finishStage() {
-        // Сохраняем результаты текущего этапа
         const stageResult = {
             stage: this.stages[this.currentStageIndex],
             level: this.currentLevel,
             correctCount: this.correctCount,
             incorrectCount: this.incorrectCount,
-            questionsOnCurrentLevel: this.questionsOnCurrentLevel
+            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
+            finalLevel: this.currentLevel
         };
         this.stagesResults.push(stageResult);
-
-        // Если есть следующий этап
-        if (this.currentStageIndex < this.stages.length - 1) {
+    
+        // Проверяем следующий этап
+        const nextStage = this.stages[this.currentStageIndex + 1];
+        
+        if (nextStage) {
+            // Сначала сохраняем прогресс текущего этапа
+            await this.saveProgress();
+            
+            // Переходим к следующему этапу
+            this.currentStageIndex++;
+            
             // Сбрасываем счетчики для нового этапа
+            this.currentLevel = this.levels[0];
+            this.currentLevelIndex = 0;
             this.questionsOnCurrentLevel = 0;
             this.correctInCurrentSeries = 0;
             this.questionsInCurrentSeries = 0;
@@ -1633,9 +1639,13 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 'C1': 0
             };
             
+            console.log(`Переход к этапу: ${nextStage}`);
+            
+            // Показываем промежуточный экран и загружаем следующий вопрос
             await this.showIntermediateScreen();
-            await this.saveProgress(); // Сохраняем прогресс после обновления счетчиков
+            await this.loadQuestion();
         } else {
+            console.log('Все этапы завершены');
             await this.finishTest();
         }
     }
@@ -1667,7 +1677,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         
-        // Получаем результаты по этапам
+        // Получаем резуль��аты по этапам
         const readingResults = this.stagesResults.find(r => r.stage === 'reading') || {};
         const listeningResults = this.stagesResults.find(r => r.stage === 'listening') || {};
         
@@ -1754,10 +1764,11 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             
             // Очистка локального хранилища
             localStorage.removeItem('testProgress');
+            localStorage.removeItem('answersHistory'); // Добавляем очистку истории ответов
             
-            // Срос лкальных переменных
+            // Сброс локальных переменных
             this.currentStageIndex = 0;
-            this.currentLevel = this.levels[0]; // Испольуем первый уровень из массива
+            this.currentLevel = this.levels[0];
             this.correctCount = 0;
             this.incorrectCount = 0;
             this.totalQuestions = 0;
@@ -2492,6 +2503,9 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             localStorage.setItem('testProgress', JSON.stringify(progress));
             console.log('Прогресс сохранён в localStorage:', progress);
 
+            // Получаем историю ответов из localStorage
+            const answersHistory = localStorage.getItem('answersHistory');
+
             // Подготавливаем данные для отправки на сервер
             const progressData = {
                 userLogin: this.user.login,
@@ -2505,7 +2519,9 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 questionsOnCurrentLevel: progress.questionsOnCurrentLevel,
                 correctOnCurrentLevel: progress.correctOnCurrentLevel,
                 timestamp: new Date().toISOString(),
-                questionsCountByLevel: progress.questionsCountByLevel // Отправляем объект как есть
+                questionsCountByLevel: JSON.stringify(progress.questionsCountByLevel),
+                answersHistory: answersHistory, // Добавляем историю ответов
+                answeredQuestions: progress.answeredQuestions
             };
 
             // Отправляем на сервер

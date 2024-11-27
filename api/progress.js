@@ -103,7 +103,7 @@ module.exports = async (req, res) => {
                     AnsweredQuestions: Array.isArray(answeredQuestions) 
                         ? JSON.stringify(answeredQuestions) 
                         : '[]',
-                    QuestionOrder: req.body.answersHistory ? JSON.stringify(req.body.answersHistory) : '[]',
+                    AnswersHistory: req.body.answersHistory || '[]',
                     Timestamp: timestamp || new Date().toISOString(),
                     QuestionsCountByLevel: typeof questionsCountByLevel === 'string' 
                         ? questionsCountByLevel 
