@@ -1239,9 +1239,6 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 console.log('Увеличен incorrectOnLowerLevel:', this.incorrectOnLowerLevel);
             }
 
-            this.questionsInCurrentSeries++;
-            this.questionsOnCurrentLevel++;
-            this.totalQuestions++;
 
             // Обновляем номер вопроса и сохраняем прогресс
             this.updateQuestionNumber();
@@ -1251,6 +1248,12 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             await this.evaluateSeries(false);
             await this.loadQuestion();
             return;
+        }  else {
+            const result = await this.checkAnswer(questionType);
+            isCorrect = result.isCorrect;
+            
+            // Убираем увеличение счетчиков отсюда, оставляем только в evaluateSeries
+            await this.evaluateSeries(isCorrect);
         }
 
         // Обычная обработка ответа
@@ -1331,39 +1334,12 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         }
 
         // Получаем индексы уровней для сравнения
-        const questionLevelIndex = this.levels.findIndex(level => level === this.currentQuestion.level);
-        const currentLevelIndex = this.levels.indexOf(this.currentLevel);
+        //const questionLevelIndex = this.levels.findIndex(level => level === this.currentQuestion.level);
+        //const currentLevelIndex = this.levels.indexOf(this.currentLevel);
 
-        if (isCorrect) {
-            this.correctCount++;
-            this.correctInCurrentSeries++;
-            
-            // Обновляем счетчики в зависимости от уровня вопроса
-            if (questionLevelIndex === currentLevelIndex) {
-                this.correctOnCurrentLevel++;
-                console.log('Увеличен correctOnCurrentLevel:', this.correctOnCurrentLevel);
-            } else if (questionLevelIndex > currentLevelIndex) {
-                this.correctHigherLevel++;
-                console.log('Увеличен correctOnHigherLevel:', this.correctHigherLevel);
-            }
-        } else {
-            this.incorrectCount++;
-            if (questionLevelIndex < currentLevelIndex) {
-                this.incorrectOnLowerLevel++;
-                console.log('Увеличен incorrectOnLowerLevel:', this.incorrectOnLowerLevel);
-            }
-        }
 
-            this.totalQuestions++;
+            //this.totalQuestions++;
             this.updateQuestionNumber();
-
-            console.log('Обновлены счетчики:', {
-                correctOnCurrentLevel: this.correctOnCurrentLevel,
-                correctOnHigherLevel: this.correctOnHigherLevel,
-                incorrectOnLowerLevel: this.incorrectOnLowerLevel,
-                questionsOnCurrentLevel: this.questionsOnCurrentLevel,
-                totalQuestions: this.totalQuestions
-            });
 
             // Добавляем текущий вопрос в отвеченные
             this.answeredQuestions.add(this.currentQuestion.id);
@@ -1505,10 +1481,8 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         // Обновляем счетчики
         this.questionsInCurrentSeries++;
         this.questionsOnCurrentLevel++;
-        this.totalQuestions++;
-        
-        // Обновляем счетчик вопросов по уровням (перемещено сюда)
         this.questionsCountByLevel[this.currentLevel]++;
+        this.totalQuestions++;
 
         // Проверяем общее количество вопросов на уровне
         if (this.questionsCountByLevel[this.currentLevel] >= 27) {
@@ -1896,11 +1870,11 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
 
     updateProgress(isCorrect) {
         if (isCorrect) {
-            this.correctCount++;
+            //this.correctCount++;
             this.groupCorrectAnswers++;
             this.correctHigherLevel++;
         } else {
-            this.incorrectCount++;
+            //this.incorrectCount++;
             this.incorrectLowerLevel++;
         }
         this.totalQuestions++;
@@ -2155,6 +2129,10 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         if (this.submitBtn) {
             this.submitBtn.style.display = 'block';
         }
+        
+        // Устанавливаем статус "in progress" при старте теста
+        this.status = 'in progress';
+        this.saveProgress();
     }
 
     getMatchingWordsAnswer() {
@@ -2513,15 +2491,21 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 level: progress.currentLevel,
                 correctCount: progress.correctCount,
                 incorrectCount: progress.incorrectCount,
+                questionsCountByLevel: JSON.stringify(this.questionsCountByLevel || {
+                    'pre-A1': 0,
+                    'A1': 0,
+                    'A2': 0,
+                    'B1': 0,
+                    'B2': 0,
+                    'C1': 0
+                }),
                 totalQuestions: progress.totalQuestions,
                 correctHigherLevel: progress.correctHigherLevel,
                 incorrectLowerLevel: progress.incorrectLowerLevel,
                 questionsOnCurrentLevel: progress.questionsOnCurrentLevel,
                 correctOnCurrentLevel: progress.correctOnCurrentLevel,
                 timestamp: new Date().toISOString(),
-                questionsCountByLevel: JSON.stringify(progress.questionsCountByLevel),
-                answersHistory: answersHistory, // Добавляем историю ответов
-                answeredQuestions: progress.answeredQuestions
+                answersHistory: JSON.stringify(this.answersHistory || [])
             };
 
             // Отправляем на сервер

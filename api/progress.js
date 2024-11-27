@@ -92,6 +92,7 @@ module.exports = async (req, res) => {
                 fields: {
                     UserLogin: userLogin,
                     Stage: stage || 'reading',
+                    Status: status || 'in progress',
                     Level: level || 'pre-A1',
                     CorrectCount: Number(correctCount) || 0,
                     IncorrectCount: Number(incorrectCount) || 0,
@@ -103,18 +104,13 @@ module.exports = async (req, res) => {
                     AnsweredQuestions: Array.isArray(answeredQuestions) 
                         ? JSON.stringify(answeredQuestions) 
                         : '[]',
-                    AnswersHistory: req.body.answersHistory || '[]',
+                        AnswersHistory: typeof answersHistory === 'string' 
+                        ? answersHistory 
+                        : JSON.stringify(answersHistory),   
                     Timestamp: timestamp || new Date().toISOString(),
                     QuestionsCountByLevel: typeof questionsCountByLevel === 'string' 
                         ? questionsCountByLevel 
-                        : JSON.stringify(questionsCountByLevel || {
-                            'pre-A1': 0,
-                            'A1': 0,
-                            'A2': 0,
-                            'B1': 0,
-                            'B2': 0,
-                            'C1': 0
-                        })
+                        : JSON.stringify(questionsCountByLevel)
                 }
             };
 
