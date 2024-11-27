@@ -260,13 +260,58 @@ class TestApp {
                 this.currentLevelIndex = this.levels.indexOf(this.currentLevel);
                 if (this.currentLevelIndex === -1) this.currentLevelIndex = 0;
 
+               // Проверяем, является ли QuestionsCountByLevel строкой или объектом
+            let questionsCountByLevel;
+            if (typeof data.progress.QuestionsCountByLevel === 'string') {
+                try {
+                    questionsCountByLevel = JSON.parse(data.progress.QuestionsCountByLevel);
+                } catch (e) {
+                    console.error('Ошибка при парсинге QuestionsCountByLevel:', e);
+                    questionsCountByLevel = {
+                        'pre-A1': 0,
+                        'A1': 0,
+                        'A2': 0,
+                        'B1': 0,
+                        'B2': 0,
+                        'C1': 0
+                        };
+                    }
+                } else {
+                    questionsCountByLevel = data.progress.QuestionsCountByLevel;
+            }
+
+            console.log('Распарсенный QuestionsCountByLevel:', questionsCountByLevel);
+
+                const progressForStorage = {
+                    stage: data.progress.Stage,
+                    currentStageIndex: this.stages.indexOf(data.progress.Stage),
+                    currentLevel: data.progress.Level,
+                    correctCount: data.progress.CorrectCount,
+                    incorrectCount: data.progress.IncorrectCount,
+                    totalQuestions: data.progress.TotalQuestions,
+                    correctHigherLevel: data.progress.CorrectHigherLevel,
+                    incorrectLowerLevel: data.progress.IncorrectLowerLevel,
+                    questionsOnCurrentLevel: data.progress.QuestionsOnCurrentLevel,
+                    correctOnCurrentLevel: data.progress.CorrectOnCurrentLevel,
+                    questionsCountByLevel: questionsCountByLevel,
+                    answeredQuestions: typeof data.progress.AnsweredQuestions === 'string' 
+                    ? JSON.parse(data.progress.AnsweredQuestions)
+                    : data.progress.AnsweredQuestions || [],
+                    currentQuestionId: data.progress.CurrentQuestionId,
+                    status: data.progress.Status
+                };
+
+                localStorage.setItem('testProgress', JSON.stringify(progressForStorage));
+
                 console.log('Восстановлен этап и уровень:', {
                     stage: this.stages[this.currentStageIndex],
                     stageIndex: this.currentStageIndex,
                     level: this.currentLevel,
                     levelIndex: this.currentLevelIndex,
                     originalStage: progress.Stage,
-                    originalLevel: progress.Level
+                    QuestionsCountByLevel: progress.QuestionsCountByLevel,
+                    AnsweredQuestions: progress.AnsweredQuestions,
+                    AnswersHistory: progress.AnswersHistory
                 });
                 
                 // Используем точные имена полей из Airtable
@@ -276,7 +321,15 @@ class TestApp {
                 this.correctHigherLevel = progress.CorrectHigherLevel || 0;
                 this.incorrectLowerLevel = progress.IncorrectLowerLevel || 0;
                 this.questionsOnCurrentLevel = progress.QuestionsOnCurrentLevel || 0;
-                
+                this.questionsCountByLevel = progress.QuestionsCountByLevel || {
+                    'pre-A1': 0,
+                    'A1': 0,
+                    'A2': 0,
+                    'B1': 0,
+                    'B2': 0,
+                    'C1': 0
+                };
+
                 if (progress.CurrentQuestionId) {
                     this.currentQuestionId = progress.CurrentQuestionId;
                     console.log("Восстановлен ID вопроса:", this.currentQuestionId);
@@ -302,14 +355,6 @@ class TestApp {
                     }
                 }
 
-                if (progress.QuestionOrder) {
-                    try {
-                        const answersHistory = JSON.parse(progress.QuestionOrder);
-                        localStorage.setItem('answersHistory', JSON.stringify(answersHistory));
-                    } catch (e) {
-                        console.error("Ошибка при парсинге QuestionOrder:", e);
-                    }
-                }
 
                 this.questionNumber = this.totalQuestions + 1;
                 this.updateQuestionNumber();
@@ -347,7 +392,7 @@ class TestApp {
         this.incorrectLowerLevel = 0;
     }
 
-    // Мтод  схрнения прогресса в localStorage
+    // Метод сохранения прогресса в localStorage
     saveProgressToLocalStorage() {
         const progress = {
             stage: this.stages[this.currentStageIndex],
@@ -373,7 +418,7 @@ class TestApp {
         console.log("Прогресс сохранён в localStorage:", progress);
     }
 
-    loadProgressFromLocalStorage() {
+    async loadProgressFromLocalStorage() {
         const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
         if (savedProgress) {
             this.currentStageIndex = savedProgress.currentStageIndex ?? 0;
@@ -400,7 +445,9 @@ class TestApp {
 
             this.correctInCurrentSeries = savedProgress.correctInCurrentSeries || 0;
             this.questionsInCurrentSeries = savedProgress.questionsInCurrentSeries || 0;
-            this.questionsCountByLevel = savedProgress.questionsCountByLevel || {
+            this.questionsCountByLevel = typeof savedProgress.questionsCountByLevel === 'string' 
+            ? JSON.parse(savedProgress.questionsCountByLevel)
+            : savedProgress.questionsCountByLevel || {
                 'pre-A1': 0,
                 'A1': 0,
                 'A2': 0,
@@ -1229,6 +1276,9 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 timeSpent: this.currentQuestion.timeLimit || 0
             };
 
+            // Добавляем вопрос в отвеченные
+            this.answeredQuestions.add(this.currentQuestion.id);
+
             await this.saveAnswerToHistory(answerData);
             await this.saveAnswer(answerData);
 
@@ -1288,6 +1338,9 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 isCorrect: isCorrect,
                 timeSpent: this.getTimeSpent()
             };
+
+            // Добавляем вопрос в отвеченные
+            this.answeredQuestions.add(this.currentQuestion.id);
 
             await this.saveAnswerToHistory(answerData);
             await this.saveAnswer(answerData);
@@ -1399,6 +1452,19 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             currentLevel: this.currentLevel,
             questionsOnLevel: this.questionsCountByLevel[this.currentLevel]
         });
+        // Проверяем, что questionsCountByLevel является объектом
+    if (typeof this.questionsCountByLevel === 'string') {
+        this.questionsCountByLevel = JSON.parse(this.questionsCountByLevel);
+    }
+
+    // Обновляем счетчики
+    if (!this.questionsCountByLevel[this.currentLevel]) {
+        this.questionsCountByLevel[this.currentLevel] = 0;
+    }
+    this.questionsCountByLevel[this.currentLevel]++;
+
+    console.log(`Обновлен счетчик вопросов для уровня ${this.currentLevel}:`, 
+        this.questionsCountByLevel[this.currentLevel]);
 
         // Определяем индекс уровня вопроса
         const questionLevelIndex = this.levels.findIndex(level => level === this.currentQuestion.level);
@@ -1447,6 +1513,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             this.correctInCurrentSeries = 0;
         }
 
+        await this.saveProgress();
         this.updateQuestionNumber();
         await this.saveProgressToLocalStorage();
     }
@@ -1478,7 +1545,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 userLogin: this.user?.login || '',
                 stage: this.stages[this.currentStageIndex] || 'reading',
                 level: this.levels[this.currentLevelIndex] || 'pre-A1',
-                status: 'in progress', 
+                status: 'In Progress', 
                 correctCount: this.correctCount || 0,
                 incorrectCount: this.incorrectCount || 0,
                 totalQuestions: this.totalQuestions || 0,
@@ -1519,50 +1586,66 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     }
     
     async finishStage() {
+        console.log(`Завершение этапа ${this.stages[this.currentStageIndex]}`);
+        
+        // Сохраняем результаты текущего этапа
         const stageResult = {
             stage: this.stages[this.currentStageIndex],
             level: this.currentLevel,
             correctCount: this.correctCount,
             incorrectCount: this.incorrectCount,
-            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
-            finalLevel: this.currentLevel
+            totalQuestions: this.totalQuestions
         };
+        
         this.stagesResults.push(stageResult);
-    
-        // Проверяем следующий этап
-        const nextStage = this.stages[this.currentStageIndex + 1];
+        
+        // Определяем следующий этап
+        const currentStage = this.stages[this.currentStageIndex];
+        let nextStage;
+        
+        if (currentStage === 'reading') {
+            nextStage = 'listening';
+        } else if (currentStage === 'listening') {
+            nextStage = 'writing';
+        }
         
         if (nextStage) {
-            // Сначала сохраняем прогресс текущего этапа
-            await this.saveProgress();
-            
-            // Переходим к следующему этапу
-            this.currentStageIndex++;
+            console.log('Переход к этапу:', nextStage);
+            // Находим индекс следующего этапа
+            this.currentStageIndex = this.stages.indexOf(nextStage);
             
             // Сбрасываем счетчики для нового этапа
-            this.currentLevel = this.levels[0];
-            this.currentLevelIndex = 0;
+            this.correctCount = 0;
+            this.incorrectCount = 0;
+            this.totalQuestions = 0;
+            this.correctHigherLevel = 0;
+            this.incorrectLowerLevel = 0;
             this.questionsOnCurrentLevel = 0;
+            this.correctOnCurrentLevel = 0;
             this.correctInCurrentSeries = 0;
             this.questionsInCurrentSeries = 0;
-            this.questionsCountByLevel = {
-                'pre-A1': 0,
-                'A1': 0,
-                'A2': 0,
-                'B1': 0,
-                'B2': 0,
-                'C1': 0
-            };
-            
-            console.log(`Переход к этапу: ${nextStage}`);
-            
-            // Показываем промежуточный экран и загружаем следующий вопрос
-            await this.showIntermediateScreen();
+            this.answeredQuestions.clear();
+            this.currentQuestion = null;
+
+            // Показываем экран с промежуточным результатом
+            await this.showIntermediateScreen();    
+            await this.saveProgress();
             await this.loadQuestion();
         } else {
             console.log('Все этапы завершены');
             await this.finishTest();
         }
+    }
+
+    // Также проверим метод updateCurrentStage
+    updateCurrentStage(stage) {
+        if (!this.stages.includes(stage)) {
+            console.error('Invalid stage:', stage);
+            return false;
+        }
+        
+        this.currentStageIndex = this.stages.indexOf(stage);
+        return true;
     }
 
     async showIntermediateScreen() {
@@ -1592,7 +1675,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         const finalWss = this.computeFinalWss();
         const finalLevel = this.calculateFinalLevel(finalWss);
         
-        // Получаем резуль��аты по этапам
+        // Получаем резульаты по этапам
         const readingResults = this.stagesResults.find(r => r.stage === 'reading') || {};
         const listeningResults = this.stagesResults.find(r => r.stage === 'listening') || {};
         
@@ -2072,7 +2155,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         }
         
         // Устанавливаем статус "in progress" при старте теста
-        this.status = 'in progress';
+        this.status = 'In Progress';
         this.saveProgress();
     }
 
@@ -2137,21 +2220,6 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             }
         } else {
             console.error('Элемент task-description не найден');
-        }
-    }
-
-    updateCurrentStage() {
-        const currentStageElement = document.getElementById('current-stage');
-        if (currentStageElement) {
-            const currentStage = this.stages[this.currentStageIndex];
-            if (currentStage) {
-                // Преобразуем первую букву в заглавную
-                const formattedStage = currentStage.charAt(0).toUpperCase() + currentStage.slice(1);
-                currentStageElement.textContent = formattedStage;
-            } else {
-                console.error('Invalid stage index:', this.currentStageIndex);
-                currentStageElement.textContent = 'Reading'; // значение по умолчанию
-            }
         }
     }
 
@@ -2416,8 +2484,8 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 questionsInCurrentSeries: this.questionsInCurrentSeries,
                 answeredQuestions: Array.from(this.answeredQuestions),
                 currentQuestionId: this.currentQuestion?.id,
-                questionsCountByLevel: this.questionsCountByLevel,
-                status: this.status || 'in progress',
+                QuestionsCountByLevel: this.questionsCountByLevel,
+                status: this.status || 'In Progress',
                 answersHistory: this.answersHistory
 
             };

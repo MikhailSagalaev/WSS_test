@@ -101,7 +101,7 @@ module.exports = async (req, res) => {
                 fields: {
                     UserLogin: userLogin,
                     Stage: stage || 'reading',
-                    Status: req.body.status || 'In Progress',
+                    Status: status || 'In Progress',
                     Level: level || 'pre-A1',
                     CorrectCount: Number(correctCount) || 0,
                     IncorrectCount: Number(incorrectCount) || 0,
@@ -113,7 +113,7 @@ module.exports = async (req, res) => {
                     AnsweredQuestions: Array.isArray(answeredQuestions) 
                         ? JSON.stringify(answeredQuestions) 
                         : '[]',
-                        AnswersHistory: typeof answersHistory === 'string' 
+                    AnswersHistory: typeof answersHistory === 'string' 
                         ? answersHistory 
                         : JSON.stringify(answersHistory),   
                     Timestamp: timestamp || new Date().toISOString(),
@@ -123,7 +123,7 @@ module.exports = async (req, res) => {
                 }
             };
 
-            console.log('Данные для отправки в Airtable:', updateData);
+            console.log('Сохраняемые данные:', updateData);
 
             // Проверяем существование записи
             const filterFormula = `({UserLogin} = '${userLogin}')`;
@@ -189,11 +189,10 @@ module.exports = async (req, res) => {
             });
 
         } catch (error) {
-            console.error('Error:', error);
-            res.status(500).json({ 
-                error: 'Internal Server Error', 
-                details: error.message,
-                stack: error.stack 
+            console.error('Error in progress API:', error);
+            return res.status(500).json({ 
+                error: 'Internal Server Error',
+                details: error.message
             });
         }
     } else {
