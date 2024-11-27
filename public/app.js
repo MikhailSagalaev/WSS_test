@@ -10,6 +10,7 @@ class TestApp {
         this.API_BASE_URL = 'https://wss-test-five.vercel.app'; // Базовый URL для всех API-запросов
         this.isInitialized = false;
         this.stages = ['reading', 'listening'];
+        this.status = 'Completed';
         this.initializeElements();
         this.progressLoaded = false;
         this.submitBtn = document.getElementById('submit-btn');
@@ -1220,140 +1221,36 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         if (event && event.timeExpired) {
             console.log('Время истекло, переход к следующему вопросу');
             
-            // Сохраняем ответ в историю
-            await this.saveAnswerToHistory({
+            const answerData = {
                 questionId: this.currentQuestion.id,
                 userAnswer: null,
                 isCorrect: false,
                 timeSpent: this.currentQuestion.timeLimit || 0
-            });
+            };
 
-            // Получаем индексы уровней для сравнения
-            const questionLevelIndex = this.levels.findIndex(level => level === this.currentQuestion.level);
-            const currentLevelIndex = this.levels.indexOf(this.currentLevel);
+            // Сохраняем в обоих местах
+            await this.saveAnswerToHistory(answerData);
+            await this.saveAnswer(answerData);
 
-            // Обновляем счетчики
-            this.incorrectCount++;
-            if (questionLevelIndex < currentLevelIndex) {
-                this.incorrectOnLowerLevel++;
-                console.log('Увеличен incorrectOnLowerLevel:', this.incorrectOnLowerLevel);
-            }
-
-
-            // Обновляем номер вопроса и сохраняем прогресс
-            this.updateQuestionNumber();
-            await this.saveProgress();
-
-            // Загружаем следующий вопрос
             await this.evaluateSeries(false);
-            await this.loadQuestion();
-            return;
-        }  else {
+        } else {
             const result = await this.checkAnswer(questionType);
             isCorrect = result.isCorrect;
-            
-            // Убираем увеличение счетчиков отсюда, оставляем только в evaluateSeries
+
+            const answerData = {
+                questionId: this.currentQuestion.id,
+                userAnswer: result.userAnswer,
+                isCorrect: isCorrect,
+                timeSpent: this.getTimeSpent()
+            };
+
+            // Сохраняем в обоих местах
+            await this.saveAnswerToHistory(answerData);
+            await this.saveAnswer(answerData);
+
             await this.evaluateSeries(isCorrect);
         }
 
-        // Обычная обработка ответа
-        switch (questionType) {
-            case 'multiple-choice':
-                const selectedAnswer = this.getMultipleChoiceAnswer();
-                if (selectedAnswer === null) {
-                    console.log('Ответ не выбран');
-                    return;
-                }
-                isCorrect = this.checkMultipleChoiceAnswer(selectedAnswer);
-                await this.saveAnswerToHistory({
-                    questionId: this.currentQuestion.id,
-                    userAnswer: selectedAnswer,
-                    isCorrect: isCorrect,
-                    timeSpent: this.getTimeSpent()
-                });
-                break;
-
-            case 'matching':
-                const matchingAnswer = this.getMatchingAnswer();
-                if (!matchingAnswer) {
-                    console.log('Не все элементы спарены');
-                    return;
-                }
-                isCorrect = this.checkMatchingAnswer(matchingAnswer);
-                await this.saveAnswerToHistory({
-                    questionId: this.currentQuestion.id,
-                    userAnswer: matchingAnswer,
-                    isCorrect: isCorrect,
-                    timeSpent: this.getTimeSpent()
-                });
-                break;
-
-            case 'type-img':
-                const typeImgAnswer = this.getTypeImgAnswer();
-                if (!typeImgAnswer.every(answer => answer.trim())) {
-                    console.log('Не все поля заполнены');
-                    return;
-                }
-                isCorrect = this.checkTypeImgAnswer(typeImgAnswer);
-                await this.saveAnswerToHistory({
-                    questionId: this.currentQuestion.id,
-                    userAnswer: typeImgAnswer,
-                    isCorrect: isCorrect,
-                    timeSpent: this.getTimeSpent()
-                });
-                break;
-
-            case 'typing':
-                const typingAnswer = this.getTypingAnswer();
-                if (!typingAnswer.every(answer => answer.trim())) {
-                    console.log('Не все поля заполнены');
-                    return;
-                }
-                isCorrect = this.checkTypingAnswer(typingAnswer);
-                await this.saveAnswerToHistory({
-                    questionId: this.currentQuestion.id,
-                    userAnswer: typingAnswer,
-                    isCorrect: isCorrect,
-                    timeSpent: this.getTimeSpent()
-                });
-                break;
-            case 'matchingWords':
-                const matchingWordsAnswer = this.getMatchingAnswers();
-                if (!matchingWordsAnswer.every(answer => answer)) {
-                    console.log('Не все слова сопоставлены');
-                    return;
-                }
-                isCorrect = this.checkMatchingAnswer(matchingWordsAnswer);
-                await this.saveAnswerToHistory({
-                    questionId: this.currentQuestion.id,
-                    userAnswer: matchingWordsAnswer,
-                    isCorrect: isCorrect,
-                    timeSpent: this.getTimeSpent()
-                });
-                break;
-        }
-
-        // Получаем индексы уровней для сравнения
-        //const questionLevelIndex = this.levels.findIndex(level => level === this.currentQuestion.level);
-        //const currentLevelIndex = this.levels.indexOf(this.currentLevel);
-
-
-            //this.totalQuestions++;
-            this.updateQuestionNumber();
-
-            // Добавляем текущий вопрос в отвеченные
-            this.answeredQuestions.add(this.currentQuestion.id);
-
-            // Увеличиваем счетчик вопросов для текущего уровня
-            //this.questionsCountByLevel[this.currentLevel]++;
-            console.log(`Вопросов на уровне ${this.currentLevel}:`, this.questionsCountByLevel[this.currentLevel]);
-
-            // Оцениваем серию
-            await this.evaluateSeries(isCorrect);
-            await this.saveProgress();
-
-        // Загружаем следующий вопрос
-        await this.evaluateSeries(isCorrect);
         await this.loadQuestion();
     }
 
@@ -2475,7 +2372,10 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 questionsInCurrentSeries: this.questionsInCurrentSeries,
                 answeredQuestions: Array.from(this.answeredQuestions),
                 currentQuestionId: this.currentQuestion?.id,
-                questionsCountByLevel: this.questionsCountByLevel
+                questionsCountByLevel: this.questionsCountByLevel,
+                status: this.status || 'in progress',
+                answersHistory: this.answersHistory
+
             };
 
             localStorage.setItem('testProgress', JSON.stringify(progress));
