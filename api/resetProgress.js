@@ -54,6 +54,7 @@ module.exports = async (req, res) => {
                 AnsweredQuestions: '[]',
                 CurrentQuestionId: '',
                 QuestionOrder: '[]',
+                AnswersHistory: '[]',
                 QuestionsCountByLevel: JSON.stringify({
                     'pre-A1': 0,
                     'A1': 0,

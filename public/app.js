@@ -1,4 +1,4 @@
-const CONFIG = {
+    const CONFIG = {
     API_BASE_URL: 'https://wss-test-five.vercel.app',
     STORAGE_KEY: 'tilda_members_profile5854123'
 };
@@ -43,36 +43,33 @@ class TestApp {
         }
 
         this.saveAnswerToHistory = async (answerData) => {
-            try {
-                // Добавляем ответ в историю
-                if (!this.answersHistory) {
-                    this.answersHistory = [];
-                }
-                
-                // Формируем объект с данными ответа
-                const historyEntry = {
-                    questionId: answerData.questionId,
-                    userAnswer: answerData.userAnswer,
-                    isCorrect: answerData.isCorrect,
-                    timeSpent: answerData.timeSpent,
-                    timestamp: new Date().toISOString(),
-                    level: this.currentLevel,
-                    stage: this.currentStage,
-                    questionType: this.currentQuestionType
-                };
-                
-                // Добавляем запись в историю
-                this.answersHistory.push(historyEntry);
-                
-                // Сохраняем обновленную историю в localStorage
-                localStorage.setItem('answersHistory', JSON.stringify(this.answersHistory));
-                
-                console.log('Ответ успешно сохранен в историю');
-                return true;
-            } catch (error) {
-                console.error('Ошибка при сохранении ответа в историю:', error);
-                return false;
+            // Загружаем существующую историю из localStorage
+            const savedProgress = localStorage.getItem('progressData');
+            let existingHistory = [];
+            
+            if (savedProgress) {
+                const progressData = JSON.parse(savedProgress);
+                existingHistory = progressData.answersHistory || [];
             }
+
+            // Создаем новую запись
+            const historyEntry = {
+                questionId: answerData.questionId,
+                userAnswer: answerData.userAnswer,
+                isCorrect: answerData.isCorrect,
+                timeSpent: answerData.timeSpent,
+                timestamp: new Date().toISOString(),
+                stage: this.stages[this.currentStageIndex],
+                level: this.currentLevel
+            };
+
+            // Объединяем существующую историю с новым ответом
+            this.answersHistory = [...existingHistory, historyEntry];
+
+            console.log('История ответов обновлена:', this.answersHistory);
+
+            // Сохраняем обновленную историю
+            this.saveProgress();
         }
 
         // Кэширование DOM элементов
@@ -116,6 +113,12 @@ class TestApp {
             'B2': 0,
             'C1': 0
         };
+
+        this.isIntermediateScreen = false; // Флаг для промежуточного экрана
+        this.answersHistory = [];
+
+        // Инициализация шкалы WSS
+        this.wssScale = this.initializeWssScale();
     }
 
     initializeElements() {
@@ -135,15 +138,20 @@ class TestApp {
     }
 
     async init() {
-        if (this.isInitialized) return;
+        if (this.isInitialized) {
+            console.log('Приложение уже инициализировано');
+            return;
+        }
+        
+        let timeoutId; // Объявляем переменную здесь
+        const controller = new AbortController();
         
         try {
             this.showLoading();
             
             // Add timeout
             const timeout = 30000; // 30 seconds
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            timeoutId = setTimeout(() => controller.abort(), timeout);
             
             // Set user with proper error handling
             await this.setUser();
@@ -173,10 +181,15 @@ class TestApp {
             console.error("Initialization error:", error);
             this.hideLoading();
             this.showUnavailableMessage("Test initialization failed. Please try again or contact support.");
+        } finally {
+            this.hideLoading();
+            this.showStartButton();
+            clearTimeout(timeoutId);
         }
     }
 
     async initializeWithRetry(retries = 3) {
+        let lastError = null;
         for (let i = 0; i < retries; i++) {
             try {
                 await this.checkTestAvailability();
@@ -184,10 +197,13 @@ class TestApp {
                 await this.loadQuestions();
                 return;
             } catch (error) {
-                if (i === retries - 1) throw error;
+                console.error(`Попытка ${i + 1} из ${retries} не удалась:`, error);
+                lastError = error;
+                if (i === retries - 1) break;
                 await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i)));
             }
         }
+        throw lastError || new Error('Не удалось инициализировать приложение после нескольких попыток');
     }
 
     showUnavailableMessage(message) {
@@ -301,10 +317,13 @@ class TestApp {
                     ? JSON.parse(data.progress.AnsweredQuestions)
                     : data.progress.AnsweredQuestions || [],
                     currentQuestionId: data.progress.CurrentQuestionId,
+                    answersHistory: typeof data.progress.AnswersHistory === 'string'
+                    ? JSON.parse(data.progress.AnswersHistory)
+                    : data.progress.AnswersHistory || [],
                     status: data.progress.Status
                 };
 
-                localStorage.setItem('testProgress', JSON.stringify(progressForStorage));
+                localStorage.setItem('progressData', JSON.stringify(progressForStorage));
 
                 console.log('Восстановлен этап и уровень:', {
                     stage: this.stages[this.currentStageIndex],
@@ -352,7 +371,8 @@ class TestApp {
                 if (progress.AnswersHistory) {
                     try {
                         const answersHistory = JSON.parse(progress.AnswersHistory);
-                        localStorage.setItem('answersHistory', JSON.stringify(answersHistory));
+                        this.answersHistory = answersHistory;
+                        console.log("Восстановлена история ответов:", answersHistory);
                     } catch (e) {
                         console.error("Ошибка при парсинге истории ответов:", e);
                     }
@@ -394,35 +414,9 @@ class TestApp {
         this.correctHigherLevel = 0;
         this.incorrectLowerLevel = 0;
     }
-
-    // Метод сохранения прогресса в localStorage
-    saveProgressToLocalStorage() {
-        const progress = {
-            stage: this.stages[this.currentStageIndex],
-            currentStageIndex: this.currentStageIndex,
-            currentLevel: this.currentLevel,
-            correctCount: this.correctCount,
-            incorrectCount: this.incorrectCount,
-            totalQuestions: this.totalQuestions,
-            correctHigherLevel: this.correctHigherLevel,
-            incorrectLowerLevel: this.incorrectLowerLevel,
-            groupCorrectAnswers: this.groupCorrectAnswers,
-            groupTotalAnswers: this.groupTotalAnswers,
-            groupsAnswered: this.groupsAnswered,
-            questionsOnCurrentLevel: this.questionsOnCurrentLevel,
-            currentLevelIndex: this.currentLevelIndex,
-            answeredQuestions: Array.from(this.answeredQuestions),
-            currentQuestionId: this.currentQuestion?.id,
-            correctInCurrentSeries: this.correctInCurrentSeries,
-            questionsInCurrentSeries: this.questionsInCurrentSeries,
-            questionsCountByLevel: this.questionsCountByLevel
-        };
-        localStorage.setItem('testProgress', JSON.stringify(progress));
-        console.log("Прогресс сохранён в localStorage:", progress);
-    }
-
+    
     async loadProgressFromLocalStorage() {
-        const savedProgress = JSON.parse(localStorage.getItem('testProgress'));
+        const savedProgress = JSON.parse(localStorage.getItem('progressData'));
         if (savedProgress) {
             this.currentStageIndex = savedProgress.currentStageIndex ?? 0;
             this.currentLevel = savedProgress.currentLevel ?? 1;
@@ -438,6 +432,7 @@ class TestApp {
             this.currentLevelIndex = savedProgress.currentLevelIndex ?? 0;
             this.answeredQuestions = new Set(savedProgress.answeredQuestions || []);
             this.currentQuestionId = savedProgress.currentQuestionId;
+            this.answersHistory = savedProgress.answersHistory || [];
             console.log('Загруен ID вопроса:', this.currentQuestionId);
             if (!this.stages) {
                 console.error("Stages are not initialized.");
@@ -534,33 +529,39 @@ class TestApp {
             }
         } catch (error) {
             console.error('Ошибка при загрузке прогресса:', error);
+            return false;
         }
     }
 
     async loadQuestions() {
         try {
             this.showLoading();
-            console.log("Начало загрузи вопросов");
-            const response = await fetch(`${this.API_BASE_URL}/api/questions`);
+            console.log("Начало загрузки вопросов");
             
+            if (this.questions) {
+                console.log("Вопросы уже загружены");
+                return;
+            }
+
+            const response = await fetch(`${this.API_BASE_URL}/api/questions`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
+            
             const data = await response.json();
-            console.log("Вопросы агржены:", data.length);
+            console.log("Вопросы загружены:", data.length);
 
             this.questions = { reading: [], listening: [] };
 
             data.forEach(question => {
                 if (!question.fields) {
-                    console.warn('ропущен вопрс без полей:', question);
+                    console.warn('Пропущен вопрос без полей:', question);
                     return;
                 }
 
                 const stage = question.fields.Stage?.toLowerCase();
                 if (!stage || !this.questions[stage]) {
-                    console.warn('Пропущен опрос с неверным этапом:', question);
+                    console.warn('Пропущен вопрос с неверным этапом:', question);
                     return;
                 }
 
@@ -569,11 +570,11 @@ class TestApp {
             });
 
             console.log("Отформатированные вопросы:", this.questions);
-            this.hideLoading();
         } catch (error) {
-            this.hideLoading();
-            console.error("Ошибка при заузке вопросов:", error);
+            console.error("Ошибка загрузки вопросов:", error);
             throw error;
+        } finally {
+            this.hideLoading();
         }
     }
 
@@ -624,6 +625,10 @@ class TestApp {
     }
 
     loadQuestion() {
+        if (this.isTestCompleted) {
+            console.log('Тест завершен, загрузка новых вопросов остановлена');
+            return;
+        }
         console.log(`Загрузка вопроса для этапа: ${this.stages[this.currentStageIndex]}, уровня: ${this.levels[this.currentLevelIndex]}`);
         const currentStage = this.stages[this.currentStageIndex];
         const currentLevel = this.levels[this.currentLevelIndex];
@@ -642,7 +647,7 @@ class TestApp {
             return;
         }
 
-        // Проверяем, ест ли сохран��нный ID вопроса
+        // Проверяем, ест ли сохранённый ID вопроса
         if (this.currentQuestionId && !this.answeredQuestions.has(this.currentQuestionId)) {
             const savedQuestion = this.questions[currentStage].find(q => q.id === this.currentQuestionId);
             if (savedQuestion && savedQuestion.level === currentLevel) {
@@ -664,7 +669,7 @@ class TestApp {
             console.error('Вопрос не выбран');
         }
 
-        this.saveProgressToLocalStorage();
+        this.saveProgress();
         this.sendProgress();
 
         if (this.currentQuestion && this.currentQuestion.timeLimit) {
@@ -694,28 +699,48 @@ class TestApp {
     }
 
     startTimer(duration) {
+        // Очищаем предыдущий таймер если он есть
         if (this.timer) {
             clearInterval(this.timer);
         }
 
-        const timeLimit = duration;
-        if (!timeLimit) {
-            this.timerElement.textContent = '';
+        if (!this.currentQuestion || !this.currentQuestion.timeLimit) {
+            console.log('Таймер не запущен - нет текущего вопроса или лимита времени');
             return;
         }
 
-        this.timeLeft = timeLimit;
-        this.updateTimerDisplay();
+        const timerElement = document.getElementById('timer');
+        if (!timerElement) {
+            console.error('Элемент таймера не найден');
+            return;
+        }
 
+        // Показываем элемент таймера
+        timerElement.style.display = 'block';
+
+        // Устанавливаем начальное время в секундах
+        let timeLeft = this.currentQuestion.timeLimit;
+
+        // Функция форматирования времени в MM:SS
+        const formatTime = (seconds) => {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        };
+
+        // Обновляем отображение таймера каждую секунду
         this.timer = setInterval(() => {
-            this.timeLeft--;
-            this.updateTimerDisplay();
+            timeLeft--;
+            timerElement.textContent = formatTime(timeLeft);
 
-            if (this.timeLeft <= 0) {
+            if (timeLeft <= 0) {
                 clearInterval(this.timer);
                 this.handleSubmit({ timeExpired: true });
             }
         }, 1000);
+
+        // Устанавливаем начальное значение
+        timerElement.textContent = formatTime(timeLeft);
     }
 
     updateTimerDisplay() {
@@ -726,7 +751,8 @@ class TestApp {
 
     renderQuestion(question) {
         console.log("Рендеринг вопроса:", question);
-        console.log("ендеринг вопроса типа:", question.questionType);
+        console.log('Изображение дизайна:', question.designImage);
+        this.updateDesignImage(question.designImage);
         
         if (!question.questionType) {
             console.error('Тп вопроса не определен:', question);
@@ -1165,6 +1191,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             this.submitBtn.disabled = !allFilled;
         }
     }
+    
 
     addInputListeners() {
         const inputs = this.questionContainer.querySelectorAll('.gap-answer');
@@ -1262,6 +1289,11 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     }
 
     async handleSubmit(event) {
+        if (this.isIntermediateScreen) {
+            console.log('Отправка ответа заблокирована на промежуточном экране.');
+            return;
+        }
+
         console.log('handleSubmit вызван', event);
         
         let isCorrect = false;
@@ -1326,12 +1358,12 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                     break;
 
                 case 'matchingWords':
-                    userAnswer = this.getMatchingAnswers();
+                    userAnswer = this.getMatchingWordsAnswer();
                     if (!userAnswer.every(answer => answer)) {
                         console.log('Не все слова сопоставлены');
                         return;
                     }
-                    isCorrect = this.checkMatchingAnswer(userAnswer);
+                    isCorrect = this.checkMatchingWordsAnswer(userAnswer);
                     break;
             }
 
@@ -1479,12 +1511,12 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             if (questionLevelIndex === targetLevelIndex) {
                 this.correctOnCurrentLevel++;
             } else if (questionLevelIndex > targetLevelIndex) {
-                this.correctHigherLevel++;
+                //this.correctHigherLevel++;
             }
         } else {
             this.incorrectCount++;
             if (questionLevelIndex < targetLevelIndex) {
-                this.incorrectLowerLevel++;
+                //this.incorrectLowerLevel++;
             }
         }
 
@@ -1494,8 +1526,8 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         this.totalQuestions++;
 
         // Проверяем общее количество вопросов на уровне
-        if (this.questionsCountByLevel[this.currentLevel] >= 27) {
-            console.log(`Достигнут лимит в 27 вопросов на уровне ${this.currentLevel}`);
+        if (this.questionsCountByLevel[this.currentLevel] >= 9) {
+            console.log(`Достигнут лимит в 9 вопросов на уровне ${this.currentLevel}`);
             await this.finishStage();
             return;
         }
@@ -1517,7 +1549,6 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
 
         await this.saveProgress();
         this.updateQuestionNumber();
-        await this.saveProgressToLocalStorage();
     }
 
     moveToNextLevel() {
@@ -1541,6 +1572,10 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     }
 
     async sendProgress() {
+        if (this.isTestCompleted) {
+            console.log('Тест завершен, отправка прогресса остановлена');
+            return;
+        }
         try {
             // Проверяем и форматируем данные перед отправкой
             const progressData = {
@@ -1558,6 +1593,7 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 // Преобразуем Set в массив и фильтруем null значения
                 answeredQuestions: Array.from(this.answeredQuestions || []).filter(Boolean),
                 timestamp: new Date().toISOString(),
+                answersHistory: this.answersHistory || [],
                 // Добавляем текущий уровень как отдельное поле
                 currentLevel: this.currentLevel || 'pre-A1'
             };
@@ -1607,13 +1643,14 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         
         if (currentStage === 'reading') {
             nextStage = 'listening';
-        } else if (currentStage === 'listening') {
-            nextStage = 'writing';
-        }
+        } 
         
         if (nextStage) {
             console.log('Переход к этапу:', nextStage);
             
+            // Устанавливаем флаг промежуточного экрана
+            this.isIntermediateScreen = true;
+
             // Сбрасываем текущий вопрос
             this.currentQuestion = null;
             
@@ -1644,12 +1681,11 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
                 'C1': 0
             };
             
-            // Сохраняем прогресс перед загрузкой нового вопроса
+            // Сохраняем прогресс
             await this.saveProgress();
             
             // Показываем промежуточный экран и ждем нажатия кнопки
             await this.showIntermediateScreen();
-            // loadQuestion будет вызван в обработчике кнопки
         } else {
             console.log('Все этапы завершены');
             await this.finishTest();
@@ -1681,82 +1717,267 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
 
         return new Promise((resolve) => {
             document.getElementById('start-listening-btn').addEventListener('click', async () => {
+                this.isIntermediateScreen = false; // Снимаем флаг после нажатия кнопки
                 await this.loadQuestion(); // Загружаем вопрос только после нажатия кнопки
                 resolve();
             });
         });
     }
 
-    async finishTest() {
-        const finalWss = this.computeFinalWss();
-        const finalLevel = this.calculateFinalLevel(finalWss);
+    // Утилита для валидации данных
+    validateResults(results) {
+        const required = ['userLogin', 'finalLevel', 'finalWss', 'correctCount', 'incorrectCount', 'totalQuestions'];
+        const missing = required.filter(field => !results[field]);
         
-        // Получаем резульаты по этапам
-        const readingResults = this.stagesResults.find(r => r.stage === 'reading') || {};
-        const listeningResults = this.stagesResults.find(r => r.stage === 'listening') || {};
+        if (missing.length > 0) {
+            throw new Error(`Missing required fields: ${missing.join(', ')}`);
+        }
         
+        if (results.correctCount + results.incorrectCount !== results.totalQuestions) {
+            throw new Error('Invalid question counts');
+        }
+        
+        return true;
+    }
+
+    // Утилита для повторных попыток
+    async retryOperation(operation, maxRetries = 3, delay = 1000) {
+        let lastError;
+        
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                return await operation();
+            } catch (error) {
+                console.warn(`Attempt ${i + 1} failed:`, error);
+                lastError = error;
+                if (i < maxRetries - 1) {
+                    await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+                }
+            }
+        }
+        
+        throw lastError;
+    }
+
+    async sendResultsToAirtable(results) {
         try {
-            const completeResponse = await fetch(`${this.API_BASE_URL}/api/complete`, {
+            const finalWssData = this.computeFinalWss();
+            const readingResults = this.stagesResults.find(r => r.stage === 'reading');
+            const listeningResults = this.stagesResults.find(r => r.stage === 'listening');
+
+            const dataToSend = {
+                userLogin: this.user.login,
+                finalLevel: finalWssData.finalLevel,
+                finalWss: finalWssData.finalWss,
+                correctCount: this.correctCount,
+                incorrectCount: this.incorrectCount,
+                totalQuestions: this.totalQuestions,
+                timestamp: new Date().toISOString(),
+                readingLevel: readingResults?.level || 'N/A',
+                readingWss: finalWssData.readingWss,
+                readingCorrectCount: readingResults?.correctCount || 0,
+                readingIncorrectCount: readingResults?.incorrectCount || 0,
+                listeningLevel: listeningResults?.level || 'N/A',
+                listeningWss: finalWssData.listeningWss,
+                listeningCorrectCount: listeningResults?.correctCount || 0,
+                listeningIncorrectCount: listeningResults?.incorrectCount || 0,
+                stagesResults: this.stagesResults
+            };
+
+            const response = await fetch(`${this.API_BASE_URL}/api/complete`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    userLogin: this.user.login,
-                    finalLevel,
-                    finalWss,
-                    correctCount: this.correctCount,
-                    incorrectCount: this.incorrectCount,
-                    totalQuestions: this.totalQuestions,
-                    timestamp: new Date().toISOString(),
-                    readingLevel: readingResults.finalLevel,
-                    readingWss: readingResults.finalWss,
-                    readingCorrectCount: readingResults.correctCount,
-                    readingIncorrectCount: readingResults.incorrectCount,
-                    listeningLevel: listeningResults.finalLevel,
-                    listeningWss: listeningResults.finalWss,
-                    listeningCorrectCount: listeningResults.correctCount,
-                    listeningIncorrectCount: listeningResults.incorrectCount,
-                    stagesResults: this.stagesResults
-                })
+                body: JSON.stringify(dataToSend)
             });
 
-            if (!completeResponse.ok) {
-                throw new Error(`HTTP error! status: ${completeResponse.status}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            // Показываем результат
-            this.showResults();
-            this.disableInteractions();
-            
-            // Очищаем локальный прогресс
-            localStorage.removeItem('reloadCount');
-            localStorage.removeItem('testProgress');
-
-            this.sendResultsToAirtable(); // Отпрвка результатов
-
-            await this.resetProgress(); // Добавлено: сброс прогресса
+            const data = await response.json();
+            console.log('Результаты успешно отправлены:', data);
+            return data;
         } catch (error) {
-            console.error("Ошибка ри завершении теста:", error);
-            alert("Произошла ошибка при завершении теста. Пожалуйста, попробуйте еще раз или свяжитесь с администратором.");
+            console.error('Ошибка при отправке результатов в Airtable:', error);
+            throw error;
         }
-        this.showResultsScreen();
+    }
 
-        localStorage.removeItem('answersHistory'); // Очищаем историю ответов
-        
-        // Отправляем финальные результаты
-        const results = {
-            userLogin: this.user.login,
-            finalLevel: this.currentLevel,
-            finalWss: this.calculateFinalWSS(),
-            correctCount: this.correctCount,
-            incorrectCount: this.incorrectCount,
-            totalQuestions: this.totalQuestions,
-            timestamp: new Date().toISOString(),
-            stagesResults: this.stagesResults
-        };
+    async finishTest() {
+        try {
+            // Сразу устанавливаем флаг завершения
+            this.isTestCompleted = true;
+            
+            // Очищаем текущий контейнер вопроса
+            if (this.questionContainer) {
+                this.questionContainer.innerHTML = '';
+            }
+            
+            this.showLoading();
+            
+            // Формируем финальные результаты
+            const results = {
+                userLogin: this.user.login,
+                finalLevel: this.currentLevel,
+                finalWss: this.computeFinalWss(),
+                correctCount: this.correctCount,
+                incorrectCount: this.incorrectCount,
+                totalQuestions: this.totalQuestions,
+                timestamp: new Date().toISOString(),
+                stagesResults: this.stagesResults,
+                readingResults: this.stagesResults.find(r => r.stage === 'reading'),
+                listeningResults: this.stagesResults.find(r => r.stage === 'listening')
+            };
 
-        await this.sendResultsToAirtable(results);
+            console.log('Отправка финальных результатов:', results);
+
+            // Отправляем результаты
+            const response = await this.sendResultsToAirtable(results);
+
+            // Сбрасываем прогресс в таблице Tests
+            await this.resetProgress();
+            
+            console.log('Получен ответ от сервера:', response);
+
+            // Очищаем состояние теста
+            localStorage.removeItem('reloadCount');
+            localStorage.removeItem('progressData');
+            localStorage.removeItem('answersHistory');
+            
+            // Останавливаем все таймеры
+            if (this.questionTimer) {
+                clearInterval(this.questionTimer);
+                this.questionTimer = null;
+            }
+            
+            try {
+                // Удаляем обработчики событий
+                this.removeEventListeners();
+            } catch (e) {
+                console.warn('Ошибка при удалении обработчиков событий:', e);
+            }
+            
+            // Показываем финальный экран
+            await this.showFinalResults(response.finalLevel, response.finalWss);
+            
+            return results;
+        } catch (error) {
+            console.error("Ошибка при завершении теста:", error);
+            this.showError('Произошла ошибка при завершении теста. Пожалуйста, свяжитесь с администратором.');
+            throw error;
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    // Обновляем метод showFinalResults
+    async showFinalResults(results) {
+        try {
+            console.log('Отображение финальных результатов:', results);
+            
+            // Проверяем наличие results
+            if (!results) {
+                console.error('Results object is undefined');
+                return;
+            }
+
+            const { finalLevel, finalWss } = results;
+
+            // Очищаем основной контейнер
+            const mainContainer = document.querySelector('.test-container');
+            if (mainContainer) {
+                mainContainer.innerHTML = '';
+            }
+
+            // Создаем контейнер для результатов
+            const resultsContainer = document.createElement('div');
+            resultsContainer.className = 'results-container';
+
+            // Добавляем заголовок
+            const header = document.createElement('h2');
+            header.textContent = 'Тест завершен';
+            resultsContainer.appendChild(header);
+
+            // Добавляем уровень
+            if (finalLevel) {
+                const levelElement = document.createElement('p');
+                levelElement.textContent = `Ваш уровень: ${finalLevel}`;
+                resultsContainer.appendChild(levelElement);
+            }
+
+            // Добавляем WSS если он есть
+            if (typeof finalWss !== 'undefined') {
+                const wssElement = document.createElement('p');
+                wssElement.textContent = `WSS: ${finalWss}`;
+                resultsContainer.appendChild(wssElement);
+            }
+
+            // Добавляем результаты в DOM
+            if (mainContainer) {
+                mainContainer.appendChild(resultsContainer);
+            }
+
+            // Сохраняем финальные результаты
+            if (this.user?.login) {
+                try {
+                    const response = await fetch('/api/results', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            userLogin: this.user.login,
+                            finalLevel,
+                            finalWss,
+                            timestamp: new Date().toISOString()
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to save results');
+                    }
+                } catch (error) {
+                    console.error('Error saving results:', error);
+                }
+            }
+        } catch (error) {
+            console.error('Error in showFinalResults:', error);
+        }
+    }
+
+    // Добавляем метод для отключения взаимодействий
+    disableInteractions() {
+        // Отключаем все интерактивные элементы
+        const interactiveElements = document.querySelectorAll('button:not(.dashboard-btn), input, select');
+        interactiveElements.forEach(element => {
+            element.disabled = true;
+        });
+    }
+
+    // Добавляем методы для отображения ошибок и состояния загрузки
+    showError(message) {
+        const errorContainer = document.createElement('div');
+        errorContainer.className = 'error-message';
+        errorContainer.innerHTML = `
+            <p>${message}</p>
+            <button onclick="this.parentElement.remove()">OK</button>
+        `;
+        document.body.appendChild(errorContainer);
+    }
+
+    showLoading() {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'flex';
+        }
+    }
+
+    hideLoading() {
+        if (this.loadingOverlay) {
+            this.loadingOverlay.style.display = 'none';
+        }
     }
 
     async resetProgress() {
@@ -1774,29 +1995,30 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
             }
 
             const data = await response.json();
-            console.log("Проресс успешно сброшн:", data);
+            console.log("Прогресс успешно сброшен:", data);
             
-            // Очистка локального хранилища
-            localStorage.removeItem('testProgress');
-            localStorage.removeItem('answersHistory'); // Добавляем очистку истории ответов
-            
-            // Сброс локальных переменных
-            this.currentStageIndex = 0;
-            this.currentLevel = this.levels[0];
-            this.correctCount = 0;
-            this.incorrectCount = 0;
-            this.totalQuestions = 0;
-            this.correctHigherLevel = 0;
-            this.incorrectLowerLevel = 0;
-            this.questionsOnCurrentLevel = 0;
-            this.stagesResults = [];
-            this.currentQuestion = null;
-            
-            // Показываем кнопку START
-            this.showStartButton();
+            // Очистка только если тест не завершен
+            if (!this.isTestCompleted) {
+                localStorage.removeItem('progressData');
+                localStorage.removeItem('answersHistory');
+                
+                this.currentStageIndex = 0;
+                this.currentLevel = this.levels[0];
+                this.correctCount = 0;
+                this.incorrectCount = 0;
+                this.totalQuestions = 0;
+                this.correctHigherLevel = 0;
+                this.incorrectLowerLevel = 0;
+                this.questionsOnCurrentLevel = 0;
+                this.stagesResults = [];
+                this.AnswersHistory = [];
+                this.currentQuestion = null;
+                
+                this.showStartButton();
+            }
         } catch (error) {
-            console.error("Ошибка при сбросе погресса:", error);
-            alert("Произошла ошибка при сбросе прогресса. Пожалуйста, попробуйте еще раз.");
+            console.error("Ошибка при сбросе прогресса:", error);
+            this.showError("Произошла ошибка при сбросе прогресса");
         }
     }
 
@@ -1873,55 +2095,20 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         return wssScale[0].level;
     }
 
-    async sendResultsToAirtable(results) {
-        try {
-            const response = await fetch(`${this.API_BASE_URL}/api/complete`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(results)
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('Результаты успешно отправлены:', data);
-            return data;
-        } catch (error) {
-            console.error('Ошибка при отправке результтов в Airtable:', error);
-            throw error;
-        }
-    }
-
-    showLoading() {
-        if (this.loadingOverlay) {
-            this.loadingOverlay.classList.remove('hidden');
-        }
-    }
-
-    hideLoading() {
-        if (this.loadingOverlay) {
-            this.loadingOverlay.classList.add('hidden');
-        }
-    }
-
     updateProgress(isCorrect) {
         if (isCorrect) {
             //this.correctCount++;
             this.groupCorrectAnswers++;
-            this.correctHigherLevel++;
+            //this.correctHigherLevel++;
         } else {
             //this.incorrectCount++;
-            this.incorrectLowerLevel++;
+            //this.incorrectLowerLevel++;
         }
         this.totalQuestions++;
         this.groupTotalAnswers++;
         this.questionsOnCurrentLevel++;
 
-        this.saveProgressToLocalStorage();
+        this.saveProgress();
         this.sendProgress();
 
         if (this.groupTotalAnswers >= 3) {
@@ -1951,17 +2138,75 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     }
 
     getMatchingAnswer() {
+        console.log('Получение ответов matching');
         const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
         const answers = Array.from(dropZones).map(zone => {
-            const wordItem = zone.querySelector('.word-item');
-            return wordItem ? wordItem.getAttribute('data-word') : null;
+            const option = zone.querySelector('.option');
+            console.log('Зона:', zone);
+            console.log('Опция в зоне:', option);
+            if (option) {
+                // Получаем слово из data-word
+                const answer = option.getAttribute('data-word');
+                console.log('Слово:', answer);
+                return answer;
+            }
+            return null;
         });
+
+        console.log('Собранные ответы matching:', answers);
+        
+        // Проверяем, что все зоны заполнены
+        if (answers.includes(null)) {
+            console.log('Не все зоны заполнены');
+            return null;
+        }
+
         return answers;
     }
 
     checkMatchingAnswer(userAnswer) {
-        const correctAnswer = this.currentQuestion.matchPairs.map(pair => pair.option);
-        return JSON.stringify(userAnswer) === JSON.stringify(correctAnswer);
+        console.log('Проверка ответа matching:', {
+            userAnswer,
+            correctAnswers: this.currentQuestion.matchPairs // Используем matchPairs
+        });
+
+        if (!userAnswer || !Array.isArray(userAnswer)) {
+            console.log('Невалидный формат ответа пользователя');
+            return false;
+        }
+
+        // Получаем массив правильных ответов
+        const correctAnswers = this.currentQuestion.matchPairs;
+        
+        if (!Array.isArray(correctAnswers)) {
+            console.log('Невалидный формат правильных ответов');
+            return false;
+        }
+
+        console.log('Сравнение ответов:', {
+            userAnswer,
+            correctAnswers
+        });
+
+        // Проверяем что все элементы сопоставлены
+        if (userAnswer.includes(null)) {
+            console.log('Не все элементы сопоставлены');
+            return false;
+        }
+
+        // Сравниваем каждую пару, используя свойство option
+        const isCorrect = userAnswer.every((answer, index) => {
+            const correct = correctAnswers[index].option; // Берем значение из свойства option
+            console.log(`Сравнение пары ${index}:`, { 
+                user: answer, 
+                correct: correct,
+                isMatch: answer === correct
+            });
+            return answer === correct;
+        });
+
+        console.log('Результат проверки:', isCorrect);
+        return isCorrect;
     }
 
     getMultipleChoiceAnswer() {
@@ -2052,64 +2297,172 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     checkMatchingWordsAnswer(userAnswer) {
         console.log('Проверка ответа matchingWords:', {
             userAnswer,
-            correctAnswers: this.currentQuestion.wordOptions
+            correctAnswers: this.currentQuestion.wordOptions // Используем wordOptions для matchingWords
         });
-    
-        if (!Array.isArray(userAnswer) || !Array.isArray(this.currentQuestion.wordOptions)) {
-            console.log('Неверный формат ответов');
+
+        if (!userAnswer || !Array.isArray(userAnswer)) {
+            console.log('Невалидный формат ответа пользователя');
             return false;
         }
-    
-        if (userAnswer.length !== this.currentQuestion.wordOptions.length) {
-            console.log('Разное количество ответов');
+
+        // Получаем массив правильных ответов
+        const correctAnswers = this.currentQuestion.wordOptions;
+        
+        if (!Array.isArray(correctAnswers)) {
+            console.log('Невалидный формат правильных ответов');
             return false;
         }
-    
+
+        console.log('Сравнение ответов:', {
+            userAnswer,
+            correctAnswers
+        });
+
+        // Проверяем что все элементы сопоставлены
+        if (userAnswer.includes(null)) {
+            console.log('Не все элементы сопоставлены');
+            return false;
+        }
+
+        // Сравниваем каждое слово
         const isCorrect = userAnswer.every((answer, index) => {
-            const correct = this.currentQuestion.wordOptions[index];
-            console.log(`Проверка ответа ${index}:`, {
-                userAnswer: answer,
-                correctAnswer: correct,
-                isMatch: answer === correct
+            console.log(`Сравнение слова ${index}:`, { 
+                user: answer, 
+                correct: correctAnswers[index],
+                isMatch: answer === correctAnswers[index]
             });
-            return answer === correct;
+            return answer === correctAnswers[index];
         });
-    
+
         console.log('Результат проверки:', isCorrect);
         return isCorrect;
+    }
+
+    getMatchingWordsAnswer() {
+        console.log('Получение ответов matchingWords');
+        const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
+        const answers = Array.from(dropZones).map(zone => {
+            const option = zone.querySelector('.option');
+            const answer = option ? option.getAttribute('data-word') : null;
+            console.log('Слово из зоны:', answer);
+            return answer;
+        });
+
+        // Проверяем, что все слова расставлены
+        if (answers.some(answer => answer === null)) {
+            console.log('Не все слова расставлены');
+            return null;
+        }
+
+        console.log('Собранные ответы matchingWords:', answers);
+        return answers;
     }
 
     updateQuestionNumber() {
         const questionNumberElement = document.getElementById('question-number');
         if (questionNumberElement) {
-            const progress = JSON.parse(localStorage.getItem('testProgress') || '{}');
+            const progress = JSON.parse(localStorage.getItem('progressData') || '{}');
             questionNumberElement.textContent = `${this.totalQuestions + 1}`;
         }
     }
 
-    computeFinalWss() {
-        // Убеждаемся, что у нас есть текущий уровень
-        const targetLevel = this.currentLevel || 'A1';
-        
-        const result = {
-            targetLevel: targetLevel,
-            correctOnCurrentLevel: this.correctOnCurrentLevel,
-            correctHigherLevel: this.correctHigherLevel,
-            incorrectLowerLevel: this.incorrectLowerLevel,
-            questionsOnCurrentLevel: this.questionsOnCurrentLevel
-        };
+computeFinalWss() {
+    console.log('Начало расчета финального WSS');
 
-        console.log('Расчет finalWss:', result);
+    // Получаем результаты по этапам
+    const readingResults = this.stagesResults.find(r => r.stage === 'reading');
+    const listeningResults = this.stagesResults.find(r => r.stage === 'listening');
 
-        const minWss = this.getMinWssForLevel(targetLevel);
-        const wssShift = this.correctOnCurrentLevel + this.correctHigherLevel - this.incorrectLowerLevel;
-        const finalWss = minWss + wssShift;
+    console.log('Результаты чтения:', readingResults);
+    console.log('Результаты аудирования:', listeningResults);
+
+    // Функция для подсчета метрик из истории ответов
+    const calculateMetricsFromHistory = (stage, targetLevel) => {
+        const stageAnswers = this.answersHistory.filter(a => a.stage === stage);
+        console.log(`История ответов для этапа ${stage}:`, stageAnswers);
+
+        const correctHigherLevel = stageAnswers.filter(a => 
+            a.isCorrect && this.getLevelIndex(a.level) > this.getLevelIndex(targetLevel)
+        ).length;
+
+        const incorrectLowerLevel = stageAnswers.filter(a => 
+            !a.isCorrect && this.getLevelIndex(a.level) < this.getLevelIndex(targetLevel)
+        ).length;
+
+        const correctOnCurrentLevel = stageAnswers.filter(a => 
+            a.isCorrect && a.level === targetLevel
+        ).length;
+
+        console.log(`Метрики для этапа ${stage}:`, {
+            correctHigherLevel,
+            incorrectLowerLevel,
+            correctOnCurrentLevel
+        });
 
         return {
-            ...result,
-            finalWss: finalWss
+            correctHigherLevel,
+            incorrectLowerLevel,
+            correctOnCurrentLevel
         };
+    };
+
+
+    // Рассчитываем WSS для каждого этапа
+    const readingWss = readingResults ? {
+        targetLevel: readingResults.level,
+        minWss: this.getMinWssForLevel(readingResults.level),
+        ...calculateMetricsFromHistory('reading', readingResults.level)
+    } : null;
+
+    const listeningWss = listeningResults ? {
+        targetLevel: listeningResults.level,
+        minWss: this.getMinWssForLevel(listeningResults.level),
+        ...calculateMetricsFromHistory('listening', listeningResults.level)
+    } : null;
+
+    console.log('WSS для чтения:', readingWss);
+    console.log('WSS для аудирования:', listeningWss);
+
+    // Рассчитываем финальные значения WSS
+    if (readingWss) {
+        readingWss.wssShift = readingWss.correctOnCurrentLevel + 
+                             readingWss.correctHigherLevel - 
+                             readingWss.incorrectLowerLevel;
+        readingWss.finalWss = readingWss.minWss + readingWss.wssShift;
+        readingWss.finalLevel = this.getFinalLevelByWss(readingWss.finalWss);
+        console.log('Финальный WSS для чтения:', readingWss.finalWss, 'Уровень:', readingWss.finalLevel);
     }
+
+    if (listeningWss) {
+        listeningWss.wssShift = listeningWss.correctOnCurrentLevel + 
+                               listeningWss.correctHigherLevel - 
+                               listeningWss.incorrectLowerLevel;
+        listeningWss.finalWss = listeningWss.minWss + listeningWss.wssShift;
+        listeningWss.finalLevel = this.getFinalLevelByWss(listeningWss.finalWss);
+        console.log('Финальный WSS для аудирования:', listeningWss.finalWss, 'Уровень:', listeningWss.finalLevel);
+    }
+
+    const finalWss = Math.floor((readingWss?.finalWss || 0 + listeningWss?.finalWss || 0) / 2);
+    const finalLevel = this.getFinalLevelByWss(finalWss);
+
+    console.log('Общий финальный WSS:', finalWss, 'Уровень:', finalLevel);
+
+    // Возвращаем результат
+    return {
+        targetLevel: this.currentLevel,
+        readingWss: readingWss?.finalWss,
+        listeningWss: listeningWss?.finalWss,
+        readingLevel: readingWss?.finalLevel,
+        listeningLevel: listeningWss?.finalLevel,
+        finalWss,
+        finalLevel
+    };
+}
+
+// Вспомогательный метод для получения индекса уровня
+getLevelIndex(level) {
+    return this.levels.findIndex(l => l === level);
+}
 
     getMinWssForLevel(level) {
         const wssScale = this.initializeWssScale();
@@ -2168,20 +2521,6 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         // Устанавливаем статус "in progress" при старте теста
         this.status = 'In Progress';
         this.saveProgress();
-    }
-
-    getMatchingWordsAnswer() {
-        console.log('Получение отвеов matchingWords');
-        const dropZones = this.questionContainer.querySelectorAll('.drop-zone');
-        const answers = Array.from(dropZones).map(zone => {
-            const option = zone.querySelector('.option');
-            const answer = option ? option.getAttribute('data-word') : null;
-            console.log('Ответ из зоны:', answer);
-            return answer;
-        }).filter(answer => answer !== null); // Фильтруем null значения
-
-        console.log('Собранные ответы matchingWords:', answers);
-        return answers.length === dropZones.length ? answers : null;
     }
 
     async fetchWithRetry(url, options = {}, retries = 10) {
@@ -2370,36 +2709,23 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     }
 
     showForcedCompletionMessage() {
+        if (!this.questionContainer) {
+            console.error('Question container not found');
+            return;
+        }
+    
         const message = `
             <div class="test-results forced-completion">
                 <h2>Тест завершен</h2>
-                <p>Тест был автоматически завершен из-за превышения допустмого количества перезагрузок страницы.</p>
+                <p>Тест был автоматически завершен из-за превышения допустимого количества перезагрузок страницы.</p>
                 <p>Результат: Не засчитан</p>
-                <p>Пожалуйста, свяжитесь с адмнистратоом для получения новой ппытки.</p>
+                <p>Пожалуйста, свяжитесь с администратором для получения новой попытки.</p>
                 <a href="https://wiseman-skills.com/lk" class="results-link">Перейти в личный кабинет</a>
             </div>
         `;
         
         this.questionContainer.innerHTML = message;
-        
-        // Скрываем ненужные элементы
-        const elementsToHide = [
-            'timer',
-            'current-stage',
-            'task-description',
-            'question-number'
-        ];
-        
-        elementsToHide.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                if (id === 'question-number') {
-                    element.parentElement.style.display = 'none';
-                } else {
-                    element.style.display = 'none';
-                }
-            }
-        });
+        this.hideTestElements();
     }
 
     initDragAndDrop() {
@@ -2478,82 +2804,81 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
     }
 
     async saveProgress() {
+        if (this.isTestCompleted) {
+            console.log('Тест завершен, сохранение прогресса остановлено');
+            return;
+        }
         try {
-            // Сохраняем в localStorage
-            const progress = {
-                stage: this.stages[this.currentStageIndex],
-                currentStageIndex: this.currentStageIndex,
-                currentLevel: this.currentLevel,
-                correctCount: this.correctCount,
-                incorrectCount: this.incorrectCount,
-                totalQuestions: this.totalQuestions,
-                correctHigherLevel: this.correctHigherLevel,
-                incorrectLowerLevel: this.incorrectLowerLevel,
-                questionsOnCurrentLevel: this.questionsOnCurrentLevel,
-                correctOnCurrentLevel: this.correctOnCurrentLevel,
-                correctInCurrentSeries: this.correctInCurrentSeries,
-                questionsInCurrentSeries: this.questionsInCurrentSeries,
-                answeredQuestions: Array.from(this.answeredQuestions),
-                currentQuestionId: this.currentQuestion?.id,
-                QuestionsCountByLevel: this.questionsCountByLevel,
-                status: this.status || 'In Progress',
-                answersHistory: this.answersHistory
-
-            };
-
-            localStorage.setItem('testProgress', JSON.stringify(progress));
-            console.log('Прогресс сохранён в localStorage:', progress);
-
-            // Получаем историю ответов из localStorage
-            const answersHistory = localStorage.getItem('answersHistory');
-
-            // Подготавливаем данные для отправки на сервер
+            // Сохраняем в localStorage текущий прогресс
             const progressData = {
-                userLogin: this.user.login,
-                stage: progress.stage,
-                level: progress.currentLevel,
-                correctCount: progress.correctCount,
-                incorrectCount: progress.incorrectCount,
-                questionsCountByLevel: JSON.stringify(this.questionsCountByLevel || {
+                // Основные данные пользователя
+                userLogin: this.user?.login || '',
+                
+                // Данные о текущем состоянии
+                stage: this.stages[this.currentStageIndex] || 'reading',
+                currentStageIndex: this.currentStageIndex,
+                status: this.status || 'Complete',
+                
+                // Уровни
+                level: this.currentLevel || 'pre-A1',
+                currentLevelIndex: this.currentLevelIndex,
+                
+                // Счетчики
+                correctCount: this.correctCount || 0,
+                incorrectCount: this.incorrectCount || 0,
+                totalQuestions: this.totalQuestions || 0,
+                correctHigherLevel: this.correctHigherLevel || 0,
+                incorrectLowerLevel: this.incorrectLowerLevel || 0,
+                questionsOnCurrentLevel: this.questionsOnCurrentLevel || 0,
+                correctOnCurrentLevel: this.correctOnCurrentLevel || 0,
+                
+                // Серии вопросов
+                correctInCurrentSeries: this.correctInCurrentSeries || 0,
+                questionsInCurrentSeries: this.questionsInCurrentSeries || 0,
+                
+                // Группы
+                groupCorrectAnswers: this.groupCorrectAnswers || 0,
+                groupTotalAnswers: this.groupTotalAnswers || 0,
+                groupsAnswered: this.groupsAnswered || [],
+                
+                // Вопросы
+                currentQuestionId: this.currentQuestion?.id || null,
+                answeredQuestions: Array.from(this.answeredQuestions || []),
+                questionsCountByLevel: this.questionsCountByLevel || {
                     'pre-A1': 0,
                     'A1': 0,
                     'A2': 0,
                     'B1': 0,
                     'B2': 0,
                     'C1': 0
-                }),
-                totalQuestions: progress.totalQuestions,
-                correctHigherLevel: progress.correctHigherLevel,
-                incorrectLowerLevel: progress.incorrectLowerLevel,
-                questionsOnCurrentLevel: progress.questionsOnCurrentLevel,
-                correctOnCurrentLevel: progress.correctOnCurrentLevel,
-                timestamp: new Date().toISOString(),
-                answersHistory: JSON.stringify(this.answersHistory || [])
+                },
+                
+                // История ответов
+                answersHistory: this.answersHistory || [],
+                
+                // Метаданные
+                timestamp: new Date().toISOString()
             };
+
+            // Сохраняем в localStorage
+            localStorage.setItem('progressData', JSON.stringify(progressData));
+            console.log('Прогресс сохранён в localStorage:', progressData);
 
             // Отправляем на сервер
             const response = await fetch(`${this.API_BASE_URL}/api/progress`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(progressData)
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Ошибка при сохранении прогресса:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    body: errorText
-                });
-                return null;
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const result = await response.json();
-            console.log('Прогресс успешно отправлен:', result);
-            return result;
-
+            console.log('Прогресс успешно сохранен:', progressData);
+            return progressData;
         } catch (error) {
             console.error('Ошибка при сохранении прогресса:', error);
             return null;
@@ -2574,22 +2899,54 @@ submitBtn.addEventListener('click', () => this.handleSubmit());
         return Array.from(inputs).map(input => input.value.trim());
     }
 
-    showResultsScreen() {
-        let resultsHTML = '<div class="results-container">';
-        this.stagesResults.forEach(result => {
-            const correctPercentage = ((result.correctCount / (result.correctCount + result.incorrectCount)) * 100).toFixed(1);
-            resultsHTML += `
-                <div class="stage-result">
-                    <h3>${result.stage.toUpperCase()}</h3>
-                    <p>Correct answers: ${result.correctCount}</p>
-                    <p>Incorrect answers: ${result.incorrectCount}</p>
-                    <p>Score: ${correctPercentage}%</p>
-                    <p>Final level: ${result.finalLevel}</p>
-                </div>
-            `;
+    removeEventListeners() {
+        console.log('Удаление обработчиков событий');
+        // Удаляем обработчики, связанные с ответами
+        const submitButtons = document.querySelectorAll('button[type="submit"]');
+        submitButtons.forEach(button => {
+            button.removeEventListener('click', this.handleSubmit);
         });
-        resultsHTML += '</div>';
-        this.questionContainer.innerHTML = resultsHTML;
+
+        // Удаляем обработчики для опций multiple choice
+        const optionButtons = document.querySelectorAll('.option-button');
+        optionButtons.forEach(button => {
+            button.removeEventListener('click', this.handleOptionClick);
+        });
+
+        // Удаляем обработчики для аудио
+        const audioButtons = document.querySelectorAll('.audio-button');
+        audioButtons.forEach(button => {
+            button.removeEventListener('click', this.handleAudioPlay);
+        });
+    }
+
+    getFinalLevelByWss(wss) {
+        console.log('WSS шкала:', this.wssScale);
+        console.log('Проверяемый WSS:', wss);
+
+        // Проходим по всей шкале и ищем диапазон, в который попадает WSS
+        for (const level of this.wssScale) {
+            if (wss >= level.minWss && wss <= level.maxWss) {
+                console.log(`Найден уровень ${level.level} для WSS ${wss} (${level.minWss}-${level.maxWss})`);
+                return level.level;
+            }
+        }
+
+        // Если значение WSS больше максимального в шкале
+        if (wss > this.wssScale[0].maxWss) {
+            console.log(`WSS ${wss} больше максимального значения, возвращаем высший уровень ${this.wssScale[0].level}`);
+            return this.wssScale[0].level;
+        }
+
+        // Если значение WSS меньше минимального в шкале
+        if (wss < this.wssScale[this.wssScale.length - 1].minWss) {
+            console.log(`WSS ${wss} меньше минимального значения, возвращаем низший уровень ${this.wssScale[this.wssScale.length - 1].level}`);
+            return this.wssScale[this.wssScale.length - 1].level;
+        }
+
+        // Если по какой-то причине уровень не найден
+        console.warn(`Не удалось определить уровень для WSS ${wss}`);
+        return 'N/A';
     }
 }   
 
