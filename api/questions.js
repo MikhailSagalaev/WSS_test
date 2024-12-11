@@ -1,6 +1,20 @@
 // api/questions.js
 const fetch = require('node-fetch');
 const cors = require('./middleware/cors');
+const { GOOGLE_DRIVE_API_KEY } = process.env;
+
+// Добавить функцию обработки Google Drive ссылок
+const processAudioUrl = (url) => {
+    if (url && url.includes('drive.google.com')) {
+        // Извлекаем ID файла из URL
+        const fileId = url.match(/id=([^&]+)/)?.[1];
+        if (fileId) {
+            // Формируем прямую ссылку для воспроизведения
+            return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${GOOGLE_DRIVE_API_KEY}`;
+        }
+    }
+    return url;
+};
 
 module.exports = async (req, res) => {
     if (cors(req, res)) return;
@@ -55,8 +69,8 @@ module.exports = async (req, res) => {
             fields: {
                 ...record.fields,
                 Audio: Array.isArray(record.fields.Audio)
-                    ? (record.fields.Audio.length > 0 ? record.fields.Audio[0].url : null)
-                    : (record.fields.Audio || null),
+                    ? (record.fields.Audio.length > 0 ? processAudioUrl(record.fields.Audio[0].url) : null)
+                    : (processAudioUrl(record.fields.Audio) || null),
                 TimeLimit: record.fields.TimeLimit !== undefined ? Number(record.fields.TimeLimit) : null
             }
         }));
